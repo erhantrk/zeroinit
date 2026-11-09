@@ -73,3 +73,72 @@ PASS terms-onchain
 PASS no-access-keys
 INFO status=PAID
 ```
+
+## S-D
+
+Run 2026-11-10 ~01:30 Istanbul (testnet, protocol 88). Question: does a plain transfer (no state init, like a wallet or
+exchange sends) to a nonexistent `0u…` address create an UNINITIALIZED account, and can `zi sweep` split it?
+
+Result: **PASS — path B works.** The chain accepted the plain transfer, parked the funds in an uninitialized account,
+and one `[UniversalStateInit, sweep]` tx materialized the account and split 92/8.
+
+Invoice: `SMOKE-2`, account `0u5wsc27xcsnx61qnynjpmw29bnq751v91kywgphr44b7q94p09c3g`
+(merchant `sm1110-zi-merchant.testnet`, tax vault `sm1110-zi-taxvault.testnet`, tax_bps 800, amount 0.1 NEAR,
+expires 2026-11-10T00:30:32.481Z, doc `invoices/SMOKE-2.json`).
+
+```bash
+npm run zi -- invoice new --id SMOKE-2 --merchant sm1110-zi-merchant.testnet --tax-vault sm1110-zi-taxvault.testnet \
+  --tax-bps 800 --amount 0.1 --expires-in 2h
+# INVOICE SMOKE-2
+# ACCOUNT 0u5wsc27xcsnx61qnynjpmw29bnq751v91kywgphr44b7q94p09c3g
+# PAY 0.1 NEAR before 2026-11-10T00:30:32.481Z
+# FILE invoices/SMOKE-2.json
+npm run zi -- status SMOKE-2
+# STATE NONEXISTENT
+```
+
+### Transfer: near-cli-rs refuses without a TTY, RPC-level fallback used
+
+`near tokens sm1110-zi-payer.testnet send-near 0u5wsc27xcsnx61qnynjpmw29bnq751v91kywgphr44b7q94p09c3g '0.1 NEAR'
+network-config testnet sign-with-legacy-keychain send` exits 1: near-cli-rs warns
+`<0u5wsc…> does not exist on <testnet>` and then fails with `0: The input device is not a TTY` (it wants an interactive
+"proceed anyway?" confirmation). That is the case T07 anticipates, so the transfer went through the RPC-level fallback
+`scripts/plain-transfer.ts`, which is just
+`sendActions(cfg, cfg.payer, <ACCOUNT>, [actTransfer(parseNear('0.1'))], 'transfer')`:
+
+```bash
+node scripts/plain-transfer.ts 0u5wsc27xcsnx61qnynjpmw29bnq751v91kywgphr44b7q94p09c3g 0.1
+# TX AyX3nvAWC5Rw8XJPSHdaVEr4MMfqXdQKRU9eCXN1myiv
+# RESULT SUCCESS
+```
+
+- **Plain-transfer tx:** `AyX3nvAWC5Rw8XJPSHdaVEr4MMfqXdQKRU9eCXN1myiv`
+  (https://testnet.nearblocks.io/txns/AyX3nvAWC5Rw8XJPSHdaVEr4MMfqXdQKRU9eCXN1myiv)
+- After the transfer: `npm run zi -- status SMOKE-2` → `STATE UNINITIALIZED balance=0.1`
+
+Raw `view_account` (exact curl response):
+
+```json
+{"jsonrpc":"2.0","result":{"amount":"100000000000000000000000","block_hash":"6wTJzo5rntuYj6SXiqqVS1nFtARf8cSZVEPCRG931Dcv","block_height":276981979,"bootstrap_nonce":276981936000000,"code_hash":"11111111111111111111111111111111","locked":"0","state":"uninitialized","storage_paid_at":0,"storage_usage":100},"id":"zi"}
+```
+
+### Sweep
+
+```bash
+npm run zi -- sweep SMOKE-2
+```
+```
+TX 7gDy75A4gvZRw4rQxHVZskDJzcuF8ChMdiSUF9C3YpsX
+RESULT PAID
+EVENT invoice_paid {"invoice_id":"SMOKE-2","account_id":"0u5wsc27xcsnx61qnynjpmw29bnq751v91kywgphr44b7q94p09c3g","via":"transfer","payer":null,"amount":"100000000000000000000000","merchant_amount":"92000000000000000000000","tax_amount":"8000000000000000000000","excess_refunded":"0","late":false}
+TRANSFER sm1110-zi-merchant.testnet 0.092
+TRANSFER sm1110-zi-taxvault.testnet 0.008
+LINK https://testnet.nearblocks.io/txns/7gDy75A4gvZRw4rQxHVZskDJzcuF8ChMdiSUF9C3YpsX
+STATE INITIALIZED status=PAID paid_by=null balance=0 storage=325
+```
+
+- **Sweep tx:** `7gDy75A4gvZRw4rQxHVZskDJzcuF8ChMdiSUF9C3YpsX`
+  (https://testnet.nearblocks.io/txns/7gDy75A4gvZRw4rQxHVZskDJzcuF8ChMdiSUF9C3YpsX)
+
+near-cli-rs's "does not exist" warning is cosmetic (its account-id parser does not know `0u` ids); the chain itself
+accepts the plain Transfer, so PLAN §3 MUST item 4 (plain-transfer path) stays a MUST.
