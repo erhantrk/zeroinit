@@ -287,6 +287,23 @@ mod tests {
     }
 
     #[test]
+    fn sweep_paid_with_extra_sweeps_to_merchant() {
+        ctx(0, 1_794_000_000_000, ONE_NEAR);
+        let mut inv = example();
+        inv.status = STATUS_PAID;
+        inv.paid_amount = ONE_NEAR;
+        assert_eq!(inv.sweep(), "EXTRA_SWEPT");
+        assert_eq!(inv.status, STATUS_PAID);
+        assert_eq!(inv.paid_amount, ONE_NEAR);
+        let logs = get_logs();
+        assert_eq!(logs.len(), 1);
+        assert!(logs[0].starts_with("EVENT_JSON:"));
+        assert!(logs[0].contains("\"event\":\"extra_swept\""));
+        assert!(logs[0].contains("\"amount\":\"1000000000000000000000000\""));
+        assert!(logs[0].contains("\"to\":\"zi-merchant.testnet\""));
+    }
+
+    #[test]
     #[should_panic(expected = "UNDERPAID")]
     fn sweep_underpaid_panics() {
         ctx(0, 1_794_000_000_000, ONE_NEAR / 2);

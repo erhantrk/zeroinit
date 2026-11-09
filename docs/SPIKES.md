@@ -143,6 +143,42 @@ STATE INITIALIZED status=PAID paid_by=null balance=0 storage=325
 near-cli-rs's "does not exist" warning is cosmetic (its account-id parser does not know `0u` ids); the chain itself
 accepts the plain Transfer, so PLAN §3 MUST item 4 (plain-transfer path) stays a MUST.
 
+### Second 0.1 NEAR after the sweep: traced, then `EXTRA_SWEPT`
+
+A later `npm run zi -- status SMOKE-2` showed `balance=0.1` again. Traced with an RPC block/chunk scan: the state change
+is first visible at block **276982291**, and the transaction itself is in block **276982290**.
+
+- **Extra transfer tx:** `8FZhDmcsC4GPuVEEj3rt16moH1roRLfo8FrKvhNrmtwC`
+  (https://testnet.nearblocks.io/txns/8FZhDmcsC4GPuVEEj3rt16moH1roRLfo8FrKvhNrmtwC), block 276982290,
+  2026-11-09T22:35:15 UTC (01:35:15 Istanbul), signer `sm1110-zi-payer.testnet`, exactly one `Transfer` action of
+  `100000000000000000000000` yocto, `status: {"SuccessValue": ""}`.
+- **Who sent it:** the Conductor acceptance checker re-ran the T07 report's
+  `node scripts/plain-transfer.ts 0u5wsc27xcsnx61qnynjpmw29bnq751v91kywgphr44b7q94p09c3g 0.1` at ~01:34:10 Istanbul.
+  It is not a builder run, and the checker no longer re-runs live commands. The account stayed initialized
+  (`global_contract_hash` unchanged) with `status=PAID`, `paid_by=null`, `paid_amount=0.1`, `storage=325`.
+
+That gave an unplanned but useful data point: `sweep()` on an **already-PAID** invoice (INTERFACES §5.2 last row).
+
+```bash
+npm run zi -- sweep SMOKE-2
+```
+```
+TX GToSvGaCs9eAKrVydxjgsi3RuvDotqPGF5zh3eTUYafm
+RESULT EXTRA_SWEPT
+EVENT extra_swept {"invoice_id":"SMOKE-2","account_id":"0u5wsc27xcsnx61qnynjpmw29bnq751v91kywgphr44b7q94p09c3g","amount":"100000000000000000000000","to":"sm1110-zi-merchant.testnet"}
+TRANSFER sm1110-zi-merchant.testnet 0.1
+LINK https://testnet.nearblocks.io/txns/GToSvGaCs9eAKrVydxjgsi3RuvDotqPGF5zh3eTUYafm
+STATE INITIALIZED status=PAID paid_by=null balance=0 storage=325
+```
+
+- **Extra sweep tx:** `GToSvGaCs9eAKrVydxjgsi3RuvDotqPGF5zh3eTUYafm`
+  (https://testnet.nearblocks.io/txns/GToSvGaCs9eAKrVydxjgsi3RuvDotqPGF5zh3eTUYafm). Signer
+  `sm1110-zi-merchant.testnet`, return value `"EXTRA_SWEPT"`, one `extra_swept` event, and **100 %** of the extra
+  0.1 NEAR forwarded to the merchant (no tax split on extra funds, per INTERFACES §5.2). `paid_at_ms`/`paid_amount`
+  were not rewritten. `tokens_burnt` 82,740,528,600,500,000,000 yocto (0.0000827 NEAR), paid by the sweeper.
+- **Final state:** `{"amount":"0", "global_contract_hash":"Amg4WXKy…GW6k", "storage_usage":325}` at block 276984385 —
+  the account is empty again, so no PAID invoice is left holding funds.
+
 ## S-E — storage bytes, payer cost, deploy burn
 
 Run 2026-11-10 ~01:40 Istanbul (testnet, protocol 88).
