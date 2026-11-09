@@ -249,3 +249,28 @@ chain, the global contract is deployed and reused by hash, `[UniversalStateInit,
 and splits in one transaction, a plain wallet transfer parks funds in an uninitialized account that `sweep`
 materializes, and the measured numbers are inside the plan's limits (storage 352 ≤ 770, payer 0.00736 NEAR per
 materialization). No fallback (`0s`, two-step, 0.01 NEAR deposit) is needed. Proceed to Day 1 (T10+).
+
+## T10 refund cases
+
+Recorded live on testnet with `ZI_RECORD=fixtures/refund-cases.json` on 2026-11-10 ~01:02–01:07 UTC (protocol 88,
+accounts `sm1110-zi-*`, code hash `Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k`). All five invoices use merchant
+`sm1110-zi-merchant.testnet`, tax vault `sm1110-zi-taxvault.testnet`, `tax_bps 800`, amount 0.1 NEAR. Docs were copied
+to `invoices/demo/`; `npm run zi -- replay fixtures/refund-cases.json` prints only PASS lines.
+
+| Case | What happened | Tx | Result |
+|---|---|---|---|
+| REF-UNDER | paid 0.05 against 0.1 | `6xJeA9v3jWpaKBS374YkE61X43fw3v7XmeBCyKQsdYkc` | `REFUNDED_UNDERPAID`, 0.05 refunded to payer, status stays `OPEN` (storage 327) |
+| REF-EXPIRED | paid after the 1m expiry | `GzCoQKHS31QwBQUjRoop5S3cJdncXhRsi8aHp5xRjmce` | `REFUNDED_EXPIRED`, 0.1 refunded, status `EXPIRED` (storage 329) |
+| REF-TWICE (1st) | paid 0.1 exactly | `GyHHFM3s8GGrNgR2qVnHRxDKJV8JiUWm3VaPpA6cNqmH` | `PAID`, split 0.092 / 0.008 |
+| REF-TWICE (2nd) | paid again after `PAID` | `6xSPUeJPudhtV1CgTNsy4C5fAdUP4ovMG9XZwHtLkGo3` | `REFUNDED_NOT_OPEN`, 0.1 refunded |
+| REF-OVER | paid 0.15 against 0.1 | `FGUt27MFkqGkNxVnpW5EiPJkQcWwcf8fLP7SdMmn9a8M` | `PAID`, split 0.092 / 0.008, excess 0.05 refunded to payer |
+| REF-SWEEPLOW (transfer) | plain transfer of 0.05 to the `0u…` id | `BCWEnPwuNDo41LVyGcygQFvzExY8r76Uzq79BKjKjBj1` | account `UNINITIALIZED`, balance 0.05 |
+| REF-SWEEPLOW (sweep) | sweep with only 0.05 parked vs 0.1 amount | `6DGQAdk46AnRxJuN8ZHgjxBw7vkJeMxesGgDj2KNd7sW` | **expected failure**: receipt reverts with `UNDERPAID: available 50000000000000000000000 < amount 100000000000000000000000`; account stays `UNINITIALIZED` with 0.05, nothing lost |
+
+`near tokens … send-near 0u4173bq… '0.05 NEAR'` hit the same non-TTY confirmation wall as S-D (`The input device is not
+a TTY`), so the plain transfer used the RPC-level `scripts/plain-transfer.ts` fallback documented in S-D.
+
+Replay (`npm run zi -- replay fixtures/refund-cases.json`) includes:
+`PASS refund-event REF-UNDER REFUNDED_UNDERPAID`, `PASS refund-event REF-EXPIRED REFUNDED_EXPIRED`,
+`PASS refund-event REF-TWICE REFUNDED_NOT_OPEN`, `PASS split-merchant REF-OVER 0.092`,
+`PASS transfer-path-uninitialized REF-SWEEPLOW 0.05`, `PASS sweep-underpaid-reverted REF-SWEEPLOW 6DGQAdk46AnRxJuN8ZHgjxBw7vkJeMxesGgDj2KNd7sW`.
