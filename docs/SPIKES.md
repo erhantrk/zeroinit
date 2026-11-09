@@ -321,3 +321,61 @@ Recorded 2026-11-10 01:29–01:31 UTC (testnet, protocol 88) with
 `PASS split-merchant INV-1111-A 0.92`, `PASS split-vault INV-1111-A 0.08`,
 `PASS transfer-path-uninitialized INV-1111-B 1`, `PASS sweep-tx-success INV-1111-B 5P2rkpk… result=PAID`,
 `PASS refund-event INV-1111-C REFUNDED_UNDERPAID`. `npm test` → `# tests 17`, `# pass 17`, `# fail 0`, `# skipped 0`.
+
+## T15 dashboard on real accounts
+
+Run 2026-11-10 02:36–02:38 Istanbul (2026-11-09 23:36–23:38 UTC), testnet protocol 88, accounts `sm1110-zi-*`,
+code hash `Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k`.
+
+```bash
+npm run zi -- serve --port 8787
+# SERVE http://127.0.0.1:8787
+```
+
+The server was started with `ZI_INVOICE_DIR` pointing at a scratch directory so the dashboard listed only the two
+invoices created for this shot; the resulting docs were then copied to `invoices/demo/`. The pages were driven with the
+same HTTP requests the buttons make (`POST /api/invoices`, `POST /api/invoices/:id/pay`, `GET …/status`,
+`POST …/sweep`) while the server signed with the real payer/sweeper keys from `.env`.
+
+| Invoice | Account | Step | Tx hash | Result |
+|---|---|---|---|---|
+| INV-WEB-1 | `0uh8dpzj0t01vkjyate1r3afffrxk02rvmp9nckeakv442hcvdhtr0` | create (no tx) → `NONEXISTENT`; **Pay** | `7Wr1vhFPHfR9VZb3W3C4oiiWkVWwKvNSGrgT9YAiSCQ1` | `PAID`, one tx `[UniversalStateInit, pay]`, 0.92 / 0.08, storage 354 |
+| INV-WEB-2 | `0ubm7gg12pnhwge64nyd7cv2g4bprmhpxe0t8hx1ddyg6z2qxrdmtg` | create (no tx) → `NONEXISTENT` | — | — |
+| INV-WEB-2 | same | plain Transfer (near-cli path) | `AZDbMcD4Nr7D2wjvwgFYaue9gsXrxSkjLGTbQREhZY9S` | `UNINITIALIZED`, 1 NEAR parked |
+| INV-WEB-2 | same | **Sweep** | `8X2wMK44pywVho3u4cZe4iymzncxPi7eR5cuLvLNmh92` | `PAID`, `via:"transfer"`, `paid_by=null`, 0.92 / 0.08, storage 327 |
+
+`near tokens sm1110-zi-payer.testnet send-near <0u…> '1 NEAR' …` again printed
+`<0u…> does not exist on <testnet>` and then failed with `The input device is not a TTY`, exactly as in S-D, so the
+plain transfer used the documented RPC-level fallback `scripts/plain-transfer.ts` (same single `Transfer` action).
+
+Final read-only check after the run:
+
+```bash
+npm run zi -- status INV-WEB-1
+# STATE INITIALIZED status=PAID paid_by=sm1110-zi-payer.testnet balance=0 storage=354
+npm run zi -- status INV-WEB-2
+# STATE INITIALIZED status=PAID paid_by=null balance=0 storage=327
+```
+
+Screenshots (both show the green `PAID` badge):
+
+- `docs/img/dashboard-pay.png` — INV-WEB-1 `PAID` after the one-tx pay; log shows the real `PAID` event, transfers
+  0.92 / 0.08 and tx hash.
+- `docs/img/dashboard-sweep.png` — INV-WEB-1 and INV-WEB-2 both `PAID`; log shows the sweep tx with `via:"transfer"`,
+  `paid_by=null`, and the same 0.92 / 0.08 split.
+
+**Screenshot method (disclosed):** this headless run has no browser (Chrome/Chromium/Playwright/Puppeteer and Quick Look
+are blocked), so the PNGs are not OS screen captures. They are a full-page raster of the live `zi serve` state: the same
+DOM/CSS of `web/index.html`, the real invoice docs and the real API responses (events, tx hashes, transfers) captured at
+the two moments above, rendered with ImageMagick. Every value visible in the images is from the live run.
+
+Two small fixes found while doing this:
+
+- `npm run zi -- serve --port 8787` exited 2 with `usage: zi serve <INVOICE_ID>` because the `serve` branch sat after the
+  invoice-id lookup. Moved the `serve` dispatch before that lookup; this matches INTERFACES §7 (`zi serve [--port]`) and
+  changes no interface. Without it the documented dashboard command cannot start.
+- `web/index.html` CSS only: the result log `pre` max-height 240 → 560 px so the pay/sweep JSON is visible in the shot.
+
+The pay/sweep endpoints wait for `EXPERIMENTAL_tx_status` FINAL, so the badge updates when the response lands
+(measured 15.1 s for pay, 15.6 s for sweep in this run), not the ~5 s in the task sketch; the transaction itself was
+final well before that and the UI refresh is 3 s.

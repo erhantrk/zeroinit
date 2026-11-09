@@ -81,6 +81,12 @@ async function main(argv: string[]): Promise<number> {
 
   const cfg = loadConfig();
 
+  if (cmd === 'serve') {
+    const { serve } = await import('./server.ts');
+    await serve(cfg, Number(v.port ?? '8787'));
+    return await new Promise<number>(() => {}); // runs until Ctrl-C
+  }
+
   if (cmd === 'invoice') {
     if (rest[0] !== 'new') throw new UsageError('usage: zi invoice new --id … --merchant … --tax-vault … --tax-bps … --amount … --expires-in …');
     const codeHash = v['code-hash'] ?? cfg.codeHashB58;
@@ -167,11 +173,6 @@ async function main(argv: string[]): Promise<number> {
       `| Status | ${inv.status} |`, `| Paid by | ${inv.paid_by ?? '(plain transfer)'} |`, `| Paid | ${formatNear(BigInt(inv.paid_amount))} NEAR |`,
       `| Merchant got | ${formatNear(BigInt(inv.paid_amount) - tax)} NEAR → ${doc.merchant} |`, `| Tax | ${formatNear(tax)} NEAR → ${doc.tax_vault} |`]);
     return 0;
-  }
-  if (cmd === 'serve') {
-    const { serve } = await import('./server.ts');
-    await serve(cfg, Number(v.port ?? '8787'));
-    return await new Promise<number>(() => {}); // runs until Ctrl-C
   }
   throw new UsageError(`unhandled command ${cmd}`);
 }
