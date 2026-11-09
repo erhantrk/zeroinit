@@ -274,3 +274,31 @@ Replay (`npm run zi -- replay fixtures/refund-cases.json`) includes:
 `PASS refund-event REF-UNDER REFUNDED_UNDERPAID`, `PASS refund-event REF-EXPIRED REFUNDED_EXPIRED`,
 `PASS refund-event REF-TWICE REFUNDED_NOT_OPEN`, `PASS split-merchant REF-OVER 0.092`,
 `PASS transfer-path-uninitialized REF-SWEEPLOW 0.05`, `PASS sweep-underpaid-reverted REF-SWEEPLOW 6DGQAdk46AnRxJuN8ZHgjxBw7vkJeMxesGgDj2KNd7sW`.
+
+## T11 verify + receipt on the smoke invoices
+
+Run 2026-11-10 ~02:10 Istanbul (testnet, protocol 88), commands exactly as T11. Every line is `PASS` or `INFO`.
+
+```bash
+for id in SMOKE-1 SMOKE-2 REF-OVER; do npm run zi -- verify $id; done
+npm run zi -- receipt SMOKE-1
+node -e "const r=require('./invoices/SMOKE-1.receipt.json');console.log(r.checks)"
+```
+
+| Invoice | Account | verify result |
+|---|---|---|
+| SMOKE-1 | `0uy1ebvnvd4cd0nen8fq0de0sen9habjraqcsn80zz4cmfykr2945g` | `PASS id-from-terms`, `PASS raw-from-terms`, `PASS code-hash-onchain Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k`, `PASS terms-onchain`, `PASS no-access-keys`, `INFO status=PAID` |
+| SMOKE-2 | `0u5wsc27xcsnx61qnynjpmw29bnq751v91kywgphr44b7q94p09c3g` | same five `PASS` lines, `INFO status=PAID` |
+| REF-OVER | `0u4zj4m9bypmktwvv3k6qdf3jdxae5ygetvd9m3zr616v0zj1352qg` | same five `PASS` lines, `INFO status=PAID` |
+
+`npm run zi -- receipt SMOKE-1` wrote `invoices/SMOKE-1.receipt.json` and printed the receipt table
+(`Status PAID`, `0.1 NEAR` paid by `sm1110-zi-payer.testnet`, merchant `0.092`, tax `0.008`). The checks object is exactly
+the expected one:
+
+```
+{ id_matches_terms: true, code_hash_matches: true, terms_match_onchain: true, status: 'PAID' }
+```
+
+The receipt nests the invoice doc and the live `get_invoice`/`view_account` results (`storage_usage` 352,
+`global_contract_hash` `Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k`). It lives under `invoices/*.receipt.json`, which
+the frozen `.gitignore` excludes, so the command regenerates it on demand rather than committing it.
