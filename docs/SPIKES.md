@@ -302,3 +302,22 @@ the expected one:
 The receipt nests the invoice doc and the live `get_invoice`/`view_account` results (`storage_usage` 352,
 `global_contract_hash` `Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k`). It lives under `invoices/*.receipt.json`, which
 the frozen `.gitignore` excludes, so the command regenerates it on demand rather than committing it.
+
+## T14 demo run (`fixtures/demo-run.json`)
+
+Recorded 2026-11-10 01:29–01:31 UTC (testnet, protocol 88) with
+`ZI_RECORD=fixtures/demo-run.json scripts/demo.sh 1111`. The plain transfer used `scripts/plain-transfer.ts`
+(the non-TTY fallback documented in S-D). Invoice docs copied to `invoices/demo/INV-1111-*.json`.
+
+| Invoice | Account | Step | Tx hash | Result |
+|---|---|---|---|---|
+| INV-1111-A | `0u4kwsbdsf5s5dfzp6wjaeq5ces9sajpv8hwmsp52a9e5bz30ave60` | `zi pay` (1 NEAR, one tx with state init) | `BdzRBcFfwFqxc3TXXB481HcMna1YVYrrj62Z2h48pBTA` | `PAID`, 0.92 merchant / 0.08 vault, storage 355 |
+| INV-1111-B | `0utxj6evg2181sh8vwev5epp31d35a7dqpmrr16k51hkgbpgcev0gg` | plain Transfer (wallet/exchange style) | `2eXsHhHMnLcRgdyNW1Eyc6mvaGLtCggP13XLYrYErngC` | account `UNINITIALIZED`, 1 NEAR parked |
+| INV-1111-B | same | `zi sweep` | `5P2rkpkVQLgBf5poR84kgFrFxgcGf6osEHAzBLHrvKaa` | `PAID`, `paid_by=null`, 0.92 / 0.08, storage 328 |
+| INV-1111-C | `0u97723pqzyx0zqkcxy11mc1shet2xhkgq47e6t5sy5fwzk2mjrzhg` | `zi pay --amount 0.5` against 1 NEAR | `DSbTpzE2cPMgoYav23oBGpxEVY46caLPYdewBfzvUwDJ` | `REFUNDED_UNDERPAID`, 0.5 refunded, status stays `OPEN`, storage 328 |
+
+`npm run zi -- replay fixtures/demo-run.json` → only `PASS` lines, exit 0, among them
+`PASS before-unknown-account INV-1111-A`, `PASS pay-tx-success INV-1111-A BdzRBcFf… result=PAID`,
+`PASS split-merchant INV-1111-A 0.92`, `PASS split-vault INV-1111-A 0.08`,
+`PASS transfer-path-uninitialized INV-1111-B 1`, `PASS sweep-tx-success INV-1111-B 5P2rkpk… result=PAID`,
+`PASS refund-event INV-1111-C REFUNDED_UNDERPAID`. `npm test` → `# tests 17`, `# pass 17`, `# fail 0`, `# skipped 0`.
