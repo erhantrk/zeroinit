@@ -142,3 +142,74 @@ STATE INITIALIZED status=PAID paid_by=null balance=0 storage=325
 
 near-cli-rs's "does not exist" warning is cosmetic (its account-id parser does not know `0u` ids); the chain itself
 accepts the plain Transfer, so PLAN §3 MUST item 4 (plain-transfer path) stays a MUST.
+
+## S-E — storage bytes, payer cost, deploy burn
+
+Run 2026-11-10 ~01:40 Istanbul (testnet, protocol 88).
+
+### Storage after materialization
+
+```bash
+npm run zi -- status SMOKE-1 --json
+```
+```json
+{"kind":"INITIALIZED","amount":"0","storageUsage":352,"globalContractHash":"Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k","globalContractAccountId":null,"invoice":{"v":1,"account_id":"0uy1ebvnvd4cd0nen8fq0de0sen9habjraqcsn80zz4cmfykr2945g","invoice_id":"SMOKE-1","merchant":"sm1110-zi-merchant.testnet","tax_vault":"sm1110-zi-taxvault.testnet","tax_bps":800,"amount":"100000000000000000000000","expires_at_ms":"1794270168844","salt":"9037609756393658036","status":"PAID","paid_by":"sm1110-zi-payer.testnet","paid_at_ms":"1794263023290","paid_amount":"100000000000000000000000","tax_amount":"8000000000000000000000"}}
+```
+
+`storageUsage` = **352 B**. The task expected ≈ 330; 352 is far below the 770 B zero-balance limit
+(INTERFACES §0), so `deposit: 0` on `UniversalStateInit` stays correct and the pre-approved 0.01 NEAR
+deposit (T06 error table) is **not** needed. Raw `view_account` for the same account:
+
+```json
+{"jsonrpc":"2.0","result":{"amount":"0","block_hash":"73Wp5GDe64PnHdfuNF6qMQh4EEzmxqTdeUDbGvPw3xAf","block_height":276982849,"code_hash":"11111111111111111111111111111111","global_contract_hash":"Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k","locked":"0","storage_paid_at":0,"storage_usage":352},"id":"zi"}
+```
+
+The plain-transfer path ends at **325 B** after `sweep` (S-D above), also well under 770.
+
+### Payer cost of one materialization (SMOKE-3)
+
+New invoice `SMOKE-3`, amount 0.1 NEAR, account `0ub2381yvc3ajvdhzx6hwxsxrakmjygnjxswx6srqmjr0m0qt0q2jg`
+(doc `invoices/SMOKE-3.json`, gitignored).
+
+| Point | Payer `sm1110-zi-payer.testnet` balance | Block |
+|---|---|---|
+| before `zi pay SMOKE-3` | `9.6847289421768805 NEAR` | #276982642 |
+| after `zi pay SMOKE-3` | `9.577367157378761 NEAR` | #276982767 |
+
+Cost = 9.6847289421768805 − 9.577367157378761 − 0.1 = **0.0073617847981195 NEAR**
+(7,361,784,798,119,500,000,000 yocto), i.e. 7.36% of the 0.1 NEAR invoice and well inside the expected 0.007–0.01 NEAR.
+
+That equals the transaction's total `tokens_burnt` exactly, so the balance delta is all gas + the protocol's
+0.007 NEAR account-creation charge:
+
+- Pay tx: `AaVJr8jgAZ2jwG4j4xR5pYvFnDPbfFADvBWpNrDuHY3M`
+  (https://testnet.nearblocks.io/txns/AaVJr8jgAZ2jwG4j4xR5pYvFnDPbfFADvBWpNrDuHY3M)
+- Actions: `UniversalStateInit{deposit:"0", state_init:"AAEAkSrn…"}` + `FunctionCall{pay, deposit:"100000000000000000000000", gas:50000000000000}`
+- `status: {"SuccessValue":"IlBBSUQi"}` = `PAID`; the invoice's `paid_at_ms` advanced to the block timestamp.
+- Tokens burnt: tx outcome 82,730,991,857,500,000,000 yocto (0.0000827309918575 NEAR); the `pay` receipt
+  7,234,417,293,762,000,000,000 yocto (0.007234417293762 NEAR, of which 0.007 is the creation charge); four
+  refund/gas receipts at 22,318,256,250,000,000,000 yocto each. Total **0.0073617847981195 NEAR**.
+- Transfers in the outcome: `0.092` → merchant, `0.008` → tax vault, gas refunds → payer.
+
+So: **one materialization costs the payer ≈ 0.00736 NEAR** on top of the invoice amount, matching PLAN §7.
+
+### Deploy burn (measured in T05, restated here)
+
+The one-time global deploy burned **7.8526 NEAR** for the 78,519-byte wasm (deployer 10 NEAR → 2.1474 NEAR),
+tx `DSXd2Sjq59zRF2ZX9j3D8SMYd6GZ44XpsW1aJbKfpJ1h`. The contract is frozen; this is not a per-invoice cost.
+
+## Spike summary and GO/NO-GO
+
+| Spike | Result | Evidence (tx hash / output) |
+|---|---|---|
+| S-A derivation | PASS | PAY tx `3Wou3fRW3TZcPF5927ohzfT7ut9GfqGFs6nXjw2y6PmV` created `0uy1ebvnvd4cd0nen8fq0de0sen9habjraqcsn80zz4cmfykr2945g`; no `InvalidUniversalStateInitReceiver`; `PASS id-from-terms` |
+| S-B global deploy + account | PASS | deploy tx `DSXd2Sjq59zRF2ZX9j3D8SMYd6GZ44XpsW1aJbKfpJ1h`, code hash `Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k`, burn 7.8526 NEAR; created account's `global_contract_hash` = same hash; `PASS code-hash-onchain`, `PASS no-access-keys` |
+| S-C one-tx create+pay+split | PASS | tx `3Wou3fRW3TZcPF5927ohzfT7ut9GfqGFs6nXjw2y6PmV`: one tx with `[UniversalStateInit, FunctionCall pay]` → `RESULT PAID`, `TRANSFER sm1110-zi-merchant.testnet 0.092`, `TRANSFER sm1110-zi-taxvault.testnet 0.008` |
+| S-D plain transfer → uninitialized → sweep | PASS | transfer tx `AyX3nvAWC5Rw8XJPSHdaVEr4MMfqXdQKRU9eCXN1myiv` → `"state":"uninitialized"`, balance 0.1, `storage_usage:100`; sweep tx `7gDy75A4gvZRw4rQxHVZskDJzcuF8ChMdiSUF9C3YpsX` → `RESULT PAID`, 0.092/0.008 split |
+| S-E storage bytes / payer cost / deploy burn | 352 B / 0.0073617847981195 NEAR / 7.8526 NEAR | `status SMOKE-1 --json` → `storageUsage:352` (≤ 770, no 0.01 NEAR deposit needed); payer 9.6847289421768805 → 9.577367157378761 minus 0.1 = 0.0073617847981195, equal to SMOKE-3 pay tx `AaVJr8jgAZ2jwG4j4xR5pYvFnDPbfFADvBWpNrDuHY3M` total `tokens_burnt`; deploy burn from S-B |
+
+**Decision: GO (0u, one-tx).** All five Day-0 spikes pass on testnet protocol 88. `0u` derivation matches the
+chain, the global contract is deployed and reused by hash, `[UniversalStateInit, FunctionCall pay]` creates, pays
+and splits in one transaction, a plain wallet transfer parks funds in an uninitialized account that `sweep`
+materializes, and the measured numbers are inside the plan's limits (storage 352 ≤ 770, payer 0.00736 NEAR per
+materialization). No fallback (`0s`, two-step, 0.01 NEAR deposit) is needed. Proceed to Day 1 (T10+).
