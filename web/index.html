@@ -37,7 +37,8 @@
     <pre id="log"></pre>
   </div>
 </div>
-<script>
+<script type="module">
+import { FORM_FIELDS, formBody, invoiceRows, selection } from '/state.js';
 const $ = (id) => document.getElementById(id);
 let selected = null;
 const log = (o) => { $('log').textContent = JSON.stringify(o, null, 2) + '\n' + $('log').textContent; };
@@ -47,24 +48,23 @@ async function api(method, path, body) {
 }
 async function refresh() {
   const docs = await api('GET', '/api/invoices');
-  const rows = await Promise.all(docs.map(async (d) => ({ d, s: await api('GET', `/api/invoices/${d.invoice_id}/status`) })));
-  $('invoices').innerHTML = rows.map(({ d, s }) => {
-    const label = s.state === 'INITIALIZED' && s.invoice ? s.invoice.status : s.state;
-    return `<p><a href="#" data-id="${d.invoice_id}">${d.invoice_id}</a> <span class="badge ${label}">${label}</span><br><code>${d.account_id}</code><br>${d.amount_near} NEAR</p>`;
-  }).join('');
+  const statuses = await Promise.all(docs.map((d) => api('GET', `/api/invoices/${d.invoice_id}/status`)));
+  const rows = invoiceRows(docs, statuses);
+  $('invoices').innerHTML = rows.map(({ doc: d, label }) =>
+    `<p><a href="#" data-id="${d.invoice_id}">${d.invoice_id}</a> <span class="badge ${label}">${label}</span><br><code>${d.account_id}</code><br>${d.amount_near} NEAR</p>`).join('');
   document.querySelectorAll('[data-id]').forEach((a) => a.onclick = (e) => { e.preventDefault(); select(a.dataset.id, rows); });
   if (selected) select(selected, rows);
 }
 function select(id, rows) {
   selected = id;
-  const row = rows.find((r) => r.d.invoice_id === id);
+  const row = selection(rows, id);
   if (!row) return;
-  $('selected').innerHTML = `<p><b>${id}</b>: pay <b>${row.d.amount_near} NEAR</b> to<br><code>${row.d.account_id}</code></p>`;
+  $('selected').innerHTML = `<p><b>${row.id}</b>: pay <b>${row.amountNear} NEAR</b> to<br><code>${row.accountId}</code></p>`;
   $('pay').disabled = false; $('sweep').disabled = false;
 }
 $('create').onclick = async () => {
-  const body = Object.fromEntries(['id', 'merchant', 'tax_vault', 'tax_bps', 'amount_near', 'expires_in_minutes'].map((k) => [k, $(k).value]));
-  log(await api('POST', '/api/invoices', body)); refresh();
+  const values = Object.fromEntries(FORM_FIELDS.map((k) => [k, $(k).value]));
+  log(await api('POST', '/api/invoices', formBody(values))); refresh();
 };
 $('pay').onclick = async () => { log(await api('POST', `/api/invoices/${selected}/pay`, {})); refresh(); };
 $('sweep').onclick = async () => { log(await api('POST', `/api/invoices/${selected}/sweep`, {})); refresh(); };

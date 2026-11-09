@@ -320,7 +320,8 @@ Recorded 2026-11-10 01:29–01:31 UTC (testnet, protocol 88) with
 `PASS before-unknown-account INV-1111-A`, `PASS pay-tx-success INV-1111-A BdzRBcFf… result=PAID`,
 `PASS split-merchant INV-1111-A 0.92`, `PASS split-vault INV-1111-A 0.08`,
 `PASS transfer-path-uninitialized INV-1111-B 1`, `PASS sweep-tx-success INV-1111-B 5P2rkpk… result=PAID`,
-`PASS refund-event INV-1111-C REFUNDED_UNDERPAID`. `npm test` → `# tests 17`, `# pass 17`, `# fail 0`, `# skipped 0`.
+`PASS refund-event INV-1111-C REFUNDED_UNDERPAID`. `npm test` → `# tests 26`, `# pass 26`, `# fail 0`, `# skipped 0`
+(17 before the day-2 review; `test/demo-run.test.ts` now pins the seven checks above).
 
 ## T15 dashboard on real accounts
 
@@ -357,24 +358,44 @@ npm run zi -- status INV-WEB-2
 # STATE INITIALIZED status=PAID paid_by=null balance=0 storage=327
 ```
 
-Screenshots (both show the green `PAID` badge):
+Images — **HTML renders, not live screenshots** (both show the green `PAID` badge):
 
-- `docs/img/dashboard-pay.png` — INV-WEB-1 `PAID` after the one-tx pay; log shows the real `PAID` event, transfers
-  0.92 / 0.08 and tx hash.
-- `docs/img/dashboard-sweep.png` — INV-WEB-1 and INV-WEB-2 both `PAID`; log shows the sweep tx with `via:"transfer"`,
-  `paid_by=null`, and the same 0.92 / 0.08 split.
+- `docs/img/dashboard-pay-html-render.png` — INV-WEB-1 `PAID` after the one-tx pay; log shows the real `PAID` event,
+  transfers 0.92 / 0.08 and tx hash.
+- `docs/img/dashboard-sweep-html-render.png` — INV-WEB-1 and INV-WEB-2 both `PAID`; log shows the sweep tx with
+  `via:"transfer"`, `paid_by=null`, and the same 0.92 / 0.08 split.
 
-**Screenshot method (disclosed):** this headless run has no browser (Chrome/Chromium/Playwright/Puppeteer and Quick Look
-are blocked), so the PNGs are not OS screen captures. They are a full-page raster of the live `zi serve` state: the same
-DOM/CSS of `web/index.html`, the real invoice docs and the real API responses (events, tx hashes, transfers) captured at
-the two moments above, rendered with ImageMagick. Every value visible in the images is from the live run.
+**Image method (disclosed):** this headless run has no browser (Chrome/Chromium/Playwright/Puppeteer and Quick Look are
+blocked), so the PNGs are not OS screen captures and not screenshots. They are full-page rasters of the live
+`zi serve` state: the same DOM/CSS of `web/index.html`, the real invoice docs and the real API responses (events, tx
+hashes, transfers) captured at the two moments above, rendered with ImageMagick. Every value visible in the images is
+from the live run. `docs/img/README.md` says the same. Do not present them as screen captures in `README.md`, the video
+or the X post.
 
-Two small fixes found while doing this:
+- [ ] live dashboard check + real screenshots (T19 buffer): run `node src/cli.ts serve --port 8787` in a real browser,
+  follow the T15 click path, and overwrite `docs/img/dashboard-pay-html-render.png` /
+  `docs/img/dashboard-sweep-html-render.png` with real captures.
 
-- `npm run zi -- serve --port 8787` exited 2 with `usage: zi serve <INVOICE_ID>` because the `serve` branch sat after the
-  invoice-id lookup. Moved the `serve` dispatch before that lookup; this matches INTERFACES §7 (`zi serve [--port]`) and
-  changes no interface. Without it the documented dashboard command cannot start.
-- `web/index.html` CSS only: the result log `pre` max-height 240 → 560 px so the pay/sweep JSON is visible in the shot.
+### Plan corrections (day-2 review)
+
+- **T15 allowed edits:** the task allowed CSS/HTML text in `web/index.html` only. `src/cli.ts` also had to change: the
+  `serve` branch was moved ahead of the invoice-id lookup because the documented `npm run zi -- serve --port 8787`
+  exited 2 with `usage: zi serve <INVOICE_ID>`. This matches INTERFACES §7 and changes no interface. Regression test:
+  `test/cli-serve.test.ts` (spawns `node src/cli.ts serve --port <free>`, waits for `SERVE http://127.0.0.1:<port>`,
+  then `GET /api/invoices` → 200 JSON array).
+- **T15 images:** the two PNGs are HTML renders, not screenshots; they are named `*-html-render.png` and the real
+  captures are the unticked item above.
+- **T14 regression coverage:** `test/demo-run.test.ts` pins the seven T14 acceptance checks by name, id and detail
+  (`before-unknown-account INV-1111-A` … `refund-event INV-1111-C REFUNDED_UNDERPAID`) and fails when the fixture is
+  missing, so a truncated or re-recorded fixture can no longer pass replay silently.
+- **Dashboard state coverage:** the badge/state functions of `web/index.html` moved to `web/state.js` (served at
+  `/state.js`) and are pinned by `test/dashboard-state.test.ts`; `test/server.test.ts` covers the localhost API.
+- `web/index.html` CSS: the result log `pre` max-height 240 → 560 px so the pay/sweep JSON is visible in the image.
+
+Server hardening (same review): `zi serve` binds `127.0.0.1` only (already did), POST requires
+`Content-Type: application/json` (400 otherwise), a present `Origin` must be `http://127.0.0.1:<port>` or
+`http://localhost:<port>` (403 otherwise; requests without `Origin`, e.g. curl, are allowed), bad JSON and unknown
+invoice ids return 400 instead of 502, and RPC/tx failures stay 502 (INTERFACES §8).
 
 The pay/sweep endpoints wait for `EXPERIMENTAL_tx_status` FINAL, so the badge updates when the response lands
 (measured 15.1 s for pay, 15.6 s for sweep in this run), not the ~5 s in the task sketch; the transaction itself was
