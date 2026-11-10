@@ -30,7 +30,18 @@ export function randomSalt(): bigint {
   return new DataView(b.buffer).getBigUint64(0, true);
 }
 
+const NEAR_ACCOUNT_ID = /^(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$/;
+
+/** A NEAR account id: 2-64 chars, lowercase alphanumerics with single - or _ separators, dot-separated parts. */
+export function isValidNearAccountId(id: string): boolean {
+  return id.length >= 2 && id.length <= 64 && NEAR_ACCOUNT_ID.test(id);
+}
+
 export function createInvoiceDoc(scheme: Scheme, codeHashB58: string, t: InvoiceTerms, now = new Date()): InvoiceDoc {
+  // A bad id would make the contract STATE undeserializable: funds sent there would be locked forever.
+  for (const [name, value] of [['merchant', t.merchant], ['tax_vault', t.tax_vault]] as const) {
+    if (!isValidNearAccountId(value)) throw new Error(`${name} "${value}" is not a valid NEAR account id (2-64 chars, lowercase a-z 0-9 - _ and dots)`);
+  }
   const code: CodeRef = { codeHash: base58.decode(codeHashB58) };
   const { raw, accountId } = invoiceStateInit(scheme, code, t);
   return {

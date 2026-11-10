@@ -316,8 +316,9 @@ Transactions (hand-encoded V0, ed25519 over SHA-256, because near-api-js 7.4.0 c
 | PLAIN TRANSFER | any wallet | invoice `0u…` id | `[Transfer{amount}]` |
 
 Each state change emits an `EVENT_JSON:` log line (`invoice_paid`, `payment_refunded`, `extra_swept`); `zi`
-prints it as `EVENT …` and `zi replay` parses the JSON. Transfers are `Promise::transfer` inside the receipt, so
-a failed transfer reverts the receipt (atomic).
+prints it as `EVENT …` and `zi replay` parses the JSON. Transfers are separate receipts created by the call. If one
+fails (e.g. a deleted recipient), NEAR returns the amount to the invoice account, where `sweep` can forward it to
+the merchant later (EXTRA_SWEPT).
 
 ## Claims and how to verify each
 
@@ -342,6 +343,9 @@ a failed transfer reverts the receipt (atomic).
   **0.0073617847981195 NEAR** on a 0.1 NEAR invoice. Issuing costs nothing.
 - **Plain-transfer overpayments go to the merchant.** `sweep()` cannot know the payer, so everything parked
   above `amount` is forwarded to the merchant with the net amount. With `pay()` the excess is refunded to the payer.
+- **Merchant and tax vault must exist.** Issuing only checks that both are syntactically valid NEAR account ids
+  (a malformed id is rejected). It does not check that the accounts exist: if one does not, its transfer bounces
+  back to the invoice account and stays there until `sweep` can forward it, so create both accounts first.
 - **No checksum.** A mistyped `0u…` address is still a valid address for different bytes; funds sent to a wrong
   id are lost, like a mistyped implicit address. The invoice file (or its QR code) is the source of truth.
 - **Wallet support is untested.** We tested exchange-style `Transfer`s built by near-cli-rs / our CLI. Which
