@@ -69,3 +69,30 @@ test('parseNear', () => {
   assert.equal(parseNear('0.08'), 8n * 10n ** 22n);
   assert.throws(() => parseNear('1.2.3'));
 });
+
+// docs/STABLECOIN.md §3 (v3). The hex printed in the design lost trailing zero bytes (1 and 6); the stated
+// lengths 201/226 and the field layout are authoritative, so these are the same vectors padded with zeros.
+const V3_NEAR_HEX = '0308000000494e562d30303031130000007a692d6d65726368616e742e746573746e6574130000007a692d7461787661756c742e746573746e65742003000000a1edccce1bc2d300000000000000f080dca10100002a0000000000000000840c240000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000';
+const V3_TOKEN_HEX = '0308000000494e562d30303031130000007a692d6d65726368616e742e746573746e6574130000007a692d7461787661756c742e746573746e6574200340420f0000000000000000000000000000f080dca10100002a0000000000000000840c2400000000011500000074757364632e6578616d706c652e746573746e6574000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000';
+
+test('v3 state vectors: NEAR 201 bytes and token 226 bytes (STABLECOIN.md §3)', () => {
+  const v3near = { ...EXAMPLE, layout: 3 as const, grace_ms: 604800000n, token: null };
+  const n = invoiceStateBytes(v3near);
+  assert.equal(n.length, 201);
+  assert.equal(toHex(n), V3_NEAR_HEX);
+  const v3token = { ...EXAMPLE, layout: 3 as const, grace_ms: 604800000n, token: 'tusdc.example.testnet', amount: 1_000_000n };
+  const t = invoiceStateBytes(v3token);
+  assert.equal(t.length, 226);
+  assert.equal(toHex(t), V3_TOKEN_HEX);
+  // the same terms under v3 derive a different address than under v2 (new layout + new code hash)
+  assert.notEqual(invoiceStateInit('0u', CODE, v3near).accountId, invoiceStateInit('0u', CODE, EXAMPLE).accountId);
+  assert.notEqual(invoiceStateInit('0u', CODE, v3token).accountId, invoiceStateInit('0u', CODE, v3near).accountId);
+});
+
+test('layout 1 rejects a token or a grace; layout 3 requires a grace', () => {
+  assert.throws(() => invoiceStateBytes({ ...EXAMPLE, token: 'tusdc.example.testnet' }), /needs the v3 layout/);
+  assert.throws(() => invoiceStateBytes({ ...EXAMPLE, grace_ms: 1n }), /needs the v3 layout/);
+  assert.throws(() => invoiceStateBytes({ ...EXAMPLE, layout: 3 }), /needs grace_ms/);
+  assert.throws(() => invoiceStateBytes({ ...EXAMPLE, layout: 3, grace_ms: 1n << 64n }), /grace_ms out of u64 range/);
+  assert.throws(() => invoiceStateBytes({ ...EXAMPLE, layout: 3, grace_ms: 1n, token: 'Bad..token' }), /token .* not a valid NEAR account id/);
+});

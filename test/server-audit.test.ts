@@ -94,9 +94,10 @@ test('pay on a non-testnet RPC fails before any key is used (no nonce, block or 
   assert.deepEqual([...new Set(rpc.calls.map((c) => c.method))], ['status']);
 });
 
-test('GET /api/invoices shows amount_near derived from amount_yocto, not the file\'s display field', async (t) => {
-  const lying = { ...makeDoc(), amount_near: '0.1' };
+test('GET /api/invoices shows amount_display derived from the raw amount, not the file\'s display field', async (t) => {
+  const lying = { ...makeDoc(), amount_display: '0.1' };
   const { port } = await boot(t, lying, {});
   const r = await call(port, 'GET', '/api/invoices');
-  assert.equal(r.json[0].amount_near, '1');
+  assert.equal(r.json[0].amount_display, '1');
+  assert.equal(r.json[0].unit, 'NEAR');
 });

@@ -8,11 +8,13 @@ import { join } from 'node:path';
 import { ed25519 } from '@noble/curves/ed25519.js';
 import { base58 } from '@scure/base';
 import { parseNear } from '../src/bytes.ts';
-import { createInvoiceDoc, saveDoc, type InvoiceDoc } from '../src/invoice.ts';
+import { createInvoiceDoc, saveDoc, isV3Doc, docToken, docGraceMs, type InvoiceDoc } from '../src/invoice.ts';
+import { V1_CODE_HASH, V2_CODE_HASH, V3_CODE_HASH } from '../src/config.ts';
 
-/** The current (v2) deployed hash, the default trusted hash. V1 is the frozen history deployment. */
-export const DEPLOYED = '4bQ61AgHWWmYXp5c3fwj9NJxS79D9R3cGZAZxHyx9zEA';
-export const V1 = 'Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k';
+/** The current (v3) build hash, the default trusted hash. v2 and v1 are the frozen history deployments. */
+export const DEPLOYED = V3_CODE_HASH;
+export const V2 = V2_CODE_HASH;
+export const V1 = V1_CODE_HASH;
 export const FOREIGN = base58.encode(new Uint8Array(32).fill(0xee));
 
 export const tempDir = (): string => mkdtempSync(join(tmpdir(), 'zi-test-'));
@@ -27,8 +29,13 @@ export function throwawaySigner(): { account: string; secret: string } {
 export const terms = (over: Record<string, unknown> = {}) => ({ invoice_id: 'INV-T-1', merchant: 'zi-merchant.testnet', tax_vault: 'zi-taxvault.testnet', tax_bps: 800,
   amount: parseNear('1'), expires_at_ms: BigInt(Date.now() + 3_600_000), salt: 7n, ...over });
 
+/** A doc for the given code hash: /2 (v3 layout) for the v3 deployment, /1 (v1/v2 layout) otherwise. */
 export function makeDoc(codeHash = DEPLOYED, over: Record<string, unknown> = {}): InvoiceDoc {
   return createInvoiceDoc('0u', codeHash, terms(over));
+}
+/** A token doc on v3 with a fake allow-list token address. */
+export function makeTokenDoc(over: Record<string, unknown> = {}): InvoiceDoc {
+  return createInvoiceDoc('0u', DEPLOYED, terms({ token: 'tusdc.example.testnet', token_symbol: 'tUSDC', token_decimals: 6, amount: 1_500_000n, ...over }));
 }
 export function writeDoc(dir: string, doc: InvoiceDoc): void { saveDoc(dir, doc); }
 
@@ -74,12 +81,30 @@ export function runCli(args: string[], env: Record<string, string> = {}, script 
 }
 
 export const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString('base64');
-export const onchainInvoice = (doc: InvoiceDoc, over: Record<string, unknown> = {}) => ({ v: 1, account_id: doc.account_id, invoice_id: doc.invoice_id, merchant: doc.merchant, tax_vault: doc.tax_vault,
-  tax_bps: doc.tax_bps, amount: doc.amount_yocto, expires_at_ms: doc.expires_at_ms, salt: doc.salt, status: 'OPEN', paid_by: null, paid_at_ms: '0', paid_amount: '0', tax_amount: '0', ...over });
+/** The get_invoice() view matching the doc, including the v3 fields for a /2 doc. */
+export const onchainInvoice = (doc: InvoiceDoc, over: Record<string, unknown> = {}) => ({
+  v: isV3Doc(doc) ? 3 : 1, account_id: doc.account_id, invoice_id: doc.invoice_id, merchant: doc.merchant, tax_vault: doc.tax_vault,
+  tax_bps: doc.tax_bps, amount: isV3Doc(doc) ? doc.amount_raw : doc.amount_yocto, expires_at_ms: doc.expires_at_ms, salt: doc.salt,
+  ...(isV3Doc(doc) ? { grace_ms: docGraceMs(doc).toString(), token: docToken(doc), owed_merchant: '0', owed_tax: '0', owed_payer: '0', refund_to: null, busy_until_ms: '0' } : {}),
+  status: 'OPEN', paid_by: null, paid_at_ms: '0', paid_amount: '0', tax_amount: '0', ...over,
+});
 
-export interface Chain { hash?: string | null; invoice?: Record<string, unknown> | null; uninitialized?: boolean; txResult?: unknown; chainId?: string; txStatusError?: boolean }
+export interface Chain {
+  hash?: string | null;
+  invoice?: Record<string, unknown> | null;
+  uninitialized?: boolean;
+  txResult?: unknown;
+  chainId?: string;
+  txStatusError?: boolean;
+  /** token views for a token doc */
+  ftBalance?: string;
+  ftMetadata?: { symbol: string; decimals: number };
+  storageBalance?: { total: string; available: string } | null;
+  storageMin?: string;
+}
 export function handlers(doc: InvoiceDoc, ch: Chain) {
   const initialized = ch.invoice !== undefined && ch.invoice !== null;
+  const token = docToken(doc);
   return {
     status: () => statusResult(ch.chainId ?? 'testnet'),
     block: () => ({ header: { hash: base58.encode(new Uint8Array(32).fill(1)) } }),
@@ -89,7 +114,16 @@ export function handlers(doc: InvoiceDoc, ch: Chain) {
       switch (p.request_type) {
         case 'view_access_key': return { nonce: 5 };
         case 'view_access_key_list': return { keys: [] };
-        case 'call_function': return viewResult(ch.invoice);
+        case 'call_function':
+          if (token) {
+            if (p.method_name === 'get_invoice') return viewResult(ch.invoice);
+            if (p.method_name === 'ft_balance_of') return viewResult(ch.ftBalance ?? '0');
+            if (p.method_name === 'ft_metadata') return viewResult(ch.ftMetadata ?? { spec: 'ft-1.0.0', symbol: 'tUSDC', decimals: 6 });
+            if (p.method_name === 'storage_balance_of') return viewResult(ch.storageBalance === undefined ? { total: '1250000000000000000000', available: '0' } : ch.storageBalance);
+            if (p.method_name === 'storage_balance_bounds') return viewResult({ min: ch.storageMin ?? '1250000000000000000000', max: null });
+            return { __error: { name: 'HANDLER_ERROR', cause: { name: 'METHOD_NOT_FOUND' }, message: p.method_name } };
+          }
+          return viewResult(ch.invoice);
         case 'view_account':
           if (ch.uninitialized) return { state: 'uninitialized', amount: '1000000000000000000000000', storage_usage: 0 };
           if (!initialized) return unknownAccount;
@@ -100,4 +134,3 @@ export function handlers(doc: InvoiceDoc, ch: Chain) {
   };
 }
 export const payResult = (doc: InvoiceDoc, value: string) => ({ status: { SuccessValue: b64(value) }, transaction: { hash: 'H', signer_id: 'x', receiver_id: doc.account_id, actions: [] }, receipts_outcome: [], receipts: [] });
-

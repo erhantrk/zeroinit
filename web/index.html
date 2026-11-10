@@ -9,14 +9,15 @@
   .card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 16px; }
   .badge { display: inline-block; padding: 3px 10px; border-radius: 4px; font-weight: 600; color: #fff; font-size: 16px; }
   .NONEXISTENT { background: #888; } .UNINITIALIZED { background: #c80; } .OPEN { background: #06c; }
-  .PAID { background: #090; } .EXPIRED { background: #a00; } .LOADING { background: #bbb; } .ERROR { background: #555; }
+  .PAID { background: #090; } .EXPIRED { background: #a00; } .SETTLING { background: #b60; } .REFUNDED { background: #639; }
+  .LOADING { background: #bbb; } .ERROR { background: #555; }
   code { font-size: 13px; word-break: break-all; }
-  input { width: 100%; margin: 2px 0 8px; padding: 4px; box-sizing: border-box; }
+  input, select { width: 100%; margin: 2px 0 8px; padding: 4px; box-sizing: border-box; }
   pre { background: #111; color: #eee; padding: 8px; border-radius: 6px; max-height: 560px; overflow: auto; font-size: 12px; white-space: pre-wrap; word-break: break-all; }
 </style>
 </head>
 <body>
-<h1>ZeroInit <small>(NEAR testnet)</small></h1>
+<h1>ZeroInit <small>(NEAR testnet; v-next: v3 is not deployed yet)</small></h1>
 <div class="cols">
   <div class="card">
     <h2>Merchant</h2>
@@ -24,8 +25,10 @@
     <label>Merchant <input id="merchant"></label>
     <label>Tax vault <input id="tax_vault"></label>
     <label>Tax bps <input id="tax_bps" value="800"></label>
-    <label>Amount (NEAR) <input id="amount_near" value="1"></label>
+    <label>Asset <select id="asset"><option value="near">NEAR</option><option value="tUSDC">tUSDC</option></select></label>
+    <label>Amount (display units) <input id="amount" value="1"></label>
     <label>Expires in (minutes) <input id="expires_in_minutes" value="120"></label>
+    <label>Refund grace (ms, token/NEP-141 invoices; 0 = default 7 days) <input id="payout_grace_ms" value=""></label>
     <button id="create">Create invoice (no transaction)</button>
     <p><button id="refresh">Refresh statuses</button> <span id="refreshing"></span></p>
     <div id="invoices"></div>
@@ -34,12 +37,14 @@
     <h2>Payer</h2>
     <div id="selected">Select an invoice on the left.</div>
     <button id="pay" disabled>Pay (one transaction)</button>
-    <button id="sweep" disabled>Sweep (after a plain transfer)</button>
+    <button id="plain" disabled>Send plain transfer (exchange path)</button>
+    <button id="sweep" disabled>Sweep (settle funds that arrived without a call)</button>
+    <button id="refund" disabled>Refund payer (after the grace period)</button>
     <pre id="log"></pre>
   </div>
 </div>
 <script type="module">
-import { FORM_FIELDS, formBody, invoiceRows, selection } from '/state.js';
+import { FORM_FIELDS, formBody, invoiceRows, amountLabel, selection } from '/state.js';
 const $ = (id) => document.getElementById(id);
 let selected = null;
 const log = (o) => { $('log').textContent = JSON.stringify(o, null, 2) + '\n' + $('log').textContent; };
@@ -61,8 +66,8 @@ async function refreshOnce() {
   const statuses = docs.map((d) => known.get(d.invoice_id));
   const draw = () => {
     const rows = invoiceRows(docs, statuses);
-    $('invoices').innerHTML = rows.map(({ doc: d, label }) =>
-      `<p><a href="#" data-id="${d.invoice_id}">${d.invoice_id}</a> <span class="badge ${label}">${label}</span><br><code>${d.account_id}</code><br>${d.amount_near} NEAR</p>`).join('');
+    $('invoices').innerHTML = rows.map(({ doc: d, status, label }) =>
+      `<p><a href="#" data-id="${d.invoice_id}">${d.invoice_id}</a> <span class="badge ${label}">${label}</span><br><code>${d.account_id}</code><br>${amountLabel(d, status)}</p>`).join('');
     document.querySelectorAll('[data-id]').forEach((a) => a.onclick = (e) => { e.preventDefault(); select(a.dataset.id, rows); });
     if (selected) select(selected, rows);
   };
@@ -77,17 +82,18 @@ function select(id, rows) {
   selected = id;
   const row = selection(rows, id);
   if (!row) return;
-  $('selected').innerHTML = `<p><b>${row.id}</b>: pay <b>${row.amountNear} NEAR</b> to<br><code>${row.accountId}</code></p>`;
-  $('pay').disabled = false; $('sweep').disabled = false;
+  $('selected').innerHTML = `<p><b>${row.id}</b>: pay <b>${row.amountLabel}</b> to<br><code>${row.accountId}</code></p>`;
+  for (const b of ['pay', 'plain', 'sweep', 'refund']) $(b).disabled = false;
 }
 $('create').onclick = async () => {
   const values = Object.fromEntries(FORM_FIELDS.map((k) => [k, $(k).value]));
   log(await api('POST', '/api/invoices', formBody(values))); refresh();
 };
-$('pay').onclick = async () => { log(await api('POST', `/api/invoices/${selected}/pay`, {})); refresh(); };
-$('sweep').onclick = async () => { log(await api('POST', `/api/invoices/${selected}/sweep`, {})); refresh(); };
+for (const action of ['pay', 'plain', 'sweep', 'refund']) {
+  $(action).onclick = async () => { log(await api('POST', `/api/invoices/${selected}/${action}`, {})); refresh(); };
+}
 $('refresh').onclick = () => refresh();
-// No polling: statuses load once when the page opens, after Create / Pay / Sweep, and when Refresh is clicked
+// No polling: statuses load once when the page opens, after each action, and when Refresh is clicked
 // (each status is ~2 RPC calls; polling every few seconds got public testnet RPCs to answer 429).
 refresh();
 </script>

@@ -6,11 +6,11 @@ import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { replayFixture, fixturePin } from '../src/replay.ts';
-import { DEPLOYED, V1, FOREIGN, tempDir } from './helpers.ts';
+import { DEPLOYED, V1, V2, FOREIGN, tempDir } from './helpers.ts';
 
 const RUNS = [
   { v: 'v1', dir: 'fixtures/v1', hash: V1, mid: '1111', sfx: '' },
-  { v: 'v2', dir: 'fixtures/v2', hash: DEPLOYED, mid: '1111-V2', sfx: '-V2' },
+  { v: 'v2', dir: 'fixtures/v2', hash: V2, mid: '1111-V2', sfx: '-V2' },
 ];
 const failed = (checks: any[]) => checks.filter((c) => !c.ok).map((c) => `${c.name} ${c.id}`);
 const callOf = (f: any, id: string, label: string) => f.calls.find((c: any) => c.invoice_id === id && c.label === label);
@@ -71,9 +71,8 @@ for (const { v, dir, hash, mid, sfx } of RUNS) {
     assert.ok(missing.includes(`sweep-underpaid-funds-parked ${SWEEPLOW}`), missing.join(', '));
   });
 
-  test(`${v}: fixturePin: the historical v1 fixture keeps its own hash; the current one follows the trusted hash`, () => {
+  test(`${v}: fixturePin: a historical fixture keeps its own hash whatever the trusted pin is`, () => {
     assert.equal(fixturePin(`${dir}/demo-run.json`, DEPLOYED), hash);
-    // v1 is history: replayable whatever ZI_CODE_HASH says. v2 is the current contract: an own/foreign pin makes its replay FAIL.
-    assert.equal(fixturePin(`${dir}/demo-run.json`, FOREIGN), v === 'v1' ? V1 : FOREIGN);
+    assert.equal(fixturePin(`${dir}/demo-run.json`, FOREIGN), hash);
   });
 }

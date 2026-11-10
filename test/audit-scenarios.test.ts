@@ -9,7 +9,7 @@ import { replayFixture } from '../src/replay.ts';
 import { parseTxStatus, type ParsedTx } from '../src/outcome.ts';
 import { accountStateFromResponse, decodeViewResult } from '../src/rpc.ts';
 import { parseNear } from '../src/bytes.ts';
-import { DEPLOYED, tempDir } from './helpers.ts';
+import { V2, tempDir } from './helpers.ts';
 
 const FIXTURE = 'fixtures/v2/audit-scenarios.json';
 const load = () => JSON.parse(readFileSync(FIXTURE, 'utf8'));
@@ -27,8 +27,8 @@ const finalInvoice = (id: string, label: string) => decodeViewResult(calls(id, l
 const deposit = (result: any): bigint => BigInt(result.transaction.actions.find((a: any) => a.FunctionCall).FunctionCall.deposit);
 
 test('the recorded audit scenarios were made on contract v2 and replay clean against the pinned v2 hash', () => {
-  for (const d of f.invoices) assert.equal(d.code_hash, DEPLOYED);
-  const checks = replayFixture(FIXTURE, DEPLOYED);
+  for (const d of f.invoices) assert.equal(d.code_hash, V2);
+  const checks = replayFixture(FIXTURE, V2);
   assert.ok(checks.length > 0);
   for (const c of checks) assert.ok(c.ok, `FAIL ${c.name} ${c.id} ${c.detail}`);
 });
@@ -107,7 +107,7 @@ test('contract-2: a failed tax transfer is recorded (transfer_failed), stays owe
 function mutated(mutate: (fx: any) => void): string[] {
   const fx = load(); mutate(fx);
   const p = join(tempDir(), 'f.json'); writeFileSync(p, JSON.stringify(fx));
-  return replayFixture(p, DEPLOYED).filter((c) => !c.ok).map((c) => `${c.name} ${c.id}`);
+  return replayFixture(p, V2).filter((c) => !c.ok).map((c) => `${c.name} ${c.id}`);
 }
 const callOf = (fx: any, id: string, label: string, n = 0) => fx.calls.filter((c: any) => c.invoice_id === id && c.label === label)[n];
 

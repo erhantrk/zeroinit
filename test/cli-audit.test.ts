@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { DEPLOYED, V1, FOREIGN, tempDir, makeDoc, writeDoc, throwawaySigner, fakeRpc, statusResult, unknownAccount, viewResult, runCli, handlers, onchainInvoice, payResult } from './helpers.ts';
+import { DEPLOYED, V1, V2, FOREIGN, tempDir, makeDoc, writeDoc, throwawaySigner, fakeRpc, statusResult, unknownAccount, viewResult, runCli, handlers, onchainInvoice, payResult } from './helpers.ts';
 import type { InvoiceDoc } from '../src/invoice.ts';
 
 async function setup(doc: InvoiceDoc, ch: Chain, extraEnv: Record<string, string> = {}) {
@@ -107,7 +107,7 @@ test('receipt exits 1 and writes nothing when the invoice is not PAID, or any te
     assert.match(r.stdout, /FAIL status/);
     assert.equal(existsSync(join(open.dir, `${doc.invoice_id}.receipt.json`)), false);
   } finally { await open.rpc.close(); }
-  const paid = { status: 'PAID', paid_by: 'p.testnet', paid_amount: doc.amount_yocto, tax_amount: '80000000000000000000000' };
+  const paid = { status: 'PAID', paid_by: 'p.testnet', paid_amount: '1000000000000000000000000', tax_amount: '80000000000000000000000' };
   const taxDiff = await setup(doc, { invoice: onchainInvoice(doc, { ...paid, tax_vault: 'evil.testnet' }) });
   try {
     const r = await runCli(['receipt', doc.invoice_id], taxDiff.env);
@@ -181,8 +181,8 @@ test('pay refuses when a plain transfer already parked funds on contract v1 (it 
   } finally { await rpc.close(); }
 });
 
-test('pay on contract v2 (the default) sends even with parked funds: pay() settles them and refunds the deposit', async () => {
-  const doc = makeDoc();   // DEPLOYED = v2
+test('pay on contract v3 (the default) sends even with parked funds: pay() settles them and refunds the deposit', async () => {
+  const doc = makeDoc();   // DEPLOYED = v3
   const { rpc, env } = await setup(doc, { uninitialized: true, txResult: payResult(doc, 'PAID') });
   try {
     const r = await runCli(['pay', doc.invoice_id], env);
@@ -191,12 +191,12 @@ test('pay on contract v2 (the default) sends even with parked funds: pay() settl
   } finally { await rpc.close(); }
 });
 
-test('verify says which deployment an invoice uses: v2 current, v1 history (verify only), a foreign hash is none', async () => {
+test('verify says which deployment an invoice uses: v3 current (v-next), v2 and v1 history, a foreign hash is none', async () => {
   const v2 = makeDoc(); const v1 = makeDoc(V1, { invoice_id: 'INV-T-V1' });
   const dir = tempDir(); writeDoc(dir, v2); writeDoc(dir, v1);
   const a = await runCli(['verify', v2.invoice_id, '--offline'], { ZI_INVOICE_DIR: dir });
   assert.equal(a.code, 0, a.stdout);
-  assert.match(a.stdout, /INFO deployment v2 \(current/);
+  assert.match(a.stdout, /INFO deployment v3 \(v-next, not deployed yet/);
   const b = await runCli(['verify', v1.invoice_id, '--offline'], { ZI_INVOICE_DIR: dir });
   assert.equal(b.code, 0, b.stdout);
   assert.match(b.stdout, /PASS code-hash-trusted /);
@@ -210,30 +210,30 @@ test('verify says which deployment an invoice uses: v2 current, v1 history (veri
   assert.match(d.stdout, /INFO deployment none/);
 });
 
-test('v1 invoices are history: pay/sweep/init refuse them on the default (v2) pin and never send', async () => {
+test('v1 invoices are history: pay/sweep/init refuse them on the default (v3) pin and never send', async () => {
   const doc = makeDoc(V1);
   const { rpc, env } = await setup(doc, { hash: V1, invoice: onchainInvoice(doc) });
   try {
     for (const cmd of ['pay', 'sweep', 'init']) {
       const r = await runCli([cmd, doc.invoice_id], env);
       assert.notEqual(r.code, 0, cmd);
-      assert.match(r.stderr, /not the trusted hash .*v1 deployment: history, verify only/, cmd);
+      assert.match(r.stderr, /not the trusted hash .*v1 deployment: history, verify and replay only/, cmd);
     }
     assert.equal(rpc.calls.some((c) => c.method === 'send_tx'), false);
   } finally { await rpc.close(); }
 });
 
-test('replay of the recorded v1 fixtures passes whatever ZI_CODE_HASH is set to, and says it is v1; v2 fixtures say v2', async () => {
+test('replay of the recorded v1 and v2 fixtures passes whatever ZI_CODE_HASH is set to (both are history now)', async () => {
   for (const env of [{}, { ZI_CODE_HASH: FOREIGN }]) {
     const r = await runCli(['replay', 'fixtures/v1/demo-run.json'], env);
     assert.equal(r.code, 0, r.stdout);
     assert.match(r.stdout, /^INFO deployment v1 \(history/);
+    const v2 = await runCli(['replay', 'fixtures/v2/demo-run.json'], env);
+    assert.equal(v2.code, 0, v2.stdout);
+    assert.match(v2.stdout, /^INFO deployment v2 \(history/);
   }
-  const r = await runCli(['replay', 'fixtures/v2/demo-run.json'], {});
-  assert.equal(r.code, 0, r.stdout);
-  assert.match(r.stdout, /^INFO deployment v2 \(current/);
-  const own = await runCli(['replay', 'fixtures/v2/demo-run.json'], { ZI_CODE_HASH: FOREIGN });
-  assert.equal(own.code, 1, 'the current fixtures are pinned to the trusted hash');
+  const other = await runCli(['replay', 'fixtures/v2/demo-run.json'], { ZI_CODE_HASH: V2 });
+  assert.equal(other.code, 0, other.stdout);
 });
 
 test('network failure: the CLI names the RPC URL and the underlying cause, not just "fetch failed"', async () => {
