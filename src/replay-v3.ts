@@ -254,7 +254,7 @@ export function replayV3Invoice(f: any, doc: InvoiceDoc, trusted: string | undef
         add(p.success, `${prefix}-tx-success`, id, `${p.txHash} ${JSON.stringify(p.failures)}`);
       } else {
         // sweep/refund may legitimately fail with a business panic; record what the chain said.
-        add(p.success || /UNDERPAID|NOTHING_TO_SWEEP|NEEDS_YOCTO|BALANCE_UNAVAILABLE|NOT_YET/.test(JSON.stringify(p.failures)), `${prefix}-tx-result`, id, `${p.txHash} result=${String(p.returnValue)}`);
+        add(p.success || /UNDERPAID|NOTHING_TO_SWEEP|NEEDS_YOCTO|BALANCE_UNAVAILABLE|CONCURRENT_PAYMENT|NOT_YET/.test(JSON.stringify(p.failures)), `${prefix}-tx-result`, id, `${p.txHash} result=${String(p.returnValue)}`);
       }
       // The first account-creating tx must carry the state init. A token `pay` is an ft_transfer_call, never
       // the init tx (tokens need a separate [UniversalStateInit, fund]), so it is not checked here.

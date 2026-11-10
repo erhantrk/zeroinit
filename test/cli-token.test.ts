@@ -151,9 +151,9 @@ test('sweep token: [state init, fund, sweep] when nonexistent, [fund, sweep] wit
   }
 });
 
-test('sweep token exit codes: UNDERPAID, NOTHING_TO_SWEEP, NEEDS_YOCTO, BALANCE_UNAVAILABLE are 1', async () => {
+test('sweep token exit codes: UNDERPAID, NOTHING_TO_SWEEP, NEEDS_YOCTO, BALANCE_UNAVAILABLE, CONCURRENT_PAYMENT are 1', async () => {
   const doc = makeTokenDoc();
-  for (const value of ['UNDERPAID', 'NOTHING_TO_SWEEP', 'NEEDS_YOCTO', 'BALANCE_UNAVAILABLE']) {
+  for (const value of ['UNDERPAID', 'NOTHING_TO_SWEEP', 'NEEDS_YOCTO', 'BALANCE_UNAVAILABLE', 'CONCURRENT_PAYMENT']) {
     const { rpc, env } = await setup(doc, { txResult: txResult(doc, value) });
     try {
       const r = await runCli(['sweep', doc.invoice_id], env);

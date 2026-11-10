@@ -508,7 +508,7 @@ callback. If one fails (a missing account, an unregistered token receiver), NEAR
   `PAID` (a `REFUNDED_*` result means the deposit came back); the dashboard answers 409 with `paid:false` in that case. `zi pay` and `zi sweep` also exit 1 (with a `WARNING` and
   `TRANSFER_FAILED` lines) when a transfer failed downstream. On v3, `zi pay` exits 1 on `SETTLING`/`PAYOUT_PENDING` (it says `NOT PAID (yet)` and to run `zi sweep`),
   a token `zi pay` exits 0 only when `invoice_paid` was seen, the dashboard answers 202 with `paid:false, pending:true`, and a token sweep exits 1 on `UNDERPAID`,
-  `NOTHING_TO_SWEEP`, `NEEDS_YOCTO`, `BALANCE_UNAVAILABLE`.
+  `NOTHING_TO_SWEEP`, `NEEDS_YOCTO`, `BALANCE_UNAVAILABLE`, `CONCURRENT_PAYMENT` (the last only with the unreleased contract fix; see `docs/STABLECOIN.md` build notes).
 - **Contract limits that stay (v3).** The contract cannot reject a bad merchant/tax vault at pay time: `zi invoice new` and the dashboard check that both exist (and, for
   tokens, are registered) at issue time (`--offline` skips the check). On v3 a failed payout is recorded and the share stays owed (`SETTLING`, no `invoice_paid`): it is
   retried by `sweep` to that recipient only, or returned to the payer by `refund_payer` after the grace period. If the merchant never exists and the payer is unknown (a

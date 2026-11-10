@@ -266,7 +266,7 @@ text, any extra field (so a `sender_id` or `amount` in `msg` is rejected, not tr
 | 2 | `msg` does not parse or does not match | `amount` | `bad_msg` |
 | 3 | status is not `OPEN` | `amount` | `not_open` |
 | 4 | `now > expires_at_ms` | `amount`, status becomes `EXPIRED` | `expired` |
-| 5 | busy | `amount` | `busy` |
+| 5 | busy | `amount`; while the status is `OPEN` the lock value `busy_until_ms` is also raised by 1 (see 5.3) | `busy` |
 | 6 | account NEAR balance below the number of payouts (1 yocto each) | `amount` | `no_yocto` |
 | 7 | remaining gas below 90 Tgas | `amount` | `low_gas` |
 | 8 | `amount < invoice.amount` | `amount` | `underpaid` |
@@ -294,7 +294,13 @@ Plan, with `bal` the balance, `owed_total`, `avail = bal − owed_total` (satura
 4. If status is `PAID` or `REFUNDED`: `avail > 0` goes through `split_of` (`EXTRA` batch); `paid_amount += avail`, `tax_amount += tax`.
 5. Nothing to do at all: NEAR panics `NOTHING_TO_SWEEP`; token returns the value `NOTHING_TO_SWEEP`.
 
-Token-only values from `on_token_balance`: `BALANCE_UNAVAILABLE` (the `ft_balance_of` promise failed; lock cleared), `NEEDS_YOCTO` (the invoice account has fewer yocto than payouts; send `fund`).
+`sweep` passes the lock value it stored to `on_token_balance` (argument `lock`). If `ft_on_transfer` rejected a call as `busy` while the status was `OPEN`, it raised
+`busy_until_ms` by 1, so the lock no longer equals `lock`. The balance read may then include that rejected transfer's credit (the token refunds it), so
+`on_token_balance` clears the lock, plans nothing and returns `CONCURRENT_PAYMENT`. The invoice stays `OPEN` and the payer can retry. Test:
+`token_sweep_racing_a_busy_ft_transfer_call_plans_nothing`. Not fixed: a caller who repeats `sweep` every few blocks can still keep `ft_transfer_call` rejected
+as `busy` (each sweep costs gas; `sweep` is permissionless). A plain `ft_transfer` of the full amount followed by a `sweep` is not blocked by this.
+
+Token-only values from `on_token_balance`: `CONCURRENT_PAYMENT` (see above; lock cleared), `BALANCE_UNAVAILABLE` (the `ft_balance_of` promise failed; lock cleared), `NEEDS_YOCTO` (the invoice account has fewer yocto than payouts; send `fund`).
 Result strings kept from v2: `PAID`, `EXTRA_SWEPT`, `TAX_RESENT` (only the tax share was re-sent); new: `OWED_RESENT`, `PAYOUT_PENDING`.
 
 ### 5.4 `refund_payer()` (anyone; fix 2, second half)
@@ -443,7 +449,7 @@ until the operator provides the id the default is empty and `--token` is refused
 | `zi pay <id>` (token) | register the invoice id if needed → `[UniversalStateInit, fund]` if the account does not exist → `ft_transfer_call` with `{"action":"pay","invoice_id":…}`. `--plain` does register + plain `ft_transfer` only (the exchange path), `--amount` for under/overpay tests. Exit 0 only on `invoice_paid`. |
 | `zi pay <id>` (NEAR) | as v2 with 100 Tgas; exit 1 on `PAYOUT_PENDING`/`REFUND_FAILED` with the guidance line |
 | `zi init <id>` (token) | `[UniversalStateInit, fund]` |
-| `zi sweep <id>` (token) | `[UniversalStateInit, fund (only if the account has fewer than 100 yocto or does not exist), sweep]` at 200 Tgas; the token values `UNDERPAID`, `NOTHING_TO_SWEEP`, `NEEDS_YOCTO`, `BALANCE_UNAVAILABLE` exit 1 |
+| `zi sweep <id>` (token) | `[UniversalStateInit, fund (only if the account has fewer than 100 yocto or does not exist), sweep]` at 200 Tgas; the token values `UNDERPAID`, `NOTHING_TO_SWEEP`, `NEEDS_YOCTO`, `BALANCE_UNAVAILABLE`, `CONCURRENT_PAYMENT` exit 1 |
 | `zi refund-payer <id>` | sends `refund_payer`; prints the time it becomes allowed when it is too early |
 | `zi status <id>` | token: `STATE NONEXISTENT tokens_parked=1.5 tUSDC`, or `STATE INITIALIZED status=… tokens=… owed_merchant=… owed_tax=… owed_payer=…` |
 | `zi verify <id>` | adds `PASS token-allowed`, `PASS token-metadata-onchain tUSDC 6`; `terms-onchain` includes token and grace; `INFO token-balance` while nonexistent |
@@ -774,8 +780,17 @@ Read and left as it is (noted, not fixed):
   gets a failed `ft_transfer_call` after registering the id and initialising the invoice; no funds are lost.
 - `zi status` and the dashboard show `0` tokens if the `ft_balance_of` view fails (the error is swallowed).
 - A token `sweep` that reads its balance while a plain `ft_transfer_call` credit is in flight (credited, `ft_on_transfer` not run yet)
-  can include that credit in the balance; the later `ft_on_transfer` then rejects as `busy` and the token returns it, so the
-  payouts of that sweep may partly fail and be recorded as owed. No money is paid to a wrong party; it needs the payer to retry.
+  can include that credit in the balance; the later `ft_on_transfer` then rejects as `busy` and the token returns it. In the
+  deployed v3 (code hash `Ut7EQhLD…reWa`) the sweep then plans with a balance the invoice no longer holds: the invoice goes to
+  `SETTLING` with `paid_by = None`, both payouts fail and are recorded as owed (`owed_merchant`, `owed_tax`) with 0 tokens behind
+  them. A retry with `ft_transfer_call` is rejected `not_open` and `refund_payer` panics `NO_PAYER`. The only recovery is a plain
+  `ft_transfer` of the full amount to the invoice followed by `sweep`, which the client's `zi pay` does not do. `sweep` is
+  permissionless, so anyone can trigger this, and repeated `sweep` calls can also keep `ft_transfer_call` rejected as `busy`.
+  **Fixed in the source, not deployed:** `on_token_balance` takes the lock value that `sweep` set, `ft_on_transfer` raises the lock
+  by 1 when it rejects as `busy` on an `OPEN` invoice, and the callback then returns `CONCURRENT_PAYMENT` without planning
+  (test `token_sweep_racing_a_busy_ft_transfer_call_plans_nothing`; `cargo test`: 65 passed). This changes the wasm, so it needs a new global
+  deploy and a new code hash; the pinned hash and the recorded testnet runs still describe the old code. Sweep spam can still block
+  `ft_transfer_call`.
 - Not tested live: everything in "Not done, explicitly" above. The `ft_on_transfer` detached batch and the callback gas (20 Tgas)
   are the first things to check in the spikes.
 - The slot wrapper `$CONDUCTOR_BIN slot run` failed here with `spawn EPERM`, so `cargo` and `node --test` were run directly.

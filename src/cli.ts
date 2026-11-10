@@ -371,8 +371,8 @@ async function main(argv: string[]): Promise<number> {
     }
     if (cmd === 'sweep' && entry && p.success) {
       const value = String(p.returnValue);
-      if (['UNDERPAID', 'NOTHING_TO_SWEEP', 'NEEDS_YOCTO', 'BALANCE_UNAVAILABLE', 'PAYOUT_PENDING'].includes(value)) {
-        console.error(`SWEEP NOT COMPLETE: ${value}${value === 'NEEDS_YOCTO' ? ` (send \`zi init ${doc.invoice_id}\` to fund the 1-yocto float)` : ''}`);
+      if (['UNDERPAID', 'NOTHING_TO_SWEEP', 'NEEDS_YOCTO', 'BALANCE_UNAVAILABLE', 'CONCURRENT_PAYMENT', 'PAYOUT_PENDING'].includes(value)) {
+        console.error(`SWEEP NOT COMPLETE: ${value}${value === 'NEEDS_YOCTO' ? ` (send \`zi init ${doc.invoice_id}\` to fund the 1-yocto float)` : value === 'CONCURRENT_PAYMENT' ? ' (a payment was in flight during the balance read; nothing was settled, retry the payment or run the sweep again)' : ''}`);
         return 1;
       }
     }

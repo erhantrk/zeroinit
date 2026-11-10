@@ -516,6 +516,10 @@ impl Invoice {
             return reject(self, "expired");
         }
         if now < self.busy_until_ms {
+            // An OPEN invoice is only locked by a token sweep that is reading the balance. That
+            // read may already include this credit, so change the lock value: `on_token_balance`
+            // sees the change and plans nothing (the token refunds this transfer in full).
+            self.busy_until_ms += 1;
             return reject(self, "busy");
         }
         let (net, tax) = self.split();
@@ -558,7 +562,8 @@ impl Invoice {
             if now < self.busy_until_ms {
                 env::panic_str("PAYOUT_IN_FLIGHT");
             }
-            self.busy_until_ms = now + BUSY_MS;
+            let lock = now + BUSY_MS;
+            self.busy_until_ms = lock;
             let token = self.token.clone().expect("token");
             let args = serde_json::to_vec(&FtBalanceArgs { account_id: env::current_account_id() }).expect("ft_balance_of args");
             return PromiseOrValue::Promise(
@@ -567,7 +572,7 @@ impl Invoice {
                     .then(
                         Invoice::ext(env::current_account_id())
                             .with_unused_gas_weight(1)
-                            .on_token_balance(),
+                            .on_token_balance(U64(lock)),
                     ),
             );
         }
@@ -586,8 +591,15 @@ impl Invoice {
     /// The `ft_balance_of` callback of a token sweep: runs the same plan with the reported
     /// balance. Never panics (a callback must not lose the lock release).
     #[private]
-    pub fn on_token_balance(&mut self) -> PromiseOrValue<String> {
+    pub fn on_token_balance(&mut self, lock: U64) -> PromiseOrValue<String> {
         let now = env::block_timestamp_ms();
+        // `lock` is the value `sweep` stored in `busy_until_ms`. If it changed, an `ft_transfer_call`
+        // was rejected as busy while the balance was being read, so the balance may hold that
+        // transfer's credit and the token is about to return it. Plan nothing.
+        if self.busy_until_ms != lock.0 {
+            self.busy_until_ms = 0;
+            return PromiseOrValue::Value("CONCURRENT_PAYMENT".to_string());
+        }
         let bal = match env::promise_result_checked(0, 128) {
             Ok(bytes) => match serde_json::from_slice::<U128>(&bytes) {
                 Ok(v) => v.0,
@@ -1869,7 +1881,7 @@ mod tests {
         assert_eq!(callback_calls(), vec!["on_token_balance".to_string()]);
         assert!(inv.busy_until_ms > NOW);
         ctx_cb(vec![PromiseResult::Successful(b"\"1000000\"".to_vec())], NOW + 1, 1000);
-        let r = inv.on_token_balance();
+        let r = inv.on_token_balance(U64(inv.busy_until_ms));
         assert!(matches!(r, PromiseOrValue::Promise(_)));
         drop(r);
         assert_eq!(inv.status, STATUS_SETTLING);
@@ -1880,11 +1892,41 @@ mod tests {
     }
 
     #[test]
+    fn token_sweep_racing_a_busy_ft_transfer_call_plans_nothing() {
+        // sweep -> ft_on_transfer (rejected busy, the token refunds it) -> on_token_balance whose
+        // balance read already holds the in-flight credit. It must not plan or enter SETTLING.
+        let mut inv = token_invoice();
+        ctx(0, NOW, 1000);
+        drop(inv.sweep());
+        let lock = inv.busy_until_ms;
+        assert_eq!(lock, NOW + BUSY_MS);
+        let r = accept(&mut inv, "sender.testnet", 1_000_000, "{\"action\":\"pay\"}", 1000, 300);
+        rejected(r, 1_000_000);
+        assert!(logs_with("\"reason\":\"busy\"").len() == 1);
+        assert_ne!(inv.busy_until_ms, lock, "the busy rejection changes the lock value");
+        let before = ft_calls().len();
+        ctx_cb(vec![PromiseResult::Successful(b"\"1000000\"".to_vec())], NOW + 1, 1000);
+        match inv.on_token_balance(U64(lock)) {
+            PromiseOrValue::Value(s) => assert_eq!(s, "CONCURRENT_PAYMENT"),
+            _ => panic!("must not schedule payouts"),
+        }
+        assert_eq!(inv.status, STATUS_OPEN, "the invoice stays open for a retry");
+        assert_eq!(inv.busy_until_ms, 0);
+        assert_eq!(inv.owed_merchant + inv.owed_tax, 0);
+        assert_eq!(inv.paid_by, None);
+        assert_eq!(ft_calls().len(), before, "no ft_transfer was created");
+        // the retry is accepted now
+        let r = accept(&mut inv, "sender.testnet", 1_000_000, "{\"action\":\"pay\"}", 1000, 300);
+        rejected(r, 0);
+        assert_eq!(inv.status, STATUS_SETTLING);
+    }
+
+    #[test]
     fn token_sweep_balance_failure_clears_lock_returns_balance_unavailable() {
         let mut inv = token_invoice();
         inv.busy_until_ms = NOW + BUSY_MS;
         ctx_cb(vec![PromiseResult::Failed], NOW + 1, 1000);
-        match inv.on_token_balance() {
+        match inv.on_token_balance(U64(inv.busy_until_ms)) {
             PromiseOrValue::Value(s) => assert_eq!(s, "BALANCE_UNAVAILABLE"),
             _ => panic!(),
         }
@@ -1896,7 +1938,7 @@ mod tests {
         let mut inv = token_invoice();
         inv.busy_until_ms = NOW + BUSY_MS;
         ctx_cb(vec![PromiseResult::Successful(b"\"500000\"".to_vec())], NOW + 1, 1000);
-        match inv.on_token_balance() {
+        match inv.on_token_balance(U64(inv.busy_until_ms)) {
             PromiseOrValue::Value(s) => assert_eq!(s, "UNDERPAID"),
             _ => panic!(),
         }
@@ -1910,7 +1952,7 @@ mod tests {
         inv.status = STATUS_PAID;
         inv.busy_until_ms = NOW + BUSY_MS;
         ctx_cb(vec![PromiseResult::Successful(b"\"0\"".to_vec())], NOW + 1, 1000);
-        match inv.on_token_balance() {
+        match inv.on_token_balance(U64(inv.busy_until_ms)) {
             PromiseOrValue::Value(s) => assert_eq!(s, "NOTHING_TO_SWEEP"),
             _ => panic!(),
         }
@@ -1922,7 +1964,7 @@ mod tests {
         let mut inv = token_invoice();
         inv.busy_until_ms = NOW + BUSY_MS;
         ctx_cb(vec![PromiseResult::Successful(b"\"1000000\"".to_vec())], NOW + 1, 0);
-        match inv.on_token_balance() {
+        match inv.on_token_balance(U64(inv.busy_until_ms)) {
             PromiseOrValue::Value(s) => assert_eq!(s, "NEEDS_YOCTO"),
             _ => panic!(),
         }
@@ -1944,7 +1986,7 @@ mod tests {
         let mut inv = token_invoice();
         inv.status = STATUS_PAID;
         ctx_cb(vec![PromiseResult::Successful(b"\"0\"".to_vec())], NOW + 1, 1000);
-        match inv.on_token_balance() {
+        match inv.on_token_balance(U64(inv.busy_until_ms)) {
             PromiseOrValue::Value(s) => assert_eq!(s, "NOTHING_TO_SWEEP"),
             _ => panic!(),
         }
@@ -2040,7 +2082,7 @@ mod tests {
         ctx_at(PAYER, 0, NOW + 2, 1_000, 300);
         drop(inv.sweep());
         ctx_cb(vec![PromiseResult::Successful(b"\"1000000\"".to_vec())], NOW + 3, 1_000);
-        drop(inv.on_token_balance());
+        drop(inv.on_token_balance(U64(inv.busy_until_ms)));
         let to: Vec<String> = payouts_from_ft(false).into_iter().map(|p| p.to.to_string()).collect();
         assert_eq!(to, vec![MERCHANT.to_string(), VAULT.to_string()]);
     }
