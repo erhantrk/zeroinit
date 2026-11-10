@@ -36,3 +36,10 @@ test('formBody and selection feed the create/pay paths', () => {
   assert.deepEqual(selection(rows, 'INV-WEB-1'), { id: 'INV-WEB-1', amountNear: '1', accountId: '0ua', label: 'UNINITIALIZED' });
   assert.equal(selection(rows, 'MISSING'), null);
 });
+
+test('badgeLabel: a status not fetched yet is LOADING, an error response is ERROR (never "undefined")', () => {
+  assert.equal(badgeLabel(undefined), 'LOADING');
+  assert.equal(badgeLabel({ error: 'RPC HTTP 429' }), 'ERROR');
+  const rows = invoiceRows([{ invoice_id: 'A' }, { invoice_id: 'B' }], [{ state: 'NONEXISTENT' }]);
+  assert.deepEqual(rows.map((r) => r.label), ['NONEXISTENT', 'LOADING']);
+});

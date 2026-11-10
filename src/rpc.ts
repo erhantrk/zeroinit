@@ -45,7 +45,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export async function rpcCall(cfg: Config, method: string, params: unknown, label = `aux: ${method}`): Promise<any> {
   const body = JSON.stringify({ jsonrpc: '2.0', id: 'zi', method, params });
   let lastErr: unknown = null;
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < 5; attempt++) {   // 429 / 5xx: back off 1, 2, 3, 4 s (public testnet RPCs rate-limit bursts)
     try {
       const res = await fetch(cfg.rpcUrl, { method: 'POST', headers: { 'content-type': 'application/json' }, body });
       if (res.status === 429 || res.status >= 500) throw new Error(`RPC HTTP ${res.status}`);

@@ -1,6 +1,8 @@
 export const FORM_FIELDS = ['id', 'merchant', 'tax_vault', 'tax_bps', 'amount_near', 'expires_in_minutes'];
 
 export function badgeLabel(status) {
+  if (!status) return 'LOADING';                 // not fetched yet (the list is drawn before the statuses arrive)
+  if (status.error || !status.state) return 'ERROR'; // e.g. an RPC rate limit; the log shows the error
   return status.state === 'INITIALIZED' && status.invoice ? status.invoice.status : status.state;
 }
 

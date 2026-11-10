@@ -5,14 +5,14 @@
 <title>ZeroInit dashboard (testnet)</title>
 <style>
   body { font: 15px/1.4 system-ui, sans-serif; margin: 24px; background: #fafafa; color: #222; }
-  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; }
   .card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 16px; }
   .badge { display: inline-block; padding: 3px 10px; border-radius: 4px; font-weight: 600; color: #fff; font-size: 16px; }
   .NONEXISTENT { background: #888; } .UNINITIALIZED { background: #c80; } .OPEN { background: #06c; }
-  .PAID { background: #090; } .EXPIRED { background: #a00; }
+  .PAID { background: #090; } .EXPIRED { background: #a00; } .LOADING { background: #bbb; } .ERROR { background: #555; }
   code { font-size: 13px; word-break: break-all; }
   input { width: 100%; margin: 2px 0 8px; padding: 4px; box-sizing: border-box; }
-  pre { background: #111; color: #eee; padding: 8px; border-radius: 6px; max-height: 560px; overflow: auto; font-size: 12px; }
+  pre { background: #111; color: #eee; padding: 8px; border-radius: 6px; max-height: 560px; overflow: auto; font-size: 12px; white-space: pre-wrap; word-break: break-all; }
 </style>
 </head>
 <body>
@@ -48,12 +48,20 @@ async function api(method, path, body) {
 }
 async function refresh() {
   const docs = await api('GET', '/api/invoices');
-  const statuses = await Promise.all(docs.map((d) => api('GET', `/api/invoices/${d.invoice_id}/status`)));
-  const rows = invoiceRows(docs, statuses);
-  $('invoices').innerHTML = rows.map(({ doc: d, label }) =>
-    `<p><a href="#" data-id="${d.invoice_id}">${d.invoice_id}</a> <span class="badge ${label}">${label}</span><br><code>${d.account_id}</code><br>${d.amount_near} NEAR</p>`).join('');
-  document.querySelectorAll('[data-id]').forEach((a) => a.onclick = (e) => { e.preventDefault(); select(a.dataset.id, rows); });
-  if (selected) select(selected, rows);
+  const statuses = new Array(docs.length);
+  const draw = () => {
+    const rows = invoiceRows(docs, statuses);
+    $('invoices').innerHTML = rows.map(({ doc: d, label }) =>
+      `<p><a href="#" data-id="${d.invoice_id}">${d.invoice_id}</a> <span class="badge ${label}">${label}</span><br><code>${d.account_id}</code><br>${d.amount_near} NEAR</p>`).join('');
+    document.querySelectorAll('[data-id]').forEach((a) => a.onclick = (e) => { e.preventDefault(); select(a.dataset.id, rows); });
+    if (selected) select(selected, rows);
+  };
+  draw();   // the list shows at once; each badge fills in when its status arrives
+  // At most 4 status lookups at a time: each one is 1-2 RPC calls, and a burst of ~60 makes public testnet RPCs answer 429.
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(4, docs.length) }, async () => {
+    while (next < docs.length) { const i = next++; statuses[i] = await api('GET', `/api/invoices/${docs[i].invoice_id}/status`); draw(); }
+  }));
 }
 function select(id, rows) {
   selected = id;
