@@ -2,38 +2,46 @@
 // Run: node --test test/config.test.ts
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { V1_CODE_HASH, V2_CODE_HASH, V3_CODE_HASH, DEPLOYED_CODE_HASH, KNOWN_DEPLOYMENTS, deploymentOf, deploymentLabel,
+import { V1_CODE_HASH, V2_CODE_HASH, V3_CODE_HASH, V31_CODE_HASH, DEPLOYED_CODE_HASH, KNOWN_DEPLOYMENTS, deploymentOf, deploymentLabel,
   trustedCodeHash, pinForVerification, fixesParkedFunds, fixesFinding, allowedTokens, tokenBySymbol, loadConfig, DEFAULT_TUSDC_ACCOUNT } from '../src/config.ts';
 import { FOREIGN } from './helpers.ts';
 
-test('v3 is the current deployment; v2 and v1 are historical', () => {
-  assert.equal(DEPLOYED_CODE_HASH, V3_CODE_HASH);
-  assert.equal(trustedCodeHash({ codeHashB58: null }), V3_CODE_HASH);
-  assert.deepEqual(KNOWN_DEPLOYMENTS.map((d) => [d.version, d.historical]), [['v3', false], ['v2', true], ['v1', true]]);
-  assert.match(deploymentLabel(V3_CODE_HASH), /^v3 \(current, deployed on testnet/);
+test('v3.1 is the current deployment; v3, v2 and v1 are historical', () => {
+  assert.equal(V31_CODE_HASH, '2prMzXHZVWdeHfmdqqxzb5ahLy2pWBWZjuE25EDJDaYX');
+  assert.equal(V3_CODE_HASH, 'Ut7EQhLDrvYVarHb6ZaXk6m7o9kQqYPCpyqiamvreWa');
+  assert.notEqual(V31_CODE_HASH, V3_CODE_HASH);
+  assert.equal(DEPLOYED_CODE_HASH, V31_CODE_HASH);
+  assert.equal(trustedCodeHash({ codeHashB58: null }), V31_CODE_HASH);
+  assert.deepEqual(KNOWN_DEPLOYMENTS.map((d) => [d.version, d.historical, d.layout]), [['v3.1', false, 3], ['v3', true, 3], ['v2', true, 1], ['v1', true, 1]]);
+  assert.match(deploymentLabel(V31_CODE_HASH), /^v3\.1 \(current, deployed on testnet/);
+  assert.match(deploymentLabel(V3_CODE_HASH), /^v3 \(history/);
   assert.match(deploymentLabel(V2_CODE_HASH), /^v2 \(history/);
   assert.match(deploymentLabel(V1_CODE_HASH), /^v1 \(history/);
   assert.match(deploymentLabel(FOREIGN), /^custom/);
   assert.equal(deploymentOf(FOREIGN), null);
 });
 
-test('verification pins: v1 and v2 docs keep their own hash, everything else follows the trusted one', () => {
-  assert.equal(pinForVerification(V3_CODE_HASH, V1_CODE_HASH), V1_CODE_HASH);
-  assert.equal(pinForVerification(V3_CODE_HASH, V2_CODE_HASH), V2_CODE_HASH);
-  assert.equal(pinForVerification(V3_CODE_HASH, V3_CODE_HASH), V3_CODE_HASH);
+test('verification pins: v1, v2 and v3 docs keep their own hash, everything else follows the trusted one', () => {
+  assert.equal(pinForVerification(V31_CODE_HASH, V1_CODE_HASH), V1_CODE_HASH);
+  assert.equal(pinForVerification(V31_CODE_HASH, V2_CODE_HASH), V2_CODE_HASH);
+  assert.equal(pinForVerification(V31_CODE_HASH, V3_CODE_HASH), V3_CODE_HASH, 'v3 is history now: its recordings verify under their own hash');
+  assert.equal(pinForVerification(V31_CODE_HASH, V31_CODE_HASH), V31_CODE_HASH);
   assert.equal(pinForVerification(FOREIGN, V1_CODE_HASH), V1_CODE_HASH);
-  assert.equal(pinForVerification(V3_CODE_HASH, FOREIGN), V3_CODE_HASH, 'a foreign hash resolves to the trusted hash, so it FAILs');
-  assert.equal(pinForVerification(FOREIGN, V3_CODE_HASH), FOREIGN, 'v3 is not history: an own pin overrides it');
+  assert.equal(pinForVerification(V31_CODE_HASH, FOREIGN), V31_CODE_HASH, 'a foreign hash resolves to the trusted hash, so it FAILs');
+  assert.equal(pinForVerification(FOREIGN, V31_CODE_HASH), FOREIGN, 'v3.1 is not history: an own pin overrides it');
 });
 
 test('findings: v3 fixes the parked-funds rule and the new ones; v1 fixes none', () => {
-  for (const h of [V2_CODE_HASH, V3_CODE_HASH]) assert.equal(fixesParkedFunds(h), true);
+  for (const h of [V2_CODE_HASH, V3_CODE_HASH, V31_CODE_HASH]) assert.equal(fixesParkedFunds(h), true);
   assert.equal(fixesParkedFunds(V1_CODE_HASH), false);
   assert.equal(fixesParkedFunds(FOREIGN), false, 'unknown deployments stay conservative');
   for (const f of ['settling', 'owed-ledger', 'tax-extras', 'tokens']) {
     assert.equal(fixesFinding(V3_CODE_HASH, f), true, f);
+    assert.equal(fixesFinding(V31_CODE_HASH, f), true, f);
     assert.equal(fixesFinding(V2_CODE_HASH, f), false, f);
   }
+  assert.equal(fixesFinding(V31_CODE_HASH, 'token-sweep-race'), true, 'v3.1 is the F1 fix');
+  assert.equal(fixesFinding(V3_CODE_HASH, 'token-sweep-race'), false, 'v3 has the race');
 });
 
 test('the token allow-list defaults to the deployed testnet tUSDC; ZI_TUSDC_ACCOUNT overrides it, an empty value switches it off', () => {

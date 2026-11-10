@@ -3,7 +3,7 @@
 // Run: node scripts/make-synthetic-v3-fixture.mjs
 import { writeFileSync } from 'node:fs';
 import { createInvoiceDoc } from '../src/invoice.ts';
-import { V3_CODE_HASH } from '../src/config.ts';
+import { V31_CODE_HASH } from '../src/config.ts';
 
 const TOKEN = 'tusdc.example.testnet';
 const MERCHANT = 'zi-merchant.testnet';
@@ -11,7 +11,7 @@ const VAULT = 'zi-taxvault.testnet';
 const PAYER = 'payer.testnet';
 const HASH = 'SyntheticTxHash1111111111111111111111111111111';
 const now = new Date('2026-11-10T00:00:00.000Z');
-const doc = (id, over = {}) => createInvoiceDoc('0u', V3_CODE_HASH, {
+const doc = (id, over = {}) => createInvoiceDoc('0u', V31_CODE_HASH, {
   invoice_id: id, merchant: MERCHANT, tax_vault: VAULT, tax_bps: 800, amount: 1_000_000n,
   expires_at_ms: BigInt(now.getTime() + 3_600_000), salt: 1n, layout: 3, grace_ms: 120_000n,
   token: TOKEN, token_symbol: 'tUSDC', token_decimals: 6, ...over,
@@ -75,7 +75,7 @@ const call = (invoice_id, label, response) => calls.push({ seq: seq++, invoice_i
      receipt('r2', d.account_id, TOKEN, ftTransfer(VAULT, 80000)),
      receipt('r3', d.account_id, d.account_id, onSettled())],
     [outcome('r1', TOKEN), outcome('r2', TOKEN), outcome('r3', d.account_id, { logs: [paid] })])));
-  call(d.invoice_id, 'sweep-after: view_account', account(V3_CODE_HASH));
+  call(d.invoice_id, 'sweep-after: view_account', account(V31_CODE_HASH));
   call(d.invoice_id, 'sweep-after: get_invoice', view(invoiceView(d, { status: 'PAID', paid_by: null, paid_amount: '1000000', tax_amount: '80000' })));
   call(d.invoice_id, 'ft: ft_balance_of ' + d.account_id, view('0'));
 }
@@ -92,7 +92,7 @@ const call = (invoice_id, label, response) => calls.push({ seq: seq++, invoice_i
      receipt('p2', d.account_id, TOKEN, ftTransfer(VAULT, 80000)),
      receipt('p3', d.account_id, d.account_id, onSettled())],
     [outcome('p1', TOKEN, { ok: false }), outcome('p2', TOKEN), outcome('p3', d.account_id, { logs: [failed] })])));
-  call(d.invoice_id, 'after: view_account', account(V3_CODE_HASH));
+  call(d.invoice_id, 'after: view_account', account(V31_CODE_HASH));
   call(d.invoice_id, 'after: get_invoice', view(invoiceView(d, { status: 'SETTLING', paid_by: PAYER, paid_amount: '1000000', tax_amount: '80000', owed_merchant: '920000' })));
   const paid = event('invoice_paid', { invoice_id: d.invoice_id, account_id: d.account_id, via: 'pay', payer: PAYER,
     amount: '1000000', merchant_amount: '920000', tax_amount: '80000', excess_refunded: '0', late: false, retried: true, token: TOKEN });
@@ -101,7 +101,7 @@ const call = (invoice_id, label, response) => calls.push({ seq: seq++, invoice_i
     [receipt('q1', d.account_id, TOKEN, ftTransfer(MERCHANT, 920000)),
      receipt('q2', d.account_id, d.account_id, onSettled())],
     [outcome('q1', TOKEN), outcome('q2', d.account_id, { logs: [resent, paid] })])));
-  call(d.invoice_id, 'sweep-after: view_account', account(V3_CODE_HASH));
+  call(d.invoice_id, 'sweep-after: view_account', account(V31_CODE_HASH));
   call(d.invoice_id, 'sweep-after: get_invoice', view(invoiceView(d, { status: 'PAID', paid_by: PAYER, paid_amount: '1000000', tax_amount: '80000' })));
 }
 
@@ -130,7 +130,7 @@ const call = (invoice_id, label, response) => calls.push({ seq: seq++, invoice_i
     [receipt('z1', d.account_id, TOKEN, ftTransfer(PAYER, 920000)),
      receipt('z2', d.account_id, d.account_id, onSettled())],
     [outcome('z1', TOKEN), outcome('z2', d.account_id, { logs: [reclaimed] })])));
-  call(d.invoice_id, 'after: view_account', account(V3_CODE_HASH));
+  call(d.invoice_id, 'after: view_account', account(V31_CODE_HASH));
   call(d.invoice_id, 'after: get_invoice', view(invoiceView(d, { status: 'REFUNDED', paid_by: PAYER, paid_amount: '1000000', tax_amount: '80000' })));
 }
 

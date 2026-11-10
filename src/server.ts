@@ -123,8 +123,8 @@ export function serve(cfg: Config, port: number): Promise<Server> {
             throw new Error(cfg.allowedTokens.length ? `unknown asset ${assetName} (allow-list: near, ${cfg.allowedTokens.map((x) => x.symbol).join(', ')})` : 'no token is configured: set ZI_TUSDC_ACCOUNT');
           }
           const dep = deploymentOf(trustedCodeHash(cfg));
-          const layout = dep?.version === 'v3' ? 3 : 1;
-          if (entry && layout !== 3) throw new Error('token invoices need the v3 deployment');
+          const layout = dep?.layout ?? 1;
+          if (entry && layout !== 3) throw new Error('token invoices need the v3 or v3.1 deployment');
           const amountText = nonEmptyString('amount', b.value.amount ?? b.value.amount_near);
           const amount = entry ? parseUnits(amountText, entry.decimals) : parseNear(amountText);
           const graceRaw = b.value.payout_grace_ms;

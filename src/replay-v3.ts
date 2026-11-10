@@ -180,13 +180,17 @@ export function replayV3Invoice(f: any, doc: InvoiceDoc, trusted: string | undef
   add(c.idFromTerms && c.rawFromTerms, 'id-from-terms', id, doc.account_id);
   add(c.fieldsConsistent, 'doc-fields-from-terms', id);
   const codeHash = trusted ?? doc.code_hash;
+  // A fixture that continues an invoice created and paid in an earlier recording (the L3 retry on LATE-V3) lists it in `resumed`:
+  // the first snapshot must then show an INITIALIZED account on the pinned code, and the first tx does not carry a state init.
+  const resumed = Array.isArray(f.resumed) && f.resumed.includes(id);
   let expectedStatus: string = 'OPEN';
   let beforeStatus: string | null = null;
   let paidBy: string | null = null;
   let pendingFailure: { merchant: bigint; tax: bigint; payer: bigint } | null = null;
   let pendingView = false;
   let pendingGet = false;
-  let checkedInit = false;
+  let checkedInit = resumed;
+  let expectUntouched = false;   // the last tx was a sweep that returned CONCURRENT_PAYMENT: nothing may have been paid or recorded as owed
   let sawBefore = false;
   let txSeen = false;
   const flush = () => {
@@ -206,7 +210,9 @@ export function replayV3Invoice(f: any, doc: InvoiceDoc, trusted: string | undef
       // `zi sweep` records this snapshot on every call; only the one before the first transaction must show a not-yet-initialized account.
       if (txSeen) continue;
       const s = accountStateFromResponse(call.response);
-      if (docToken(doc) === null) {
+      if (resumed) {
+        add(s.kind === 'INITIALIZED' && s.globalContractHash === codeHash, 'resumed-initialized', id, s.kind === 'INITIALIZED' ? String(s.globalContractHash) : s.kind);
+      } else if (docToken(doc) === null) {
         // NEAR: the plain transfer parked funds in an account that exists but has no code yet.
         add(s.kind === 'UNINITIALIZED' && s.amount > 0n, 'transfer-path-uninitialized', id, s.kind === 'UNINITIALIZED' ? formatNear(s.amount) : s.kind);
       } else add(s.kind === 'NONEXISTENT' || s.kind === 'UNINITIALIZED', 'transfer-path-uninitialized', id, s.kind);
@@ -214,6 +220,11 @@ export function replayV3Invoice(f: any, doc: InvoiceDoc, trusted: string | undef
       // The recorded token balance (parked funds while NEAR still says UNKNOWN_ACCOUNT, or what is left after a settle).
       const v = decodeViewResult(call.response);
       add(v !== null && v !== undefined && /^\d+$/.test(String(v)), 'ft-parked-balance', id, formatUnits(BigInt(String(v)), docDecimals(doc)));
+    } else if (label === 'transfer-path: get_invoice (uninitialized)') {
+      if (resumed && !txSeen) {
+        const v = decodeViewResult(call.response);
+        beforeStatus = v.status; paidBy = v.paid_by ?? null; expectedStatus = v.status;
+      }
     } else if (label === 'before: get_invoice') {
       const v = decodeViewResult(call.response);
       beforeStatus = v.status;
@@ -233,6 +244,12 @@ export function replayV3Invoice(f: any, doc: InvoiceDoc, trusted: string | undef
         const owedT = BigInt(String(v.owed_tax ?? '0'));
         add(owedM === pendingFailure.merchant && owedT === pendingFailure.tax, 'owed-after-failure', id, `owed ${owedM}/${owedT}, failed ${pendingFailure.merchant}/${pendingFailure.tax}`);
         pendingFailure = null;
+      }
+      if (expectUntouched) {
+        const owed = BigInt(String(v.owed_merchant ?? '0')) + BigInt(String(v.owed_tax ?? '0')) + BigInt(String(v.owed_payer ?? '0'));
+        add(owed === 0n && v.status === 'OPEN' && (v.paid_by ?? null) === null && String(v.paid_amount ?? '0') === '0', 'concurrent-payment-nothing-owed', id,
+          `status ${String(v.status)}, owed ${owed}, paid_by ${String(v.paid_by ?? null)}`);
+        expectUntouched = false;
       }
       const expected = expectedStatus;
       add(expected !== 'UNKNOWN' && v.status === expected, `after-status-${expected}`, id, expected === v.status ? '' : `expected ${expected}, got ${v.status}`);
@@ -263,6 +280,13 @@ export function replayV3Invoice(f: any, doc: InvoiceDoc, trusted: string | undef
         add(p.stateInitBase64 !== null, 'tx-carries-state-init', id, p.stateInitBase64 === null ? 'first tx has no UniversalStateInit' : '');
       }
       if (prefix === 'pay') checkFtCall(result, doc, add);
+      if (prefix === 'sweep' && p.returnValue === 'CONCURRENT_PAYMENT') {
+        // F1 (v3.1): a sweep that read the token balance while a payment was in flight must plan nothing: no payout, no event, nothing owed afterwards.
+        const sent = payoutsOf(result, doc.account_id);
+        add(sent.length === 0 && p.events.length === 0 && p.downstreamFailures.length === 0, 'concurrent-payment-plans-nothing', id,
+          `${sent.length} payout(s), ${p.events.length} event(s), ${p.downstreamFailures.length} failure(s)`);
+        expectUntouched = true;
+      }
       const paidReceipts = paidAfterCallback(result, doc.account_id, p, add, id);
       checkResendAndSplit(result, doc, p, add, beforeStatus, paidBy, prefix);
       const failedEvents = p.events.filter((e) => e.event === 'transfer_failed');

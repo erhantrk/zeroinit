@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# HISTORY: this recorder ran against contract v3 (Ut7EQhLD…reWa) on 2026-11-10. The client default is v3.1 now, so re-running it records v3.1 invoices; use the record-v31-*.sh scripts for v3.1.
 # LIVE v3 extras (docs/STABLECOIN.md §11.4 / §12), run after the main recorders:
 #   S-F2   ft_transfer_call to an invoice id that was never initialized (registered on the token, no account on NEAR): the token gets the call
 #          to a nonexistent receiver, which fails, and the token refunds everything. Appended to fixtures/v3/failures.json.

@@ -3,31 +3,36 @@ import { base58 } from '@scure/base';
 
 /** The invoice-contract deployments this client knows. All are global contracts on testnet, identified by the sha256 (base58) of the wasm. */
 export interface Deployment {
-  version: 'v1' | 'v2' | 'v3';
+  version: 'v1' | 'v2' | 'v3' | 'v3.1';
   hash: string;
   label: string;
   /** Contract-level findings this deployment fixes (see README "v1 → v2" and "v2 → v3"). */
   fixes: readonly string[];
+  /** State layout the deployment's invoices use: 1 (v1, v2) or 3 (v3, v3.1); decides the document format (/1 or /2). */
+  layout: 1 | 3;
   /** true: only for verifying/replaying recorded history; never used to issue or sign. */
   historical: boolean;
 }
 export const V1_CODE_HASH = 'Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k';
 export const V2_CODE_HASH = '4bQ61AgHWWmYXp5c3fwj9NJxS79D9R3cGZAZxHyx9zEA';
-/** v3 wasm built from this repo (`npm run contract:build`), 161,213 bytes, sha256 0724781d…0b1f. Deployed on testnet as a global contract (docs/SPIKES.md "Contract v3 live"). */
+/** v3 wasm built from this repo, 161,213 bytes, sha256 0724781d…0b1f. Deployed on testnet as a global contract (docs/SPIKES.md "Contract v3 live"). History since v3.1: it has the token-sweep race (final-review F1). */
 export const V3_CODE_HASH = 'Ut7EQhLDrvYVarHb6ZaXk6m7o9kQqYPCpyqiamvreWa';
+/** v3.1 wasm (v3 plus the F1 fix: a token sweep racing an in-flight ft_transfer_call plans nothing), built from this repo, 163,771 bytes, sha256 1b1dcc75…e278. Deployed by the operator (tx 52dRw7RcBom9EbUJ6hCExDF5esWjsHPh5e1sUa87XyvB). */
+export const V31_CODE_HASH = '2prMzXHZVWdeHfmdqqxzb5ahLy2pWBWZjuE25EDJDaYX';
 export const KNOWN_DEPLOYMENTS: readonly Deployment[] = [
-  { version: 'v3', hash: V3_CODE_HASH, label: 'v3 (current, deployed on testnet: NEP-141, SETTLING, owed ledger)', fixes: ['contract-1', 'contract-2', 'contract-3', 'settling', 'owed-ledger', 'tax-extras', 'tokens'], historical: false },
-  { version: 'v2', hash: V2_CODE_HASH, label: 'v2 (history, frozen: fixes contract-1/2/3; verify and replay only)', fixes: ['contract-1', 'contract-2', 'contract-3'], historical: true },
-  { version: 'v1', hash: V1_CODE_HASH, label: 'v1 (history, frozen: known limitations contract-1/2/3; verify only, never pay)', fixes: [], historical: true },
+  { version: 'v3.1', hash: V31_CODE_HASH, label: 'v3.1 (current, deployed on testnet: v3 plus the token-sweep race fix)', fixes: ['contract-1', 'contract-2', 'contract-3', 'settling', 'owed-ledger', 'tax-extras', 'tokens', 'token-sweep-race'], layout: 3, historical: false },
+  { version: 'v3', hash: V3_CODE_HASH, label: 'v3 (history, frozen: NEP-141, SETTLING, owed ledger; has the token-sweep race; verify and replay only)', fixes: ['contract-1', 'contract-2', 'contract-3', 'settling', 'owed-ledger', 'tax-extras', 'tokens'], layout: 3, historical: true },
+  { version: 'v2', hash: V2_CODE_HASH, label: 'v2 (history, frozen: fixes contract-1/2/3; verify and replay only)', fixes: ['contract-1', 'contract-2', 'contract-3'], layout: 1, historical: true },
+  { version: 'v1', hash: V1_CODE_HASH, label: 'v1 (history, frozen: known limitations contract-1/2/3; verify only, never pay)', fixes: [], layout: 1, historical: true },
 ];
 /** The known deployment with this code hash, or null (an own deployment pinned through ZI_CODE_HASH, or a foreign contract). */
 export const deploymentOf = (hash: string): Deployment | null => KNOWN_DEPLOYMENTS.find((d) => d.hash === hash) ?? null;
 /** Human label of a code hash: the known deployment's label, else "custom". */
 export const deploymentLabel = (hash: string): string => deploymentOf(hash)?.label ?? 'custom (not a known ZeroInit deployment)';
 
-/** The current ZeroInit invoice contract (v3), built from this repo and deployed on testnet. */
-export const DEPLOYED_CODE_HASH = V3_CODE_HASH;
-/** The code hash a payer trusts: ZI_CODE_HASH when set (own deployment), else the current deployed hash (v3). Never the invoice file's own value. */
+/** The current ZeroInit invoice contract (v3.1), built from this repo and deployed on testnet. */
+export const DEPLOYED_CODE_HASH = V31_CODE_HASH;
+/** The code hash a payer trusts: ZI_CODE_HASH when set (own deployment), else the current deployed hash (v3.1). Never the invoice file's own value. */
 export const trustedCodeHash = (cfg: { codeHashB58: string | null }): string => cfg.codeHashB58 ?? DEPLOYED_CODE_HASH;
 /**
  * The hash to verify a document against: the trusted hash, or (read-only checks only) the hash of a historical known deployment

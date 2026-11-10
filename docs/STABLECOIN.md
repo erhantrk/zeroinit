@@ -1,6 +1,8 @@
 # ZeroInit contract v3: stablecoin (NEP-141) support and the v2 residual fixes
 
-Status: **deployed on testnet and run live (2026-11-10).** The contract, the client, the dashboard and the tests are in this repo. The wasm was built with
+Status: **v3 was deployed on testnet and run live (2026-11-10); the current deployment is v3.1** (v3 plus the F1 fix, code hash `2prMzXHZVWdeHfmdqqxzb5ahLy2pWBWZjuE25EDJDaYX`, deploy tx
+`52dRw7RcBom9EbUJ6hCExDF5esWjsHPh5e1sUa87XyvB`, 163,771 bytes, sha256 `1b1dcc75…e278`); the section "Live results (v3.1)" at the end says what was run on it. The interface in this file is the same
+for both; v3 is recorded history. Everything below that says "v3" and a code hash describes the first build, `Ut7EQh…reWa`. The v3 contract, the client, the dashboard and the tests are in this repo. The wasm was built with
 `npm run contract:build`: 161,213 bytes, sha256 `0724781dd2c9f4f1b8bb30abbff0602578a7ad649fc5a450d4656ffde4740b1f`, code hash
 `Ut7EQhLDrvYVarHb6ZaXk6m7o9kQqYPCpyqiamvreWa`. The operator deployed it as a global contract (tx `43D4EifRGJJBtWUVhFPXPFsZqooPwz1czD8LwRz6sjYT`, measured burn about
 16.1226 NEAR) and created the `sm1110-zi3-*` accounts and the tUSDC mock `sm1110-tusdc.testnet`. The live runs are recorded in `docs/SPIKES.md` ("Contract v3 live")
@@ -786,10 +788,10 @@ Read and left as it is (noted, not fixed):
   them. A retry with `ft_transfer_call` is rejected `not_open` and `refund_payer` panics `NO_PAYER`. The only recovery is a plain
   `ft_transfer` of the full amount to the invoice followed by `sweep`, which the client's `zi pay` does not do. `sweep` is
   permissionless, so anyone can trigger this, and repeated `sweep` calls can also keep `ft_transfer_call` rejected as `busy`.
-  **Fixed in the source, not deployed:** `on_token_balance` takes the lock value that `sweep` set, `ft_on_transfer` raises the lock
+  **Fixed in the source (deployed later as v3.1, see "Live results (v3.1)"):** `on_token_balance` takes the lock value that `sweep` set, `ft_on_transfer` raises the lock
   by 1 when it rejects as `busy` on an `OPEN` invoice, and the callback then returns `CONCURRENT_PAYMENT` without planning
-  (test `token_sweep_racing_a_busy_ft_transfer_call_plans_nothing`; `cargo test`: 65 passed). This changes the wasm, so it needs a new global
-  deploy and a new code hash; the pinned hash and the recorded testnet runs still describe the old code. Sweep spam can still block
+  (test `token_sweep_racing_a_busy_ft_transfer_call_plans_nothing`; `cargo test`: 65 passed). This changed the wasm, so it needed a new global
+  deploy and a new code hash (v3.1); the v3 recorded runs describe the old code. Sweep spam can still block
   `ft_transfer_call`.
 - Not tested live: everything in "Not done, explicitly" above. The `ft_on_transfer` detached batch and the callback gas (20 Tgas)
   are the first things to check in the spikes.
@@ -814,10 +816,35 @@ Everything below was run on testnet; the transactions are listed in `docs/SPIKES
   (limit 770 B, design bound 696 B); gas burnt per transaction is 2 to 22 Tgas (a token sweep with 200 Tgas attached burnt 21.99 Tgas, a token `ft_transfer_call` that settles
   13.13 Tgas); the NEAR `pay` that creates the account burnt 0.00756 NEAR; the global deploy burned about 16.1226 NEAR (the §2 guess was 9 to 11). The 1,000-yocto float is
   enough (998 to 999 yocto left after every settlement). The 40 Tgas test (L19) ended in `low_gas`, not in a failed receipt.
-- **Not run:** L3 (it needs an account created; not allowed in this round), S-F4, a reproducible wasm build, any browser test of the dashboard, mainnet.
+- **Not run in that round:** L3 and S-F4 (both run later on v3.1, below), a reproducible wasm build, any browser test of the dashboard, mainnet.
 - **tUSDC is a testnet mock** (`sm1110-tusdc.testnet`, the `test-usdc` source; owner-only mint; no issuer, no value). The contract does not know it: each invoice names one token
   and the client allow-list (`DEFAULT_TUSDC_ACCOUNT` in `src/config.ts`, `ZI_TUSDC_ACCOUNT` overrides it, an empty value turns token invoices off) pins symbol, decimals and
   account. On mainnet the allow-list would name a real issuer's NEP-141 contract (for example a USDC or USDT contract that the issuer runs on NEAR) with its real decimals,
   after `ft_metadata` is checked against it; that was not tested and mainnet is out of scope for this project.
 - **AI use for this round:** DeepSeek V4.1 Flash built the contract, client and tests; Claude Sonnet 5.5 designed this spec, reviewed and fixed the build, and ran and
   recorded the live runs; the operator work (accounts, tUSDC, registrations, the global deploy) was done by Claude Opus 5.5, whose final review had not happened when this was written.
+
+## Live results (v3.1) (2026-11-10, Claude Sonnet 5.5 with the operator's accounts)
+
+The operator (Claude Opus 5.5) deployed v3.1 as a new global contract: code hash `2prMzXHZVWdeHfmdqqxzb5ahLy2pWBWZjuE25EDJDaYX`, tx `52dRw7RcBom9EbUJ6hCExDF5esWjsHPh5e1sUa87XyvB`, wasm
+163,771 bytes, sha256 `1b1dcc7515f2b9d6bada0540ed20833dd3050d074e155fb8d489ac2afe01e278`, built from commit `49ec835` (the committed `contract/res/zeroinit_invoice.wasm`), burn about 16.38 NEAR
+(the operator's figure). The client treats v3.1 as current; v3 is history (`historical: true`, so `zi pay`, `zi sweep` and `zi init` refuse a v3 invoice unless `ZI_CODE_HASH` is pinned to the v3 hash on
+purpose, and `verify`/`replay` check v3 documents and fixtures against the v3 hash). The transactions are in `docs/SPIKES.md` "Contract v3.1 live"; the recordings are `fixtures/v31/*.json` and
+`fixtures/v3/late-resweep.json`, replayed by `test/live-v31.test.ts` and `test/live-v3.test.ts`.
+
+- **F1 (the race), produced on testnet.** A token `sweep` and an `ft_transfer_call` of the full price were signed first and sent at the same moment (`scripts/race-v31.ts`, invoice `RACE-V31-4`).
+  The sweep returned `CONCURRENT_PAYMENT` with no payout and no event; the payment got `payment_rejected busy` and the token refunded the whole 1 tUSDC; the invoice stayed `OPEN`, nothing owed,
+  `paid_by` null, lock 0; a retried `ft_transfer_call` was accepted and paid 0.92 / 0.08 tUSDC. This is what §5.3 describes ("returns `CONCURRENT_PAYMENT`, the lock is cleared, the invoice stays `OPEN`
+  and the payer can retry"). It took four attempts: three forgot to register the invoice id on the token and failed in the token before the race could happen (`docs/SPIKES.md`, "Failed attempts"); the
+  fourth hit the alignment at once. One success is not a rate. The Rust test `token_sweep_racing_a_busy_ft_transfer_call_plans_nothing` covers the logic; the replay rules
+  `concurrent-payment-plans-nothing` and `concurrent-payment-nothing-owed` check the recording.
+- **Re-recorded on v3.1:** the NEAR demo (`INV-1111-V31-A/B/C`), the tUSDC plain `ft_transfer` + sweep (`TOK-1111-V31-A`) and the one-step `zi init` + `ft_transfer_call` (`TOK-V31-B`, plus a second call
+  returned `not_open`): same behaviour as on v3 (0.92 / 0.08, `invoice_paid` from `on_settled`, the final value of `ft_transfer_call` is the amount used).
+- **L3, run.** `late.sm1110-zi3-merchant.testnet` was created by its parent `sm1110-zi3-merchant.testnet` (with its own key, `scripts/create-late-merchant.ts`). `LATE-V31` (paid while the merchant did not exist:
+  `PAYOUT_PENDING`, `SETTLING`) was then swept: exactly the owed 0.092 NEAR went to the merchant (`owed_resent`), `invoice_paid` with `retried: true`, `PAID`. The v3 invoice `LATE-V3`, whose share had been
+  owed on the v3 account, was swept the same way with the v3 hash pinned; both are recorded.
+- **S-F4, run: the `UniversalStateInit` deposit is not credited** to the new account. A 0.02 NEAR deposit came back to the signer as a system `Transfer`; the new account held 0. §5.6's reasoning (use `fund`,
+  not the state-init deposit) is confirmed. Evidence: `fixtures/v31/sf4.json`.
+- **Measured:** see `docs/SPIKES.md` ("Measured on v3.1"): 427 B after a NEAR `pay`, 446 B for a paid token invoice, 4.9 to 22 Tgas per transaction.
+- **Not run:** a reproducible wasm build, a browser test of the dashboard, mainnet. v3.1 has no new Rust test beyond the 65 of the source at `49ec835` (the F1 test is among them).
+- **AI use for this round:** Claude Sonnet 5.5 ran and recorded the live flows and updated the client, tests and docs; Claude Opus 5.5 did the operator deploy of v3.1 and the re-check.

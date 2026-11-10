@@ -1,0 +1,4612 @@
+{
+  "format": "zeroinit-fixture/1",
+  "recorded_at_iso": "2026-11-10T15:04:21.777Z",
+  "rpc_url": "",
+  "invoices": [
+    {
+      "format": "zeroinit-invoice/2",
+      "network": "testnet",
+      "scheme": "0u",
+      "code_hash": "Ut7EQhLDrvYVarHb6ZaXk6m7o9kQqYPCpyqiamvreWa",
+      "invoice_id": "LATE-V3",
+      "merchant": "late.sm1110-zi3-merchant.testnet",
+      "tax_vault": "sm1110-zi3-taxvault.testnet",
+      "tax_bps": 800,
+      "expires_at_ms": "1794326924814",
+      "expires_at_iso": "2026-11-10T16:08:44.814Z",
+      "salt": "4340126424829221602",
+      "state_hex": "03070000004c4154452d5633200000006c6174652e736d313131302d7a69332d6d65726368616e742e746573746e65741b000000736d313131302d7a69332d7461787661756c742e746573746e65742003000080f64ae1c7022d150000000000000e0e38c6a1010000e25a3b08fd393b3c00840c240000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "raw_state_init_hex": "0001000724781dd2c9f4f1b8bb30abbff0602578a7ad649fc5a450d4656ffde4740b1f01000000050000005354415445dd00000003070000004c4154452d5633200000006c6174652e736d313131302d7a69332d6d65726368616e742e746573746e65741b000000736d313131302d7a69332d7461787661756c742e746573746e65742003000080f64ae1c7022d150000000000000e0e38c6a1010000e25a3b08fd393b3c00840c24000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "account_id": "0u605qjm2v1vmwqn4svaf2k9ssbqmp8mjknnbkkp50as0et92wk9r0",
+      "created_at_iso": "2026-11-10T14:08:44.817Z",
+      "asset": {
+        "kind": "near"
+      },
+      "amount_raw": "100000000000000000000000",
+      "amount_display": "0.1",
+      "payout_grace_ms": "604800000"
+    }
+  ],
+  "calls": [
+    {
+      "seq": 0,
+      "invoice_id": "LATE-V3",
+      "label": "aux: status",
+      "method": "status",
+      "params": [],
+      "response": {
+        "jsonrpc": "2.0",
+        "result": {
+          "chain_id": "testnet",
+          "genesis_hash": "FWJ9kR6KFWoyMoNjpLXXGHeuiy7tEY6GmoFeCA5yuc6b",
+          "latest_protocol_version": 88,
+          "node_key": null,
+          "node_public_key": "ed25519:B87Qq34LbWadFx2dq5bwUEtB5KBgr8ZhsoEpAiSP2qVX",
+          "protocol_version": 88,
+          "rpc_addr": "0.0.0.0:3030",
+          "sync_info": {
+            "earliest_block_hash": "6gjrZpQYuFA4u6nQtHmgwn4QgdfKoqZ8L2hcRJBb3JUe",
+            "earliest_block_height": 276867655,
+            "earliest_block_time": "2026-11-09T03:43:23.348167908Z",
+            "epoch_id": "FnAjVQVurgL1DVHysgCXZA3y7DjEx2Q819E9ncYdgtLw",
+            "epoch_start_height": 277040455,
+            "latest_block_hash": "G5GXBbEAhh7iKXujPbgZ6F1pTXr5XCFr9UNfGgbvnTCZ",
+            "latest_block_height": 277083380,
+            "latest_block_time": "2026-11-10T15:04:20.685419552Z",
+            "latest_state_root": "5egRu91JPLr2nRf6PphF4TzA6ZE2boFg5c6qjJPZ5Fyn",
+            "syncing": false
+          },
+          "uptime_sec": 1613636,
+          "validator_account_id": null,
+          "validator_public_key": null,
+          "validators": [
+            {
+              "account_id": "node0"
+            },
+            {
+              "account_id": "node1"
+            },
+            {
+              "account_id": "kiln.pool.f863973.m0"
+            },
+            {
+              "account_id": "node2"
+            },
+            {
+              "account_id": "node3"
+            },
+            {
+              "account_id": "aurora.pool.f863973.m0"
+            },
+            {
+              "account_id": "01node.pool.f863973.m0"
+            },
+            {
+              "account_id": "stakely_v2.pool.f863973.m0"
+            },
+            {
+              "account_id": "legends.pool.f863973.m0"
+            },
+            {
+              "account_id": "ni.pool.f863973.m0"
+            },
+            {
+              "account_id": "ts.pool.f863973.m0"
+            },
+            {
+              "account_id": "lunanova2.pool.f863973.m0"
+            },
+            {
+              "account_id": "validator4.testnet"
+            },
+            {
+              "account_id": "validator5.testnet"
+            },
+            {
+              "account_id": "validator6.testnet"
+            },
+            {
+              "account_id": "validator7.testnet"
+            },
+            {
+              "account_id": "validator8.testnet"
+            },
+            {
+              "account_id": "validator9.testnet"
+            },
+            {
+              "account_id": "validator10.testnet"
+            },
+            {
+              "account_id": "validator11.testnet"
+            }
+          ],
+          "version": {
+            "build": "2.14.0-rc.5",
+            "commit": "b7b4737cab46f17a6daa2ed694d7aebbd204363a",
+            "rustc_version": "1.95.0",
+            "version": "2.14.0-rc.5"
+          }
+        },
+        "id": "zi"
+      }
+    },
+    {
+      "seq": 1,
+      "invoice_id": "LATE-V3",
+      "label": "aux: query",
+      "method": "query",
+      "params": {
+        "request_type": "view_account",
+        "finality": "final",
+        "account_id": "0u605qjm2v1vmwqn4svaf2k9ssbqmp8mjknnbkkp50as0et92wk9r0"
+      },
+      "response": {
+        "jsonrpc": "2.0",
+        "result": {
+          "amount": "92000000000000000000000",
+          "block_hash": "GbWc7xKaS5xVmHi3pw3ZW1e2hs8baDuxKo7EJRqd4Bg7",
+          "block_height": 277083378,
+          "code_hash": "11111111111111111111111111111111",
+          "global_contract_hash": "Ut7EQhLDrvYVarHb6ZaXk6m7o9kQqYPCpyqiamvreWa",
+          "locked": "0",
+          "storage_paid_at": 0,
+          "storage_usage": 426
+        },
+        "id": "zi"
+      }
+    },
+    {
+      "seq": 2,
+      "invoice_id": "LATE-V3",
+      "label": "aux: query",
+      "method": "query",
+      "params": {
+        "request_type": "call_function",
+        "finality": "final",
+        "account_id": "0u605qjm2v1vmwqn4svaf2k9ssbqmp8mjknnbkkp50as0et92wk9r0",
+        "method_name": "get_invoice",
+        "args_base64": "e30="
+      },
+      "response": {
+        "jsonrpc": "2.0",
+        "result": {
+          "block_hash": "GbWc7xKaS5xVmHi3pw3ZW1e2hs8baDuxKo7EJRqd4Bg7",
+          "block_height": 277083378,
+          "logs": [],
+          "result": [
+            123,
+            34,
+            118,
+            34,
+            58,
+            51,
+            44,
+            34,
+            97,
+            99,
+            99,
+            111,
+            117,
+            110,
+            116,
+            95,
+            105,
+            100,
+            34,
+            58,
+            34,
+            48,
+            117,
+            54,
+            48,
+            53,
+            113,
+            106,
+            109,
+            50,
+            118,
+            49,
+            118,
+            109,
+            119,
+            113,
+            110,
+            52,
+            115,
+            118,
+            97,
+            102,
+            50,
+            107,
+            57,
+            115,
+            115,
+            98,
+            113,
+            109,
+            112,
+            56,
+            109,
+            106,
+            107,
+            110,
+            110,
+            98,
+            107,
+            107,
+            112,
+            53,
+            48,
+            97,
+            115,
+            48,
+            101,
+            116,
+            57,
+            50,
+            119,
+            107,
+            57,
+            114,
+            48,
+            34,
+            44,
+            34,
+            105,
+            110,
+            118,
+            111,
+            105,
+            99,
+            101,
+            95,
+            105,
+            100,
+            34,
+            58,
+            34,
+            76,
+            65,
+            84,
+            69,
+            45,
+            86,
+            51,
+            34,
+            44,
+            34,
+            109,
+            101,
+            114,
+            99,
+            104,
+            97,
+            110,
+            116,
+            34,
+            58,
+            34,
+            108,
+            97,
+            116,
+            101,
+            46,
+            115,
+            109,
+            49,
+            49,
+            49,
+            48,
+            45,
+            122,
+            105,
+            51,
+            45,
+            109,
+            101,
+            114,
+            99,
+            104,
+            97,
+            110,
+            116,
+            46,
+            116,
+            101,
+            115,
+            116,
+            110,
+            101,
+            116,
+            34,
+            44,
+            34,
+            116,
+            97,
+            120,
+            95,
+            118,
+            97,
+            117,
+            108,
+            116,
+            34,
+            58,
+            34,
+            115,
+            109,
+            49,
+            49,
+            49,
+            48,
+            45,
+            122,
+            105,
+            51,
+            45,
+            116,
+            97,
+            120,
+            118,
+            97,
+            117,
+            108,
+            116,
+            46,
+            116,
+            101,
+            115,
+            116,
+            110,
+            101,
+            116,
+            34,
+            44,
+            34,
+            116,
+            97,
+            120,
+            95,
+            98,
+            112,
+            115,
+            34,
+            58,
+            56,
+            48,
+            48,
+            44,
+            34,
+            97,
+            109,
+            111,
+            117,
+            110,
+            116,
+            34,
+            58,
+            34,
+            49,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            34,
+            44,
+            34,
+            101,
+            120,
+            112,
+            105,
+            114,
+            101,
+            115,
+            95,
+            97,
+            116,
+            95,
+            109,
+            115,
+            34,
+            58,
+            34,
+            49,
+            55,
+            57,
+            52,
+            51,
+            50,
+            54,
+            57,
+            50,
+            52,
+            56,
+            49,
+            52,
+            34,
+            44,
+            34,
+            115,
+            97,
+            108,
+            116,
+            34,
+            58,
+            34,
+            52,
+            51,
+            52,
+            48,
+            49,
+            50,
+            54,
+            52,
+            50,
+            52,
+            56,
+            50,
+            57,
+            50,
+            50,
+            49,
+            54,
+            48,
+            50,
+            34,
+            44,
+            34,
+            103,
+            114,
+            97,
+            99,
+            101,
+            95,
+            109,
+            115,
+            34,
+            58,
+            34,
+            54,
+            48,
+            52,
+            56,
+            48,
+            48,
+            48,
+            48,
+            48,
+            34,
+            44,
+            34,
+            116,
+            111,
+            107,
+            101,
+            110,
+            34,
+            58,
+            110,
+            117,
+            108,
+            108,
+            44,
+            34,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            34,
+            58,
+            34,
+            83,
+            69,
+            84,
+            84,
+            76,
+            73,
+            78,
+            71,
+            34,
+            44,
+            34,
+            112,
+            97,
+            105,
+            100,
+            95,
+            98,
+            121,
+            34,
+            58,
+            34,
+            115,
+            109,
+            49,
+            49,
+            49,
+            48,
+            45,
+            122,
+            105,
+            51,
+            45,
+            112,
+            97,
+            121,
+            101,
+            114,
+            46,
+            116,
+            101,
+            115,
+            116,
+            110,
+            101,
+            116,
+            34,
+            44,
+            34,
+            112,
+            97,
+            105,
+            100,
+            95,
+            97,
+            116,
+            95,
+            109,
+            115,
+            34,
+            58,
+            34,
+            49,
+            55,
+            57,
+            52,
+            51,
+            49,
+            57,
+            55,
+            50,
+            54,
+            52,
+            49,
+            56,
+            34,
+            44,
+            34,
+            112,
+            97,
+            105,
+            100,
+            95,
+            97,
+            109,
+            111,
+            117,
+            110,
+            116,
+            34,
+            58,
+            34,
+            49,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            34,
+            44,
+            34,
+            116,
+            97,
+            120,
+            95,
+            97,
+            109,
+            111,
+            117,
+            110,
+            116,
+            34,
+            58,
+            34,
+            56,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            34,
+            44,
+            34,
+            111,
+            119,
+            101,
+            100,
+            95,
+            109,
+            101,
+            114,
+            99,
+            104,
+            97,
+            110,
+            116,
+            34,
+            58,
+            34,
+            57,
+            50,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            34,
+            44,
+            34,
+            111,
+            119,
+            101,
+            100,
+            95,
+            116,
+            97,
+            120,
+            34,
+            58,
+            34,
+            48,
+            34,
+            44,
+            34,
+            111,
+            119,
+            101,
+            100,
+            95,
+            112,
+            97,
+            121,
+            101,
+            114,
+            34,
+            58,
+            34,
+            48,
+            34,
+            44,
+            34,
+            114,
+            101,
+            102,
+            117,
+            110,
+            100,
+            95,
+            116,
+            111,
+            34,
+            58,
+            110,
+            117,
+            108,
+            108,
+            44,
+            34,
+            98,
+            117,
+            115,
+            121,
+            95,
+            117,
+            110,
+            116,
+            105,
+            108,
+            95,
+            109,
+            115,
+            34,
+            58,
+            34,
+            48,
+            34,
+            125
+          ]
+        },
+        "id": "zi"
+      }
+    },
+    {
+      "seq": 3,
+      "invoice_id": "LATE-V3",
+      "label": "aux: status",
+      "method": "status",
+      "params": [],
+      "response": {
+        "jsonrpc": "2.0",
+        "result": {
+          "chain_id": "testnet",
+          "genesis_hash": "FWJ9kR6KFWoyMoNjpLXXGHeuiy7tEY6GmoFeCA5yuc6b",
+          "latest_protocol_version": 88,
+          "node_key": null,
+          "node_public_key": "ed25519:B87Qq34LbWadFx2dq5bwUEtB5KBgr8ZhsoEpAiSP2qVX",
+          "protocol_version": 88,
+          "rpc_addr": "0.0.0.0:3030",
+          "sync_info": {
+            "earliest_block_hash": "6gjrZpQYuFA4u6nQtHmgwn4QgdfKoqZ8L2hcRJBb3JUe",
+            "earliest_block_height": 276867655,
+            "earliest_block_time": "2026-11-09T03:43:23.348167908Z",
+            "epoch_id": "FnAjVQVurgL1DVHysgCXZA3y7DjEx2Q819E9ncYdgtLw",
+            "epoch_start_height": 277040455,
+            "latest_block_hash": "CTR6y2s5DoDyEfxgmX85PaG32XkU7wFU5rgDFobZH4V9",
+            "latest_block_height": 277083381,
+            "latest_block_time": "2026-11-10T15:04:21.356779197Z",
+            "latest_state_root": "AKz7YPuYADwpRVc26cd3fkHJTsrUfk2soHw24XfLvvNa",
+            "syncing": false
+          },
+          "uptime_sec": 1613637,
+          "validator_account_id": null,
+          "validator_public_key": null,
+          "validators": [
+            {
+              "account_id": "node0"
+            },
+            {
+              "account_id": "node1"
+            },
+            {
+              "account_id": "kiln.pool.f863973.m0"
+            },
+            {
+              "account_id": "node2"
+            },
+            {
+              "account_id": "node3"
+            },
+            {
+              "account_id": "aurora.pool.f863973.m0"
+            },
+            {
+              "account_id": "01node.pool.f863973.m0"
+            },
+            {
+              "account_id": "stakely_v2.pool.f863973.m0"
+            },
+            {
+              "account_id": "legends.pool.f863973.m0"
+            },
+            {
+              "account_id": "ni.pool.f863973.m0"
+            },
+            {
+              "account_id": "ts.pool.f863973.m0"
+            },
+            {
+              "account_id": "lunanova2.pool.f863973.m0"
+            },
+            {
+              "account_id": "validator4.testnet"
+            },
+            {
+              "account_id": "validator5.testnet"
+            },
+            {
+              "account_id": "validator6.testnet"
+            },
+            {
+              "account_id": "validator7.testnet"
+            },
+            {
+              "account_id": "validator8.testnet"
+            },
+            {
+              "account_id": "validator9.testnet"
+            },
+            {
+              "account_id": "validator10.testnet"
+            },
+            {
+              "account_id": "validator11.testnet"
+            }
+          ],
+          "version": {
+            "build": "2.14.0-rc.5",
+            "commit": "b7b4737cab46f17a6daa2ed694d7aebbd204363a",
+            "rustc_version": "1.95.0",
+            "version": "2.14.0-rc.5"
+          }
+        },
+        "id": "zi"
+      }
+    },
+    {
+      "seq": 4,
+      "invoice_id": "LATE-V3",
+      "label": "transfer-path: view_account (uninitialized)",
+      "method": "query",
+      "params": {
+        "request_type": "view_account",
+        "finality": "final",
+        "account_id": "0u605qjm2v1vmwqn4svaf2k9ssbqmp8mjknnbkkp50as0et92wk9r0"
+      },
+      "response": {
+        "jsonrpc": "2.0",
+        "result": {
+          "amount": "92000000000000000000000",
+          "block_hash": "7ijxkxdupxT6Lhr1ZR4Uc5heQvbJ4NCjV8zDURypvN3B",
+          "block_height": 277083379,
+          "code_hash": "11111111111111111111111111111111",
+          "global_contract_hash": "Ut7EQhLDrvYVarHb6ZaXk6m7o9kQqYPCpyqiamvreWa",
+          "locked": "0",
+          "storage_paid_at": 0,
+          "storage_usage": 426
+        },
+        "id": "zi"
+      }
+    },
+    {
+      "seq": 5,
+      "invoice_id": "LATE-V3",
+      "label": "transfer-path: get_invoice (uninitialized)",
+      "method": "query",
+      "params": {
+        "request_type": "call_function",
+        "finality": "final",
+        "account_id": "0u605qjm2v1vmwqn4svaf2k9ssbqmp8mjknnbkkp50as0et92wk9r0",
+        "method_name": "get_invoice",
+        "args_base64": "e30="
+      },
+      "response": {
+        "jsonrpc": "2.0",
+        "result": {
+          "block_hash": "G5GXBbEAhh7iKXujPbgZ6F1pTXr5XCFr9UNfGgbvnTCZ",
+          "block_height": 277083380,
+          "logs": [],
+          "result": [
+            123,
+            34,
+            118,
+            34,
+            58,
+            51,
+            44,
+            34,
+            97,
+            99,
+            99,
+            111,
+            117,
+            110,
+            116,
+            95,
+            105,
+            100,
+            34,
+            58,
+            34,
+            48,
+            117,
+            54,
+            48,
+            53,
+            113,
+            106,
+            109,
+            50,
+            118,
+            49,
+            118,
+            109,
+            119,
+            113,
+            110,
+            52,
+            115,
+            118,
+            97,
+            102,
+            50,
+            107,
+            57,
+            115,
+            115,
+            98,
+            113,
+            109,
+            112,
+            56,
+            109,
+            106,
+            107,
+            110,
+            110,
+            98,
+            107,
+            107,
+            112,
+            53,
+            48,
+            97,
+            115,
+            48,
+            101,
+            116,
+            57,
+            50,
+            119,
+            107,
+            57,
+            114,
+            48,
+            34,
+            44,
+            34,
+            105,
+            110,
+            118,
+            111,
+            105,
+            99,
+            101,
+            95,
+            105,
+            100,
+            34,
+            58,
+            34,
+            76,
+            65,
+            84,
+            69,
+            45,
+            86,
+            51,
+            34,
+            44,
+            34,
+            109,
+            101,
+            114,
+            99,
+            104,
+            97,
+            110,
+            116,
+            34,
+            58,
+            34,
+            108,
+            97,
+            116,
+            101,
+            46,
+            115,
+            109,
+            49,
+            49,
+            49,
+            48,
+            45,
+            122,
+            105,
+            51,
+            45,
+            109,
+            101,
+            114,
+            99,
+            104,
+            97,
+            110,
+            116,
+            46,
+            116,
+            101,
+            115,
+            116,
+            110,
+            101,
+            116,
+            34,
+            44,
+            34,
+            116,
+            97,
+            120,
+            95,
+            118,
+            97,
+            117,
+            108,
+            116,
+            34,
+            58,
+            34,
+            115,
+            109,
+            49,
+            49,
+            49,
+            48,
+            45,
+            122,
+            105,
+            51,
+            45,
+            116,
+            97,
+            120,
+            118,
+            97,
+            117,
+            108,
+            116,
+            46,
+            116,
+            101,
+            115,
+            116,
+            110,
+            101,
+            116,
+            34,
+            44,
+            34,
+            116,
+            97,
+            120,
+            95,
+            98,
+            112,
+            115,
+            34,
+            58,
+            56,
+            48,
+            48,
+            44,
+            34,
+            97,
+            109,
+            111,
+            117,
+            110,
+            116,
+            34,
+            58,
+            34,
+            49,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            34,
+            44,
+            34,
+            101,
+            120,
+            112,
+            105,
+            114,
+            101,
+            115,
+            95,
+            97,
+            116,
+            95,
+            109,
+            115,
+            34,
+            58,
+            34,
+            49,
+            55,
+            57,
+            52,
+            51,
+            50,
+            54,
+            57,
+            50,
+            52,
+            56,
+            49,
+            52,
+            34,
+            44,
+            34,
+            115,
+            97,
+            108,
+            116,
+            34,
+            58,
+            34,
+            52,
+            51,
+            52,
+            48,
+            49,
+            50,
+            54,
+            52,
+            50,
+            52,
+            56,
+            50,
+            57,
+            50,
+            50,
+            49,
+            54,
+            48,
+            50,
+            34,
+            44,
+            34,
+            103,
+            114,
+            97,
+            99,
+            101,
+            95,
+            109,
+            115,
+            34,
+            58,
+            34,
+            54,
+            48,
+            52,
+            56,
+            48,
+            48,
+            48,
+            48,
+            48,
+            34,
+            44,
+            34,
+            116,
+            111,
+            107,
+            101,
+            110,
+            34,
+            58,
+            110,
+            117,
+            108,
+            108,
+            44,
+            34,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            34,
+            58,
+            34,
+            83,
+            69,
+            84,
+            84,
+            76,
+            73,
+            78,
+            71,
+            34,
+            44,
+            34,
+            112,
+            97,
+            105,
+            100,
+            95,
+            98,
+            121,
+            34,
+            58,
+            34,
+            115,
+            109,
+            49,
+            49,
+            49,
+            48,
+            45,
+            122,
+            105,
+            51,
+            45,
+            112,
+            97,
+            121,
+            101,
+            114,
+            46,
+            116,
+            101,
+            115,
+            116,
+            110,
+            101,
+            116,
+            34,
+            44,
+            34,
+            112,
+            97,
+            105,
+            100,
+            95,
+            97,
+            116,
+            95,
+            109,
+            115,
+            34,
+            58,
+            34,
+            49,
+            55,
+            57,
+            52,
+            51,
+            49,
+            57,
+            55,
+            50,
+            54,
+            52,
+            49,
+            56,
+            34,
+            44,
+            34,
+            112,
+            97,
+            105,
+            100,
+            95,
+            97,
+            109,
+            111,
+            117,
+            110,
+            116,
+            34,
+            58,
+            34,
+            49,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            34,
+            44,
+            34,
+            116,
+            97,
+            120,
+            95,
+            97,
+            109,
+            111,
+            117,
+            110,
+            116,
+            34,
+            58,
+            34,
+            56,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            34,
+            44,
+            34,
+            111,
+            119,
+            101,
+            100,
+            95,
+            109,
+            101,
+            114,
+            99,
+            104,
+            97,
+            110,
+            116,
+            34,
+            58,
+            34,
+            57,
+            50,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            34,
+            44,
+            34,
+            111,
+            119,
+            101,
+            100,
+            95,
+            116,
+            97,
+            120,
+            34,
+            58,
+            34,
+            48,
+            34,
+            44,
+            34,
+            111,
+            119,
+            101,
+            100,
+            95,
+            112,
+            97,
+            121,
+            101,
+            114,
+            34,
+            58,
+            34,
+            48,
+            34,
+            44,
+            34,
+            114,
+            101,
+            102,
+            117,
+            110,
+            100,
+            95,
+            116,
+            111,
+            34,
+            58,
+            110,
+            117,
+            108,
+            108,
+            44,
+            34,
+            98,
+            117,
+            115,
+            121,
+            95,
+            117,
+            110,
+            116,
+            105,
+            108,
+            95,
+            109,
+            115,
+            34,
+            58,
+            34,
+            48,
+            34,
+            125
+          ]
+        },
+        "id": "zi"
+      }
+    },
+    {
+      "seq": 6,
+      "invoice_id": "LATE-V3",
+      "label": "aux: query",
+      "method": "query",
+      "params": {
+        "request_type": "view_access_key",
+        "finality": "final",
+        "account_id": "sm1110-zi3-sweeper.testnet",
+        "public_key": "ed25519:G9hRYTJkoBz4eQmqSfspZrfNZUeE3GvUt93HjNkcpqmv"
+      },
+      "response": {
+        "jsonrpc": "2.0",
+        "result": {
+          "block_hash": "G5GXBbEAhh7iKXujPbgZ6F1pTXr5XCFr9UNfGgbvnTCZ",
+          "block_height": 277083380,
+          "nonce": 277076834000033,
+          "permission": "FullAccess"
+        },
+        "id": "zi"
+      }
+    },
+    {
+      "seq": 7,
+      "invoice_id": "LATE-V3",
+      "label": "aux: block",
+      "method": "block",
+      "params": {
+        "finality": "final"
+      },
+      "response": {
+        "jsonrpc": "2.0",
+        "result": {
+          "author": "node0",
+          "chunks": [
+            {
+              "balance_burnt": "0",
+              "bandwidth_requests": {
+                "V1": {
+                  "requests": []
+                }
+              },
+              "chunk_hash": "3nnEr6mjPLx6cgRxkYfWx9ZfWUizVxS7qvQpAVTX4WKD",
+              "congestion_info": {
+                "allowed_shard": 5,
+                "buffered_receipts_gas": "0",
+                "delayed_receipts_gas": "0",
+                "receipt_bytes": 0
+              },
+              "encoded_length": 8,
+              "encoded_merkle_root": "5TxYudsfZd2FZoMyJEZAP19ASov2ZD43N8ZWv8mKzWgx",
+              "gas_limit": 1000000000000000,
+              "gas_used": 0,
+              "height_created": 277083380,
+              "height_included": 277083380,
+              "outcome_root": "11111111111111111111111111111111",
+              "outgoing_receipts_root": "3X9JMTCuQSnyxnoXbYxauz2mqS2FBJLzbB8zANq6fKA7",
+              "prev_block_hash": "7ijxkxdupxT6Lhr1ZR4Uc5heQvbJ4NCjV8zDURypvN3B",
+              "prev_state_root": "Fq2XBBh3VW3cMHk7wjpYzLapp1QXoP5694FuRSJ1WaPq",
+              "proposed_split": null,
+              "rent_paid": "0",
+              "shard_id": 10,
+              "signature": "ed25519:REDACTED-PUBLIC-SIGNATURE",
+              "tx_root": "11111111111111111111111111111111",
+              "validator_proposals": [],
+              "validator_reward": "0"
+            },
+            {
+              "balance_burnt": "30968074631000000000",
+              "bandwidth_requests": {
+                "V1": {
+                  "requests": []
+                }
+              },
+              "chunk_hash": "G1mKyYgRffxkrWMuwdHAfQfiVbbyP54v8sG9MVxchUdT",
+              "congestion_info": {
+                "allowed_shard": 10,
+                "buffered_receipts_gas": "0",
+                "delayed_receipts_gas": "0",
+                "receipt_bytes": 0
+              },
+              "encoded_length": 252,
+              "encoded_merkle_root": "2xVG4ug3XPxXaXCma8hvhGQACdT1tv9VfM8QqvsCmstB",
+              "gas_limit": 1000000000000000,
+              "gas_used": 532863308810,
+              "height_created": 277083380,
+              "height_included": 277083380,
+              "outcome_root": "AKF25i7pobURLb3CRvFxr3KVrfRrxt5rxmbKwikje6Wv",
+              "outgoing_receipts_root": "8U78YxrDiBCfAy2Qq41TdTArNtec9inPd35F6cZrztSf",
+              "prev_block_hash": "7ijxkxdupxT6Lhr1ZR4Uc5heQvbJ4NCjV8zDURypvN3B",
+              "prev_state_root": "ArJEePUjG7EXvHnNTLvNgYEJjXkw4XKv5AAPU2PjnRcT",
+              "proposed_split": null,
+              "rent_paid": "0",
+              "shard_id": 11,
+              "signature": "ed25519:REDACTED-PUBLIC-SIGNATURE",
+              "tx_root": "11111111111111111111111111111111",
+              "validator_proposals": [],
+              "validator_reward": "0"
+            },
+            {
+              "balance_burnt": "0",
+              "bandwidth_requests": {
+                "V1": {
+                  "requests": []
+                }
+              },
+              "chunk_hash": "8hDh5JSDYKaXLXHzaBaVPagrp1vSi2ScePzYDYUgLMpz",
+              "congestion_info": {
+                "allowed_shard": 11,
+                "buffered_receipts_gas": "0",
+                "delayed_receipts_gas": "0",
+                "receipt_bytes": 0
+              },
+              "encoded_length": 8,
+              "encoded_merkle_root": "5TxYudsfZd2FZoMyJEZAP19ASov2ZD43N8ZWv8mKzWgx",
+              "gas_limit": 1000000000000000,
+              "gas_used": 0,
+              "height_created": 277083380,
+              "height_included": 277083380,
+              "outcome_root": "11111111111111111111111111111111",
+              "outgoing_receipts_root": "3X9JMTCuQSnyxnoXbYxauz2mqS2FBJLzbB8zANq6fKA7",
+              "prev_block_hash": "7ijxkxdupxT6Lhr1ZR4Uc5heQvbJ4NCjV8zDURypvN3B",
+              "prev_state_root": "6vgW7eKFE1NAfmP636hcpcFyvpLRQEHb5taRkMXKwYfX",
+              "proposed_split": null,
+              "rent_paid": "0",
+              "shard_id": 1,
+              "signature": "ed25519:REDACTED-PUBLIC-SIGNATURE",
+              "tx_root": "11111111111111111111111111111111",
+              "validator_proposals": [],
+              "validator_reward": "0"
+            },
+            {
+              "balance_burnt": "63662299745000000000",
+              "bandwidth_requests": {
+                "V1": {
+                  "requests": []
+                }
+              },
+              "chunk_hash": "G781RsPkh573pMqqHjbf55t1L7WPxYLZwmC8iN6tNPxo",
+              "congestion_info": {
+                "allowed_shard": 1,
+                "buffered_receipts_gas": "0",
+                "delayed_receipts_gas": "0",
+                "receipt_bytes": 0
+              },
+              "encoded_length": 1196,
+              "encoded_merkle_root": "67LJKg8cB3KBPp1YptFw56VwWV63QyzpMtL9dfBW6t6T",
+              "gas_limit": 1000000000000000,
+              "gas_used": 636622997450,
+              "height_created": 277083380,
+              "height_included": 277083380,
+              "outcome_root": "J4ngqBTr3DJheVDhVM11Vz1jzdcDJobvSStAdetcLHPM",
+              "outgoing_receipts_root": "J3vKEboDtcef2XetSS6ykGB9A9wckntsjPUnkqh26AsL",
+              "prev_block_hash": "7ijxkxdupxT6Lhr1ZR4Uc5heQvbJ4NCjV8zDURypvN3B",
+              "prev_state_root": "6q8PDg79nwUfQms4abERdxKunjFu7xCcZncWRW11KCJU",
+              "proposed_split": null,
+              "rent_paid": "0",
+              "shard_id": 12,
+              "signature": "ed25519:REDACTED-PUBLIC-SIGNATURE",
+              "tx_root": "2s7KvG1HEU7LbFYP7h7MTNWLNT9yf1KAq1QLpL933NWf",
+              "validator_proposals": [],
+              "validator_reward": "0"
+            },
+            {
+              "balance_burnt": "0",
+              "bandwidth_requests": {
+                "V1": {
+                  "requests": []
+                }
+              },
+              "chunk_hash": "EJY3pWkbvxLFQRDyT78ZTZWjhdrS8qJhAK9aT1fyVdkR",
+              "congestion_info": {
+                "allowed_shard": 12,
+                "buffered_receipts_gas": "0",
+                "delayed_receipts_gas": "0",
+                "receipt_bytes": 0
+              },
+              "encoded_length": 8,
+              "encoded_merkle_root": "5TxYudsfZd2FZoMyJEZAP19ASov2ZD43N8ZWv8mKzWgx",
+              "gas_limit": 1000000000000000,
+              "gas_used": 0,
+              "height_created": 277083380,
+              "height_included": 277083380,
+              "outcome_root": "11111111111111111111111111111111",
+              "outgoing_receipts_root": "3X9JMTCuQSnyxnoXbYxauz2mqS2FBJLzbB8zANq6fKA7",
+              "prev_block_hash": "7ijxkxdupxT6Lhr1ZR4Uc5heQvbJ4NCjV8zDURypvN3B",
+              "prev_state_root": "2AxSnHWTDuJAoe4TGj5APnTCMLkiBqqny2vo6eciL9kt",
+              "proposed_split": null,
+              "rent_paid": "0",
+              "shard_id": 13,
+              "signature": "ed25519:REDACTED-PUBLIC-SIGNATURE",
+              "tx_root": "11111111111111111111111111111111",
+              "validator_proposals": [],
+              "validator_reward": "0"
+            },
+            {
+              "balance_burnt": "324411017526900000000",
+              "bandwidth_requests": {
+                "V1": {
+                  "requests": []
+                }
+              },
+              "chunk_hash": "9LoHj3MA6cv7TH6GRvW5meHc3fQcuub7MrQnngxmzcnS",
+              "congestion_info": {
+                "allowed_shard": 13,
+                "buffered_receipts_gas": "0",
+                "delayed_receipts_gas": "0",
+                "receipt_bytes": 0
+              },
+              "encoded_length": 181,
+              "encoded_merkle_root": "CeUPuHsKAVRoe2zgW2xZRzHa7xWzaVreLKwSqqaC17zi",
+              "gas_limit": 1000000000000000,
+              "gas_used": 3244110175269,
+              "height_created": 277083380,
+              "height_included": 277083380,
+              "outcome_root": "ESwDVuBdxH92VG7UhkLG1ujnNpvBnPTEa2P5Nvtk7sjJ",
+              "outgoing_receipts_root": "DJ4nTQCJQTq5tEDoD4rsLFkey5p3BuAAgLdmg77nvAcJ",
+              "prev_block_hash": "7ijxkxdupxT6Lhr1ZR4Uc5heQvbJ4NCjV8zDURypvN3B",
+              "prev_state_root": "DxNkZw6o7coM617DWm8d3qzQRubqCTEHEzBLrVBzVe6o",
+              "proposed_split": null,
+              "rent_paid": "0",
+              "shard_id": 9,
+              "signature": "ed25519:REDACTED-PUBLIC-SIGNATURE",
+              "tx_root": "11111111111111111111111111111111",
+              "validator_proposals": [],
+              "validator_reward": "0"
+            },
+            {
+              "balance_burnt": "0",
+              "bandwidth_requests": {
+                "V1": {
+                  "requests": []
+                }
+              },
+              "chunk_hash": "CddgzcJ2mzBJthifwpBdLnEx7NNrA1hiqnpoT32Mp4BH",
+              "congestion_info": {
+                "allowed_shard": 9,
+                "buffered_receipts_gas": "0",
+                "delayed_receipts_gas": "0",
+                "receipt_bytes": 0
+              },
+              "encoded_length": 8,
+              "encoded_merkle_root": "5TxYudsfZd2FZoMyJEZAP19ASov2ZD43N8ZWv8mKzWgx",
+              "gas_limit": 1000000000000000,
+              "gas_used": 0,
+              "height_created": 277083380,
+              "height_included": 277083380,
+              "outcome_root": "11111111111111111111111111111111",
+              "outgoing_receipts_root": "3X9JMTCuQSnyxnoXbYxauz2mqS2FBJLzbB8zANq6fKA7",
+              "prev_block_hash": "7ijxkxdupxT6Lhr1ZR4Uc5heQvbJ4NCjV8zDURypvN3B",
+              "prev_state_root": "BjH1e2S97S9SnUpSCYyi84S5s1dQBjWnJiJxA4BhAxg8",
+              "proposed_split": null,
+              "rent_paid": "0",
+              "shard_id": 6,
+              "signature": "ed25519:REDACTED-PUBLIC-SIGNATURE",
+              "tx_root": "11111111111111111111111111111111",
+              "validator_proposals": [],
+              "validator_reward": "0"
+            },
+            {
+              "balance_burnt": "0",
+              "bandwidth_requests": {
+                "V1": {
+                  "requests": []
+                }
+              },
+              "chunk_hash": "UjWVJZdcyEAbbVTPkhwgpX151yfSdcSebz86UHZynq2",
+              "congestion_info": {
+                "allowed_shard": 6,
+                "buffered_receipts_gas": "0",
+                "delayed_receipts_gas": "0",
+                "receipt_bytes": 0
+              },
+              "encoded_length": 8,
+              "encoded_merkle_root": "5TxYudsfZd2FZoMyJEZAP19ASov2ZD43N8ZWv8mKzWgx",
+              "gas_limit": 1000000000000000,
+              "gas_used": 223182562500,
+              "height_created": 277083380,
+              "height_included": 277083380,
+              "outcome_root": "8GPH2UDhqreh73cKWqa3Bs8HdE2piMXXwTAxrKAH1bsf",
+              "outgoing_receipts_root": "3X9JMTCuQSnyxnoXbYxauz2mqS2FBJLzbB8zANq6fKA7",
+              "prev_block_hash": "7ijxkxdupxT6Lhr1ZR4Uc5heQvbJ4NCjV8zDURypvN3B",
+              "prev_state_root": "BdiChYCKavu81r52TRvAdL3FW5ayNQ2boHFQWDCsfiEJ",
+              "proposed_split": null,
+              "rent_paid": "0",
+              "shard_id": 7,
+              "signature": "ed25519:REDACTED-PUBLIC-SIGNATURE",
+              "tx_root": "11111111111111111111111111111111",
+              "validator_proposals": [],
+              "validator_reward": "0"
+            },
+            {
+              "balance_burnt": "314898753845500000000",
+              "bandwidth_requests": {
+                "V1": {
+                  "requests": []
+                }
+              },
+              "chunk_hash": "9xsjVatXzV22BWNMZAVHsaTbM4zXkisC5Rzhjv8TCJYA",
+              "congestion_info": {
+                "allowed_shard": 7,
+                "buffered_receipts_gas": "0",
+                "delayed_receipts_gas": "0",
+                "receipt_bytes": 0
+              },
+              "encoded_length": 586,
+              "encoded_merkle_root": "3rEXCier8LwW12Dq2gCwYd4pcv99Z9Y7k3XeuoLKwhfz",
+              "gas_limit": 1000000000000000,
+              "gas_used": 3595352663455,
+              "height_created": 277083380,
+              "height_included": 277083380,
+              "outcome_root": "BPF2Ks4mFTRRkrmSEMTK61NDRo6SWKSCXLEQ8dKfM4WN",
+              "outgoing_receipts_root": "6aeBC6vXhVhg4C9jmGZzrehBKrJnb9ufKtEP9yRh4P5r",
+              "prev_block_hash": "7ijxkxdupxT6Lhr1ZR4Uc5heQvbJ4NCjV8zDURypvN3B",
+              "prev_state_root": "E6X2coEV5nHqyL8JknfPakG2zGba2Ngng8kRzXqtpW4K",
+              "proposed_split": null,
+              "rent_paid": "0",
+              "shard_id": 4,
+              "signature": "ed25519:REDACTED-PUBLIC-SIGNATURE",
+              "tx_root": "11111111111111111111111111111111",
+              "validator_proposals": [],
+              "validator_reward": "0"
+            },
+            {
+              "balance_burnt": "283139532364200000000",
+              "bandwidth_requests": {
+                "V1": {
+                  "requests": []
+                }
+              },
+              "chunk_hash": "2YMAYSutDLdMNefBUXnXepgzvPwVqc4iq1NZVGRnbqEM",
+              "congestion_info": {
+                "allowed_shard": 4,
+                "buffered_receipts_gas": "0",
+                "delayed_receipts_gas": "0",
+                "receipt_bytes": 0
+              },
+              "encoded_length": 181,
+              "encoded_merkle_root": "HADe7998asDnUrQXQXTQRBPWKQKCjV2JVpLGFHqMPEu8",
+              "gas_limit": 1000000000000000,
+              "gas_used": 3277760448642,
+              "height_created": 277083380,
+              "height_included": 277083380,
+              "outcome_root": "49kkhNAV7DACCzBADm74jbdgbzUk6dYf3CxST6JD2bKN",
+              "outgoing_receipts_root": "9W1g3DKQAwup3qqkeWK2XHHXfRVTPMsbbwDAHRJDivy5",
+              "prev_block_hash": "7ijxkxdupxT6Lhr1ZR4Uc5heQvbJ4NCjV8zDURypvN3B",
+              "prev_state_root": "3iB96KSBcufu85zMy9yQcf9V81dc5CJz9WBNfaoSGvjY",
+              "proposed_split": null,
+              "rent_paid": "0",
+              "shard_id": 5,
+              "signature": "ed25519:REDACTED-PUBLIC-SIGNATURE",
+              "tx_root": "11111111111111111111111111111111",
+              "validator_proposals": [],
+              "validator_reward": "0"
+            }
+          ],
+          "header": {
+            "approvals": [
+              "ed25519:REDACTED-PUBLIC-SIGNATURE",
+              "ed25519:REDACTED-PUBLIC-SIGNATURE",
+              null,
+              "ed25519:REDACTED-PUBLIC-SIGNATURE",
+              null,
+              "ed25519:REDACTED-PUBLIC-SIGNATURE",
+              "ed25519:REDACTED-PUBLIC-SIGNATURE",
+              "ed25519:REDACTED-PUBLIC-SIGNATURE",
+              "ed25519:REDACTED-PUBLIC-SIGNATURE",
+              "ed25519:REDACTED-PUBLIC-SIGNATURE",
+              "ed25519:REDACTED-PUBLIC-SIGNATURE",
+              "ed25519:REDACTED-PUBLIC-SIGNATURE",
+              "ed25519:REDACTED-PUBLIC-SIGNATURE",
+              "ed25519:REDACTED-PUBLIC-SIGNATURE",
+              "ed25519:REDACTED-PUBLIC-SIGNATURE",
+              "ed25519:REDACTED-PUBLIC-SIGNATURE",
+              "ed25519:REDACTED-PUBLIC-SIGNATURE",
+              "ed25519:REDACTED-PUBLIC-SIGNATURE",
+              "ed25519:REDACTED-PUBLIC-SIGNATURE",
+              "ed25519:REDACTED-PUBLIC-SIGNATURE"
+            ],
+            "block_body_hash": "6UKRK2Ns8MY8VwU2qqcv1EuCWMdj5KGgYpPWLTCNLUwa",
+            "block_merkle_root": "tkVCsYnS9xAc3HZhWgnj7ssXaMhaUMRqDV6Aq7H8WMA",
+            "block_ordinal": 229075519,
+            "challenges_result": [],
+            "challenges_root": "11111111111111111111111111111111",
+            "chunk_endorsements": [
+              [
+                255,
+                255,
+                3
+              ],
+              [
+                255,
+                253
+              ],
+              [
+                239,
+                255,
+                1
+              ],
+              [
+                223,
+                253,
+                1
+              ],
+              [
+                255,
+                63
+              ],
+              [
+                255,
+                126
+              ],
+              [
+                255,
+                254,
+                7
+              ],
+              [
+                255,
+                127
+              ],
+              [
+                255,
+                253,
+                3
+              ],
+              [
+                255,
+                255
+              ]
+            ],
+            "chunk_headers_root": "J34DbyvS5YdCnyQobFkjaNBF7zGb6wA3WZvzf891NoVt",
+            "chunk_mask": [
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true
+            ],
+            "chunk_receipts_root": "J5ukRseU4SQ3PYEkrTBPZVdAj2MvXaPAzE42TmETMws",
+            "chunk_tx_root": "5x5ZcQfPvYGqbkQ6p8pYn633jTeLFxBdTzPgty45Vgcg",
+            "chunks_included": 10,
+            "epoch_id": "FnAjVQVurgL1DVHysgCXZA3y7DjEx2Q819E9ncYdgtLw",
+            "epoch_sync_data_hash": null,
+            "gas_price": "100000000",
+            "hash": "G5GXBbEAhh7iKXujPbgZ6F1pTXr5XCFr9UNfGgbvnTCZ",
+            "height": 277083380,
+            "last_ds_final_block": "7ijxkxdupxT6Lhr1ZR4Uc5heQvbJ4NCjV8zDURypvN3B",
+            "last_final_block": "GbWc7xKaS5xVmHi3pw3ZW1e2hs8baDuxKo7EJRqd4Bg7",
+            "latest_protocol_version": 88,
+            "next_bp_hash": "3D6XD6XWtfnsGNt13u4BJmLgkeZz41xGkJyWF6LB3o9q",
+            "next_epoch_id": "Ajx2JWeiKxZ6gyygZJt3BuPaV4UJvNPo8dk8Z6apd7Pz",
+            "outcome_root": "C3ShgwjgNsaHYVephz3ykdQE3VJgy4Y41yaGYtvJody7",
+            "prev_hash": "7ijxkxdupxT6Lhr1ZR4Uc5heQvbJ4NCjV8zDURypvN3B",
+            "prev_height": 277083379,
+            "prev_state_root": "5egRu91JPLr2nRf6PphF4TzA6ZE2boFg5c6qjJPZ5Fyn",
+            "random_value": "CBGkFnLkZRN2hfqkYcoCVtjeB3BAhdnJmAtLerpmPTag",
+            "rent_paid": "0",
+            "shard_split": null,
+            "signature": "ed25519:REDACTED-PUBLIC-SIGNATURE",
+            "timestamp": 1794323060685419500,
+            "timestamp_nanosec": "1794323060685419552",
+            "total_supply": "2679605271107588641036327331268713",
+            "validator_proposals": [],
+            "validator_reward": "0"
+          }
+        },
+        "id": "zi"
+      }
+    },
+    {
+      "seq": 8,
+      "invoice_id": "LATE-V3",
+      "label": "sweep: send_tx",
+      "method": "send_tx",
+      "params": {
+        "signed_tx_base64": "GgAAAHNtMTExMC16aTMtc3dlZXBlci50ZXN0bmV0AOEZqC6h/dl3l6190ddFnawU7QndsB2O77AL3dbW9OGVohxE+v/7AAA2AAAAMHU2MDVxam0ydjF2bXdxbjRzdmFmMms5c3NicW1wOG1qa25uYmtrcDUwYXMwZXQ5MndrOXIw3/ctFFuiyaztIZjKpx8KzNRjGi8bWO4ZhI7fMUNGGh4BAAAAAgUAAABzd2VlcAIAAAB7fQBAehDzWgAAAAAAAAAAAAAAAAAAAAAAAABozuszeXvhW3WrfcMvqrcCK0Mlk5S03wCgrtxa+IseoAPcvpSPURQvFCEPKB5A1d4d7zds8pC28mWrjiIs7HkM",
+        "wait_until": "EXECUTED_OPTIMISTIC"
+      },
+      "response": {
+        "jsonrpc": "2.0",
+        "result": {
+          "final_execution_status": "EXECUTED",
+          "receipts_outcome": [
+            {
+              "block_hash": "BTeZcCz82VqgPZSGobwENr5NCg83rYySUn9s5np1TBWo",
+              "id": "8xgUDi88XbJU1Z3MqQwehH77sj4geyQ4iDxmR7d6ztB3",
+              "outcome": {
+                "executor_id": "0u605qjm2v1vmwqn4svaf2k9ssbqmp8mjknnbkkp50as0et92wk9r0",
+                "gas_burnt": 1963485812902,
+                "logs": [],
+                "metadata": {
+                  "contracts": [
+                    {
+                      "global_hash": "Ut7EQhLDrvYVarHb6ZaXk6m7o9kQqYPCpyqiamvreWa"
+                    }
+                  ],
+                  "gas_profile": [
+                    {
+                      "cost": "FUNCTION_CALL_BASE",
+                      "cost_category": "ACTION_COST",
+                      "gas_used": "200000000000"
+                    },
+                    {
+                      "cost": "FUNCTION_CALL_BYTE",
+                      "cost_category": "ACTION_COST",
+                      "gas_used": "310794826"
+                    },
+                    {
+                      "cost": "NEW_ACTION_RECEIPT",
+                      "cost_category": "ACTION_COST",
+                      "gas_used": "289092464624"
+                    },
+                    {
+                      "cost": "TRANSFER",
+                      "cost_category": "ACTION_COST",
+                      "gas_used": "115123062500"
+                    },
+                    {
+                      "cost": "BASE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "4501057887"
+                    },
+                    {
+                      "cost": "CONTRACT_LOADING_BASE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "35445963"
+                    },
+                    {
+                      "cost": "CONTRACT_LOADING_BYTES",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "175608514835"
+                    },
+                    {
+                      "cost": "PROMISE_RETURN",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "560152386"
+                    },
+                    {
+                      "cost": "READ_CACHED_TRIE_NODE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "2280000000"
+                    },
+                    {
+                      "cost": "READ_MEMORY_BASE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "26098632000"
+                    },
+                    {
+                      "cost": "READ_MEMORY_BYTE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "1976693160"
+                    },
+                    {
+                      "cost": "READ_REGISTER_BASE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "5034330372"
+                    },
+                    {
+                      "cost": "READ_REGISTER_BYTE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "29864286"
+                    },
+                    {
+                      "cost": "STORAGE_READ_BASE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "56356845749"
+                    },
+                    {
+                      "cost": "STORAGE_READ_KEY_BYTE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "154762665"
+                    },
+                    {
+                      "cost": "STORAGE_READ_VALUE_BYTE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "1397139996"
+                    },
+                    {
+                      "cost": "STORAGE_WRITE_BASE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "64196736000"
+                    },
+                    {
+                      "cost": "STORAGE_WRITE_EVICTED_BYTE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "7997209443"
+                    },
+                    {
+                      "cost": "STORAGE_WRITE_KEY_BYTE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "352414335"
+                    },
+                    {
+                      "cost": "STORAGE_WRITE_VALUE_BYTE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "7723616211"
+                    },
+                    {
+                      "cost": "TOUCHING_TRIE_NODE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "27360000000"
+                    },
+                    {
+                      "cost": "UTF8_DECODING_BASE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "6223558122"
+                    },
+                    {
+                      "cost": "UTF8_DECODING_BYTE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "25075921194"
+                    },
+                    {
+                      "cost": "WASM_INSTRUCTION",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "35098770960"
+                    },
+                    {
+                      "cost": "WRITE_MEMORY_BASE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "11215179444"
+                    },
+                    {
+                      "cost": "WRITE_MEMORY_BYTE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "912463620"
+                    },
+                    {
+                      "cost": "WRITE_REGISTER_BASE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "8596567458"
+                    },
+                    {
+                      "cost": "WRITE_REGISTER_BYTE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "2098463328"
+                    }
+                  ],
+                  "version": 4
+                },
+                "receipt_ids": [
+                  "4NTQAjSa4pfgBMrN6n5ti1nUvfPGkcHvLC4w9ntrHy51",
+                  "DtzWEa973EP4iEPL5P8HU2KwaupXHQi5mBXeJxp3xHod",
+                  "GdEARjSbWkmc1FMDjBGzsSYrx1htPFxTnRZ4yAga9RT7"
+                ],
+                "status": {
+                  "SuccessReceiptId": "DtzWEa973EP4iEPL5P8HU2KwaupXHQi5mBXeJxp3xHod"
+                },
+                "tokens_burnt": "196348581290200000000"
+              },
+              "proof": []
+            },
+            {
+              "block_hash": "GdvhdxtxtHCdqhJyc4xxBPCtw3zGxsRb3E34sqgqSRYG",
+              "id": "4NTQAjSa4pfgBMrN6n5ti1nUvfPGkcHvLC4w9ntrHy51",
+              "outcome": {
+                "executor_id": "late.sm1110-zi3-merchant.testnet",
+                "gas_burnt": 223182562500,
+                "logs": [],
+                "metadata": {
+                  "contracts": [
+                    null
+                  ],
+                  "gas_profile": [],
+                  "version": 4
+                },
+                "receipt_ids": [
+                  "66JtZveMWc29rQKPoTww5G1YM8HL7cCznCKBLRhy67QY"
+                ],
+                "status": {
+                  "SuccessValue": ""
+                },
+                "tokens_burnt": "22318256250000000000"
+              },
+              "proof": [
+                {
+                  "direction": "Right",
+                  "hash": "3APQdDReWfTJAU2WqKQG1r8cRAdgdoNBcxHnXxqDG52U"
+                },
+                {
+                  "direction": "Left",
+                  "hash": "GjoXUCr8Hw6PKe6m4N5rmADM7VieePe6UyoAzc7ZKNBQ"
+                },
+                {
+                  "direction": "Left",
+                  "hash": "3Ae6fR5qMGukjEg52VdWgBKVT9bRQhxYFMwy7YufuHbU"
+                },
+                {
+                  "direction": "Right",
+                  "hash": "EcBLT634FFfKzkPFr3LsecLvstPqmBXbKbBzU7mVoCtH"
+                }
+              ]
+            },
+            {
+              "block_hash": "FRnhAsoaFveASfgAqFQen8dXoP5CB1BECq64aMoLU8rs",
+              "id": "66JtZveMWc29rQKPoTww5G1YM8HL7cCznCKBLRhy67QY",
+              "outcome": {
+                "executor_id": "sm1110-zi3-sweeper.testnet",
+                "gas_burnt": 223182562500,
+                "logs": [],
+                "metadata": {
+                  "contracts": [
+                    null
+                  ],
+                  "gas_profile": [],
+                  "version": 4
+                },
+                "receipt_ids": [],
+                "status": {
+                  "SuccessValue": ""
+                },
+                "tokens_burnt": "0"
+              },
+              "proof": [
+                {
+                  "direction": "Right",
+                  "hash": "E94yPf1JLACtouFP7LFRqEgsvvkvGBhWkLfQKa54RBa7"
+                },
+                {
+                  "direction": "Left",
+                  "hash": "CkZujgjRgwQQFZvFj2FdgRGCcBMraXDbGsvbdS2mpC6S"
+                },
+                {
+                  "direction": "Right",
+                  "hash": "3y7MRWmk4qnno6DQtpNgR3RDjLCkuvBGiGHzbbv8qN17"
+                }
+              ]
+            },
+            {
+              "block_hash": "FRnhAsoaFveASfgAqFQen8dXoP5CB1BECq64aMoLU8rs",
+              "id": "DtzWEa973EP4iEPL5P8HU2KwaupXHQi5mBXeJxp3xHod",
+              "outcome": {
+                "executor_id": "0u605qjm2v1vmwqn4svaf2k9ssbqmp8mjknnbkkp50as0et92wk9r0",
+                "gas_burnt": 1764343815828,
+                "logs": [
+                  "EVENT_JSON:{\"standard\":\"zeroinit\",\"version\":\"3.0.0\",\"event\":\"owed_resent\",\"data\":[{\"invoice_id\":\"LATE-V3\",\"account_id\":\"0u605qjm2v1vmwqn4svaf2k9ssbqmp8mjknnbkkp50as0et92wk9r0\",\"amount\":\"92000000000000000000000\",\"to\":\"late.sm1110-zi3-merchant.testnet\",\"token\":null}]}",
+                  "EVENT_JSON:{\"standard\":\"zeroinit\",\"version\":\"3.0.0\",\"event\":\"invoice_paid\",\"data\":[{\"invoice_id\":\"LATE-V3\",\"account_id\":\"0u605qjm2v1vmwqn4svaf2k9ssbqmp8mjknnbkkp50as0et92wk9r0\",\"via\":\"pay\",\"payer\":\"sm1110-zi3-payer.testnet\",\"amount\":\"100000000000000000000000\",\"merchant_amount\":\"92000000000000000000000\",\"tax_amount\":\"8000000000000000000000\",\"excess_refunded\":\"0\",\"late\":false,\"retried\":true,\"token\":null}]}"
+                ],
+                "metadata": {
+                  "contracts": [
+                    {
+                      "global_hash": "Ut7EQhLDrvYVarHb6ZaXk6m7o9kQqYPCpyqiamvreWa"
+                    }
+                  ],
+                  "gas_profile": [
+                    {
+                      "cost": "BASE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "5560130331"
+                    },
+                    {
+                      "cost": "CONTRACT_LOADING_BASE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "35445963"
+                    },
+                    {
+                      "cost": "CONTRACT_LOADING_BYTES",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "175608514835"
+                    },
+                    {
+                      "cost": "LOG_BASE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "7086626100"
+                    },
+                    {
+                      "cost": "LOG_BYTE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "8882786343"
+                    },
+                    {
+                      "cost": "READ_CACHED_TRIE_NODE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "2280000000"
+                    },
+                    {
+                      "cost": "READ_MEMORY_BASE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "15659179200"
+                    },
+                    {
+                      "cost": "READ_MEMORY_BYTE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "3565650354"
+                    },
+                    {
+                      "cost": "READ_REGISTER_BASE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "12585825930"
+                    },
+                    {
+                      "cost": "READ_REGISTER_BYTE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "47901132"
+                    },
+                    {
+                      "cost": "STORAGE_READ_BASE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "56356845749"
+                    },
+                    {
+                      "cost": "STORAGE_READ_KEY_BYTE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "154762665"
+                    },
+                    {
+                      "cost": "STORAGE_READ_VALUE_BYTE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "1397139996"
+                    },
+                    {
+                      "cost": "STORAGE_WRITE_BASE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "64196736000"
+                    },
+                    {
+                      "cost": "STORAGE_WRITE_EVICTED_BYTE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "7997209443"
+                    },
+                    {
+                      "cost": "STORAGE_WRITE_KEY_BYTE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "352414335"
+                    },
+                    {
+                      "cost": "STORAGE_WRITE_VALUE_BYTE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "7723616211"
+                    },
+                    {
+                      "cost": "TOUCHING_TRIE_NODE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "27360000000"
+                    },
+                    {
+                      "cost": "UTF8_DECODING_BASE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "6223558122"
+                    },
+                    {
+                      "cost": "UTF8_DECODING_BYTE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "196233662367"
+                    },
+                    {
+                      "cost": "WASM_INSTRUCTION",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "238978530516"
+                    },
+                    {
+                      "cost": "WRITE_MEMORY_BASE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "16822769166"
+                    },
+                    {
+                      "cost": "WRITE_MEMORY_BYTE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "1367333544"
+                    },
+                    {
+                      "cost": "WRITE_REGISTER_BASE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "17193134916"
+                    },
+                    {
+                      "cost": "WRITE_REGISTER_BYTE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "2303747784"
+                    }
+                  ],
+                  "version": 4
+                },
+                "receipt_ids": [
+                  "28yh8ymV4c3YMiVaJscH7btmWFLWMR5YXJahkNLj9drf"
+                ],
+                "status": {
+                  "SuccessValue": "IlBBSUQi"
+                },
+                "tokens_burnt": "176434381582800000000"
+              },
+              "proof": []
+            },
+            {
+              "block_hash": "GdvhdxtxtHCdqhJyc4xxBPCtw3zGxsRb3E34sqgqSRYG",
+              "id": "GdEARjSbWkmc1FMDjBGzsSYrx1htPFxTnRZ4yAga9RT7",
+              "outcome": {
+                "executor_id": "sm1110-zi3-sweeper.testnet",
+                "gas_burnt": 223182562500,
+                "logs": [],
+                "metadata": {
+                  "contracts": [
+                    null
+                  ],
+                  "gas_profile": [],
+                  "version": 4
+                },
+                "receipt_ids": [],
+                "status": {
+                  "SuccessValue": ""
+                },
+                "tokens_burnt": "0"
+              },
+              "proof": [
+                {
+                  "direction": "Left",
+                  "hash": "3c1zgj2Fp2SGXRACa3jyPmNtp1vciESXPtRsauiX8FXp"
+                },
+                {
+                  "direction": "Left",
+                  "hash": "GjoXUCr8Hw6PKe6m4N5rmADM7VieePe6UyoAzc7ZKNBQ"
+                },
+                {
+                  "direction": "Left",
+                  "hash": "3Ae6fR5qMGukjEg52VdWgBKVT9bRQhxYFMwy7YufuHbU"
+                },
+                {
+                  "direction": "Right",
+                  "hash": "EcBLT634FFfKzkPFr3LsecLvstPqmBXbKbBzU7mVoCtH"
+                }
+              ]
+            }
+          ],
+          "status": {
+            "SuccessValue": "IlBBSUQi"
+          },
+          "transaction": {
+            "actions": [
+              {
+                "FunctionCall": {
+                  "args": "e30=",
+                  "deposit": "0",
+                  "gas": 100000000000000,
+                  "method_name": "sweep"
+                }
+              }
+            ],
+            "hash": "DracoGyTgSuxYAqHH35ySGbnRXmfETrt1Z5TuKTjF6y1",
+            "nonce": 277076834000034,
+            "priority_fee": 0,
+            "public_key": "ed25519:G9hRYTJkoBz4eQmqSfspZrfNZUeE3GvUt93HjNkcpqmv",
+            "receiver_id": "0u605qjm2v1vmwqn4svaf2k9ssbqmp8mjknnbkkp50as0et92wk9r0",
+            "signature": "ed25519:REDACTED-PUBLIC-SIGNATURE",
+            "signer_id": "sm1110-zi3-sweeper.testnet"
+          },
+          "transaction_outcome": {
+            "block_hash": "3qfBvjCDSeWvo67ofqXZpb3bSLz1iU7vQUXk5BU4FyDD",
+            "id": "DracoGyTgSuxYAqHH35ySGbnRXmfETrt1Z5TuKTjF6y1",
+            "outcome": {
+              "executor_id": "sm1110-zi3-sweeper.testnet",
+              "gas_burnt": 308393286005,
+              "logs": [],
+              "metadata": {
+                "gas_profile": null,
+                "version": 1
+              },
+              "receipt_ids": [
+                "8xgUDi88XbJU1Z3MqQwehH77sj4geyQ4iDxmR7d6ztB3"
+              ],
+              "status": {
+                "SuccessReceiptId": "8xgUDi88XbJU1Z3MqQwehH77sj4geyQ4iDxmR7d6ztB3"
+              },
+              "tokens_burnt": "30839328600500000000"
+            },
+            "proof": [
+              {
+                "direction": "Left",
+                "hash": "ETwZYCqnN4u1uD4nBaVc1jPPoviA4mP4QARmQcVTJEcr"
+              },
+              {
+                "direction": "Right",
+                "hash": "EefUjsDqxZoXmmKBL6XAAqz9ZZvPNVFqNxDUgGpBc6aT"
+              }
+            ]
+          }
+        },
+        "id": "zi"
+      }
+    },
+    {
+      "seq": 9,
+      "invoice_id": "LATE-V3",
+      "label": "sweep: tx_status",
+      "method": "EXPERIMENTAL_tx_status",
+      "params": {
+        "tx_hash": "DracoGyTgSuxYAqHH35ySGbnRXmfETrt1Z5TuKTjF6y1",
+        "sender_account_id": "sm1110-zi3-sweeper.testnet",
+        "wait_until": "FINAL"
+      },
+      "response": {
+        "jsonrpc": "2.0",
+        "result": {
+          "final_execution_status": "FINAL",
+          "receipts": [
+            {
+              "predecessor_id": "sm1110-zi3-sweeper.testnet",
+              "priority": 0,
+              "receipt": {
+                "Action": {
+                  "actions": [
+                    {
+                      "FunctionCall": {
+                        "args": "e30=",
+                        "deposit": "0",
+                        "gas": 100000000000000,
+                        "method_name": "sweep"
+                      }
+                    }
+                  ],
+                  "gas_price": "1000000000",
+                  "input_data_ids": [],
+                  "is_promise_yield": false,
+                  "output_data_receivers": [],
+                  "signer_id": "sm1110-zi3-sweeper.testnet",
+                  "signer_public_key": "ed25519:G9hRYTJkoBz4eQmqSfspZrfNZUeE3GvUt93HjNkcpqmv"
+                }
+              },
+              "receipt_id": "8xgUDi88XbJU1Z3MqQwehH77sj4geyQ4iDxmR7d6ztB3",
+              "receiver_id": "0u605qjm2v1vmwqn4svaf2k9ssbqmp8mjknnbkkp50as0et92wk9r0"
+            },
+            {
+              "predecessor_id": "0u605qjm2v1vmwqn4svaf2k9ssbqmp8mjknnbkkp50as0et92wk9r0",
+              "priority": 0,
+              "receipt": {
+                "Action": {
+                  "actions": [
+                    {
+                      "Transfer": {
+                        "deposit": "92000000000000000000000"
+                      }
+                    }
+                  ],
+                  "gas_price": "1000000000",
+                  "input_data_ids": [],
+                  "is_promise_yield": false,
+                  "output_data_receivers": [
+                    {
+                      "data_id": "3gdt8zoLqzWhRUpaiHTE5s14JiyiR3dg7m9KU5bL98Lx",
+                      "receiver_id": "0u605qjm2v1vmwqn4svaf2k9ssbqmp8mjknnbkkp50as0et92wk9r0"
+                    }
+                  ],
+                  "signer_id": "sm1110-zi3-sweeper.testnet",
+                  "signer_public_key": "ed25519:G9hRYTJkoBz4eQmqSfspZrfNZUeE3GvUt93HjNkcpqmv"
+                }
+              },
+              "receipt_id": "4NTQAjSa4pfgBMrN6n5ti1nUvfPGkcHvLC4w9ntrHy51",
+              "receiver_id": "late.sm1110-zi3-merchant.testnet"
+            },
+            {
+              "predecessor_id": "system",
+              "priority": 0,
+              "receipt": {
+                "Action": {
+                  "actions": [
+                    {
+                      "Transfer": {
+                        "deposit": "200864306250000000000"
+                      }
+                    }
+                  ],
+                  "gas_price": "0",
+                  "input_data_ids": [],
+                  "is_promise_yield": false,
+                  "output_data_receivers": [],
+                  "signer_id": "sm1110-zi3-sweeper.testnet",
+                  "signer_public_key": "ed25519:G9hRYTJkoBz4eQmqSfspZrfNZUeE3GvUt93HjNkcpqmv"
+                }
+              },
+              "receipt_id": "66JtZveMWc29rQKPoTww5G1YM8HL7cCznCKBLRhy67QY",
+              "receiver_id": "sm1110-zi3-sweeper.testnet"
+            },
+            {
+              "predecessor_id": "0u605qjm2v1vmwqn4svaf2k9ssbqmp8mjknnbkkp50as0et92wk9r0",
+              "priority": 0,
+              "receipt": {
+                "Action": {
+                  "actions": [
+                    {
+                      "FunctionCall": {
+                        "args": "AwsAAABPV0VEX1JFU0VOVAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQEAAAAAIAAAAGxhdGUuc20xMTEwLXppMy1tZXJjaGFudC50ZXN0bmV0AACAARxzelR7EwAAAAAAAAEA",
+                        "deposit": "0",
+                        "gas": 97813036481310,
+                        "method_name": "on_settled"
+                      }
+                    }
+                  ],
+                  "gas_price": "1000000000",
+                  "input_data_ids": [
+                    "3gdt8zoLqzWhRUpaiHTE5s14JiyiR3dg7m9KU5bL98Lx"
+                  ],
+                  "is_promise_yield": false,
+                  "output_data_receivers": [],
+                  "signer_id": "sm1110-zi3-sweeper.testnet",
+                  "signer_public_key": "ed25519:G9hRYTJkoBz4eQmqSfspZrfNZUeE3GvUt93HjNkcpqmv"
+                }
+              },
+              "receipt_id": "DtzWEa973EP4iEPL5P8HU2KwaupXHQi5mBXeJxp3xHod",
+              "receiver_id": "0u605qjm2v1vmwqn4svaf2k9ssbqmp8mjknnbkkp50as0et92wk9r0"
+            },
+            {
+              "predecessor_id": "system",
+              "priority": 0,
+              "receipt": {
+                "Action": {
+                  "actions": [
+                    {
+                      "Transfer": {
+                        "deposit": "98524972394553200000000"
+                      }
+                    }
+                  ],
+                  "gas_price": "0",
+                  "input_data_ids": [],
+                  "is_promise_yield": false,
+                  "output_data_receivers": [],
+                  "signer_id": "sm1110-zi3-sweeper.testnet",
+                  "signer_public_key": "ed25519:G9hRYTJkoBz4eQmqSfspZrfNZUeE3GvUt93HjNkcpqmv"
+                }
+              },
+              "receipt_id": "28yh8ymV4c3YMiVaJscH7btmWFLWMR5YXJahkNLj9drf",
+              "receiver_id": "sm1110-zi3-sweeper.testnet"
+            },
+            {
+              "predecessor_id": "system",
+              "priority": 0,
+              "receipt": {
+                "Action": {
+                  "actions": [
+                    {
+                      "Transfer": {
+                        "deposit": "1767137231611800000000"
+                      }
+                    }
+                  ],
+                  "gas_price": "0",
+                  "input_data_ids": [],
+                  "is_promise_yield": false,
+                  "output_data_receivers": [],
+                  "signer_id": "sm1110-zi3-sweeper.testnet",
+                  "signer_public_key": "ed25519:G9hRYTJkoBz4eQmqSfspZrfNZUeE3GvUt93HjNkcpqmv"
+                }
+              },
+              "receipt_id": "GdEARjSbWkmc1FMDjBGzsSYrx1htPFxTnRZ4yAga9RT7",
+              "receiver_id": "sm1110-zi3-sweeper.testnet"
+            }
+          ],
+          "receipts_outcome": [
+            {
+              "block_hash": "BTeZcCz82VqgPZSGobwENr5NCg83rYySUn9s5np1TBWo",
+              "id": "8xgUDi88XbJU1Z3MqQwehH77sj4geyQ4iDxmR7d6ztB3",
+              "outcome": {
+                "executor_id": "0u605qjm2v1vmwqn4svaf2k9ssbqmp8mjknnbkkp50as0et92wk9r0",
+                "gas_burnt": 1963485812902,
+                "logs": [],
+                "metadata": {
+                  "contracts": [
+                    {
+                      "global_hash": "Ut7EQhLDrvYVarHb6ZaXk6m7o9kQqYPCpyqiamvreWa"
+                    }
+                  ],
+                  "gas_profile": [
+                    {
+                      "cost": "FUNCTION_CALL_BASE",
+                      "cost_category": "ACTION_COST",
+                      "gas_used": "200000000000"
+                    },
+                    {
+                      "cost": "FUNCTION_CALL_BYTE",
+                      "cost_category": "ACTION_COST",
+                      "gas_used": "310794826"
+                    },
+                    {
+                      "cost": "NEW_ACTION_RECEIPT",
+                      "cost_category": "ACTION_COST",
+                      "gas_used": "289092464624"
+                    },
+                    {
+                      "cost": "TRANSFER",
+                      "cost_category": "ACTION_COST",
+                      "gas_used": "115123062500"
+                    },
+                    {
+                      "cost": "BASE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "4501057887"
+                    },
+                    {
+                      "cost": "CONTRACT_LOADING_BASE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "35445963"
+                    },
+                    {
+                      "cost": "CONTRACT_LOADING_BYTES",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "175608514835"
+                    },
+                    {
+                      "cost": "PROMISE_RETURN",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "560152386"
+                    },
+                    {
+                      "cost": "READ_CACHED_TRIE_NODE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "2280000000"
+                    },
+                    {
+                      "cost": "READ_MEMORY_BASE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "26098632000"
+                    },
+                    {
+                      "cost": "READ_MEMORY_BYTE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "1976693160"
+                    },
+                    {
+                      "cost": "READ_REGISTER_BASE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "5034330372"
+                    },
+                    {
+                      "cost": "READ_REGISTER_BYTE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "29864286"
+                    },
+                    {
+                      "cost": "STORAGE_READ_BASE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "56356845749"
+                    },
+                    {
+                      "cost": "STORAGE_READ_KEY_BYTE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "154762665"
+                    },
+                    {
+                      "cost": "STORAGE_READ_VALUE_BYTE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "1397139996"
+                    },
+                    {
+                      "cost": "STORAGE_WRITE_BASE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "64196736000"
+                    },
+                    {
+                      "cost": "STORAGE_WRITE_EVICTED_BYTE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "7997209443"
+                    },
+                    {
+                      "cost": "STORAGE_WRITE_KEY_BYTE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "352414335"
+                    },
+                    {
+                      "cost": "STORAGE_WRITE_VALUE_BYTE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "7723616211"
+                    },
+                    {
+                      "cost": "TOUCHING_TRIE_NODE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "27360000000"
+                    },
+                    {
+                      "cost": "UTF8_DECODING_BASE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "6223558122"
+                    },
+                    {
+                      "cost": "UTF8_DECODING_BYTE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "25075921194"
+                    },
+                    {
+                      "cost": "WASM_INSTRUCTION",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "35098770960"
+                    },
+                    {
+                      "cost": "WRITE_MEMORY_BASE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "11215179444"
+                    },
+                    {
+                      "cost": "WRITE_MEMORY_BYTE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "912463620"
+                    },
+                    {
+                      "cost": "WRITE_REGISTER_BASE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "8596567458"
+                    },
+                    {
+                      "cost": "WRITE_REGISTER_BYTE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "2098463328"
+                    }
+                  ],
+                  "version": 4
+                },
+                "receipt_ids": [
+                  "4NTQAjSa4pfgBMrN6n5ti1nUvfPGkcHvLC4w9ntrHy51",
+                  "DtzWEa973EP4iEPL5P8HU2KwaupXHQi5mBXeJxp3xHod",
+                  "GdEARjSbWkmc1FMDjBGzsSYrx1htPFxTnRZ4yAga9RT7"
+                ],
+                "status": {
+                  "SuccessReceiptId": "DtzWEa973EP4iEPL5P8HU2KwaupXHQi5mBXeJxp3xHod"
+                },
+                "tokens_burnt": "196348581290200000000"
+              },
+              "proof": []
+            },
+            {
+              "block_hash": "GdvhdxtxtHCdqhJyc4xxBPCtw3zGxsRb3E34sqgqSRYG",
+              "id": "4NTQAjSa4pfgBMrN6n5ti1nUvfPGkcHvLC4w9ntrHy51",
+              "outcome": {
+                "executor_id": "late.sm1110-zi3-merchant.testnet",
+                "gas_burnt": 223182562500,
+                "logs": [],
+                "metadata": {
+                  "contracts": [
+                    null
+                  ],
+                  "gas_profile": [],
+                  "version": 4
+                },
+                "receipt_ids": [
+                  "66JtZveMWc29rQKPoTww5G1YM8HL7cCznCKBLRhy67QY"
+                ],
+                "status": {
+                  "SuccessValue": ""
+                },
+                "tokens_burnt": "22318256250000000000"
+              },
+              "proof": [
+                {
+                  "direction": "Right",
+                  "hash": "3APQdDReWfTJAU2WqKQG1r8cRAdgdoNBcxHnXxqDG52U"
+                },
+                {
+                  "direction": "Left",
+                  "hash": "GjoXUCr8Hw6PKe6m4N5rmADM7VieePe6UyoAzc7ZKNBQ"
+                },
+                {
+                  "direction": "Left",
+                  "hash": "3Ae6fR5qMGukjEg52VdWgBKVT9bRQhxYFMwy7YufuHbU"
+                },
+                {
+                  "direction": "Right",
+                  "hash": "EcBLT634FFfKzkPFr3LsecLvstPqmBXbKbBzU7mVoCtH"
+                }
+              ]
+            },
+            {
+              "block_hash": "FRnhAsoaFveASfgAqFQen8dXoP5CB1BECq64aMoLU8rs",
+              "id": "66JtZveMWc29rQKPoTww5G1YM8HL7cCznCKBLRhy67QY",
+              "outcome": {
+                "executor_id": "sm1110-zi3-sweeper.testnet",
+                "gas_burnt": 223182562500,
+                "logs": [],
+                "metadata": {
+                  "contracts": [
+                    null
+                  ],
+                  "gas_profile": [],
+                  "version": 4
+                },
+                "receipt_ids": [],
+                "status": {
+                  "SuccessValue": ""
+                },
+                "tokens_burnt": "0"
+              },
+              "proof": [
+                {
+                  "direction": "Right",
+                  "hash": "E94yPf1JLACtouFP7LFRqEgsvvkvGBhWkLfQKa54RBa7"
+                },
+                {
+                  "direction": "Left",
+                  "hash": "CkZujgjRgwQQFZvFj2FdgRGCcBMraXDbGsvbdS2mpC6S"
+                },
+                {
+                  "direction": "Right",
+                  "hash": "3y7MRWmk4qnno6DQtpNgR3RDjLCkuvBGiGHzbbv8qN17"
+                }
+              ]
+            },
+            {
+              "block_hash": "FRnhAsoaFveASfgAqFQen8dXoP5CB1BECq64aMoLU8rs",
+              "id": "DtzWEa973EP4iEPL5P8HU2KwaupXHQi5mBXeJxp3xHod",
+              "outcome": {
+                "executor_id": "0u605qjm2v1vmwqn4svaf2k9ssbqmp8mjknnbkkp50as0et92wk9r0",
+                "gas_burnt": 1764343815828,
+                "logs": [
+                  "EVENT_JSON:{\"standard\":\"zeroinit\",\"version\":\"3.0.0\",\"event\":\"owed_resent\",\"data\":[{\"invoice_id\":\"LATE-V3\",\"account_id\":\"0u605qjm2v1vmwqn4svaf2k9ssbqmp8mjknnbkkp50as0et92wk9r0\",\"amount\":\"92000000000000000000000\",\"to\":\"late.sm1110-zi3-merchant.testnet\",\"token\":null}]}",
+                  "EVENT_JSON:{\"standard\":\"zeroinit\",\"version\":\"3.0.0\",\"event\":\"invoice_paid\",\"data\":[{\"invoice_id\":\"LATE-V3\",\"account_id\":\"0u605qjm2v1vmwqn4svaf2k9ssbqmp8mjknnbkkp50as0et92wk9r0\",\"via\":\"pay\",\"payer\":\"sm1110-zi3-payer.testnet\",\"amount\":\"100000000000000000000000\",\"merchant_amount\":\"92000000000000000000000\",\"tax_amount\":\"8000000000000000000000\",\"excess_refunded\":\"0\",\"late\":false,\"retried\":true,\"token\":null}]}"
+                ],
+                "metadata": {
+                  "contracts": [
+                    {
+                      "global_hash": "Ut7EQhLDrvYVarHb6ZaXk6m7o9kQqYPCpyqiamvreWa"
+                    }
+                  ],
+                  "gas_profile": [
+                    {
+                      "cost": "BASE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "5560130331"
+                    },
+                    {
+                      "cost": "CONTRACT_LOADING_BASE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "35445963"
+                    },
+                    {
+                      "cost": "CONTRACT_LOADING_BYTES",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "175608514835"
+                    },
+                    {
+                      "cost": "LOG_BASE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "7086626100"
+                    },
+                    {
+                      "cost": "LOG_BYTE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "8882786343"
+                    },
+                    {
+                      "cost": "READ_CACHED_TRIE_NODE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "2280000000"
+                    },
+                    {
+                      "cost": "READ_MEMORY_BASE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "15659179200"
+                    },
+                    {
+                      "cost": "READ_MEMORY_BYTE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "3565650354"
+                    },
+                    {
+                      "cost": "READ_REGISTER_BASE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "12585825930"
+                    },
+                    {
+                      "cost": "READ_REGISTER_BYTE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "47901132"
+                    },
+                    {
+                      "cost": "STORAGE_READ_BASE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "56356845749"
+                    },
+                    {
+                      "cost": "STORAGE_READ_KEY_BYTE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "154762665"
+                    },
+                    {
+                      "cost": "STORAGE_READ_VALUE_BYTE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "1397139996"
+                    },
+                    {
+                      "cost": "STORAGE_WRITE_BASE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "64196736000"
+                    },
+                    {
+                      "cost": "STORAGE_WRITE_EVICTED_BYTE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "7997209443"
+                    },
+                    {
+                      "cost": "STORAGE_WRITE_KEY_BYTE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "352414335"
+                    },
+                    {
+                      "cost": "STORAGE_WRITE_VALUE_BYTE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "7723616211"
+                    },
+                    {
+                      "cost": "TOUCHING_TRIE_NODE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "27360000000"
+                    },
+                    {
+                      "cost": "UTF8_DECODING_BASE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "6223558122"
+                    },
+                    {
+                      "cost": "UTF8_DECODING_BYTE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "196233662367"
+                    },
+                    {
+                      "cost": "WASM_INSTRUCTION",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "238978530516"
+                    },
+                    {
+                      "cost": "WRITE_MEMORY_BASE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "16822769166"
+                    },
+                    {
+                      "cost": "WRITE_MEMORY_BYTE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "1367333544"
+                    },
+                    {
+                      "cost": "WRITE_REGISTER_BASE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "17193134916"
+                    },
+                    {
+                      "cost": "WRITE_REGISTER_BYTE",
+                      "cost_category": "WASM_HOST_COST",
+                      "gas_used": "2303747784"
+                    }
+                  ],
+                  "version": 4
+                },
+                "receipt_ids": [
+                  "28yh8ymV4c3YMiVaJscH7btmWFLWMR5YXJahkNLj9drf"
+                ],
+                "status": {
+                  "SuccessValue": "IlBBSUQi"
+                },
+                "tokens_burnt": "176434381582800000000"
+              },
+              "proof": []
+            },
+            {
+              "block_hash": "HJx9ZVWd8LeEZx8jCwYvN9u1sWNSEHfso2ETsBG3Mhtn",
+              "id": "28yh8ymV4c3YMiVaJscH7btmWFLWMR5YXJahkNLj9drf",
+              "outcome": {
+                "executor_id": "sm1110-zi3-sweeper.testnet",
+                "gas_burnt": 223182562500,
+                "logs": [],
+                "metadata": {
+                  "contracts": [
+                    null
+                  ],
+                  "gas_profile": [],
+                  "version": 4
+                },
+                "receipt_ids": [],
+                "status": {
+                  "SuccessValue": ""
+                },
+                "tokens_burnt": "0"
+              },
+              "proof": [
+                {
+                  "direction": "Left",
+                  "hash": "A9qZXN4CNzui4osCjFaBjYWyLM8nLpMbcCG6S7KNsoEK"
+                },
+                {
+                  "direction": "Left",
+                  "hash": "2GrN3XfEMahEYf1bCScBVMFUvyektTFXHeqmnqx9rGnL"
+                }
+              ]
+            },
+            {
+              "block_hash": "GdvhdxtxtHCdqhJyc4xxBPCtw3zGxsRb3E34sqgqSRYG",
+              "id": "GdEARjSbWkmc1FMDjBGzsSYrx1htPFxTnRZ4yAga9RT7",
+              "outcome": {
+                "executor_id": "sm1110-zi3-sweeper.testnet",
+                "gas_burnt": 223182562500,
+                "logs": [],
+                "metadata": {
+                  "contracts": [
+                    null
+                  ],
+                  "gas_profile": [],
+                  "version": 4
+                },
+                "receipt_ids": [],
+                "status": {
+                  "SuccessValue": ""
+                },
+                "tokens_burnt": "0"
+              },
+              "proof": [
+                {
+                  "direction": "Left",
+                  "hash": "3c1zgj2Fp2SGXRACa3jyPmNtp1vciESXPtRsauiX8FXp"
+                },
+                {
+                  "direction": "Left",
+                  "hash": "GjoXUCr8Hw6PKe6m4N5rmADM7VieePe6UyoAzc7ZKNBQ"
+                },
+                {
+                  "direction": "Left",
+                  "hash": "3Ae6fR5qMGukjEg52VdWgBKVT9bRQhxYFMwy7YufuHbU"
+                },
+                {
+                  "direction": "Right",
+                  "hash": "EcBLT634FFfKzkPFr3LsecLvstPqmBXbKbBzU7mVoCtH"
+                }
+              ]
+            }
+          ],
+          "status": {
+            "SuccessValue": "IlBBSUQi"
+          },
+          "transaction": {
+            "actions": [
+              {
+                "FunctionCall": {
+                  "args": "e30=",
+                  "deposit": "0",
+                  "gas": 100000000000000,
+                  "method_name": "sweep"
+                }
+              }
+            ],
+            "hash": "DracoGyTgSuxYAqHH35ySGbnRXmfETrt1Z5TuKTjF6y1",
+            "nonce": 277076834000034,
+            "priority_fee": 0,
+            "public_key": "ed25519:G9hRYTJkoBz4eQmqSfspZrfNZUeE3GvUt93HjNkcpqmv",
+            "receiver_id": "0u605qjm2v1vmwqn4svaf2k9ssbqmp8mjknnbkkp50as0et92wk9r0",
+            "signature": "ed25519:REDACTED-PUBLIC-SIGNATURE",
+            "signer_id": "sm1110-zi3-sweeper.testnet"
+          },
+          "transaction_outcome": {
+            "block_hash": "3qfBvjCDSeWvo67ofqXZpb3bSLz1iU7vQUXk5BU4FyDD",
+            "id": "DracoGyTgSuxYAqHH35ySGbnRXmfETrt1Z5TuKTjF6y1",
+            "outcome": {
+              "executor_id": "sm1110-zi3-sweeper.testnet",
+              "gas_burnt": 308393286005,
+              "logs": [],
+              "metadata": {
+                "gas_profile": null,
+                "version": 1
+              },
+              "receipt_ids": [
+                "8xgUDi88XbJU1Z3MqQwehH77sj4geyQ4iDxmR7d6ztB3"
+              ],
+              "status": {
+                "SuccessReceiptId": "8xgUDi88XbJU1Z3MqQwehH77sj4geyQ4iDxmR7d6ztB3"
+              },
+              "tokens_burnt": "30839328600500000000"
+            },
+            "proof": [
+              {
+                "direction": "Left",
+                "hash": "ETwZYCqnN4u1uD4nBaVc1jPPoviA4mP4QARmQcVTJEcr"
+              },
+              {
+                "direction": "Right",
+                "hash": "EefUjsDqxZoXmmKBL6XAAqz9ZZvPNVFqNxDUgGpBc6aT"
+              }
+            ]
+          }
+        },
+        "id": "zi"
+      }
+    },
+    {
+      "seq": 10,
+      "invoice_id": "LATE-V3",
+      "label": "sweep-after: view_account",
+      "method": "query",
+      "params": {
+        "request_type": "view_account",
+        "finality": "final",
+        "account_id": "0u605qjm2v1vmwqn4svaf2k9ssbqmp8mjknnbkkp50as0et92wk9r0"
+      },
+      "response": {
+        "jsonrpc": "2.0",
+        "result": {
+          "amount": "0",
+          "block_hash": "HJx9ZVWd8LeEZx8jCwYvN9u1sWNSEHfso2ETsBG3Mhtn",
+          "block_height": 277083389,
+          "code_hash": "11111111111111111111111111111111",
+          "global_contract_hash": "Ut7EQhLDrvYVarHb6ZaXk6m7o9kQqYPCpyqiamvreWa",
+          "locked": "0",
+          "storage_paid_at": 0,
+          "storage_usage": 426
+        },
+        "id": "zi"
+      }
+    },
+    {
+      "seq": 11,
+      "invoice_id": "LATE-V3",
+      "label": "sweep-after: get_invoice",
+      "method": "query",
+      "params": {
+        "request_type": "call_function",
+        "finality": "final",
+        "account_id": "0u605qjm2v1vmwqn4svaf2k9ssbqmp8mjknnbkkp50as0et92wk9r0",
+        "method_name": "get_invoice",
+        "args_base64": "e30="
+      },
+      "response": {
+        "jsonrpc": "2.0",
+        "result": {
+          "block_hash": "HJx9ZVWd8LeEZx8jCwYvN9u1sWNSEHfso2ETsBG3Mhtn",
+          "block_height": 277083389,
+          "logs": [],
+          "result": [
+            123,
+            34,
+            118,
+            34,
+            58,
+            51,
+            44,
+            34,
+            97,
+            99,
+            99,
+            111,
+            117,
+            110,
+            116,
+            95,
+            105,
+            100,
+            34,
+            58,
+            34,
+            48,
+            117,
+            54,
+            48,
+            53,
+            113,
+            106,
+            109,
+            50,
+            118,
+            49,
+            118,
+            109,
+            119,
+            113,
+            110,
+            52,
+            115,
+            118,
+            97,
+            102,
+            50,
+            107,
+            57,
+            115,
+            115,
+            98,
+            113,
+            109,
+            112,
+            56,
+            109,
+            106,
+            107,
+            110,
+            110,
+            98,
+            107,
+            107,
+            112,
+            53,
+            48,
+            97,
+            115,
+            48,
+            101,
+            116,
+            57,
+            50,
+            119,
+            107,
+            57,
+            114,
+            48,
+            34,
+            44,
+            34,
+            105,
+            110,
+            118,
+            111,
+            105,
+            99,
+            101,
+            95,
+            105,
+            100,
+            34,
+            58,
+            34,
+            76,
+            65,
+            84,
+            69,
+            45,
+            86,
+            51,
+            34,
+            44,
+            34,
+            109,
+            101,
+            114,
+            99,
+            104,
+            97,
+            110,
+            116,
+            34,
+            58,
+            34,
+            108,
+            97,
+            116,
+            101,
+            46,
+            115,
+            109,
+            49,
+            49,
+            49,
+            48,
+            45,
+            122,
+            105,
+            51,
+            45,
+            109,
+            101,
+            114,
+            99,
+            104,
+            97,
+            110,
+            116,
+            46,
+            116,
+            101,
+            115,
+            116,
+            110,
+            101,
+            116,
+            34,
+            44,
+            34,
+            116,
+            97,
+            120,
+            95,
+            118,
+            97,
+            117,
+            108,
+            116,
+            34,
+            58,
+            34,
+            115,
+            109,
+            49,
+            49,
+            49,
+            48,
+            45,
+            122,
+            105,
+            51,
+            45,
+            116,
+            97,
+            120,
+            118,
+            97,
+            117,
+            108,
+            116,
+            46,
+            116,
+            101,
+            115,
+            116,
+            110,
+            101,
+            116,
+            34,
+            44,
+            34,
+            116,
+            97,
+            120,
+            95,
+            98,
+            112,
+            115,
+            34,
+            58,
+            56,
+            48,
+            48,
+            44,
+            34,
+            97,
+            109,
+            111,
+            117,
+            110,
+            116,
+            34,
+            58,
+            34,
+            49,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            34,
+            44,
+            34,
+            101,
+            120,
+            112,
+            105,
+            114,
+            101,
+            115,
+            95,
+            97,
+            116,
+            95,
+            109,
+            115,
+            34,
+            58,
+            34,
+            49,
+            55,
+            57,
+            52,
+            51,
+            50,
+            54,
+            57,
+            50,
+            52,
+            56,
+            49,
+            52,
+            34,
+            44,
+            34,
+            115,
+            97,
+            108,
+            116,
+            34,
+            58,
+            34,
+            52,
+            51,
+            52,
+            48,
+            49,
+            50,
+            54,
+            52,
+            50,
+            52,
+            56,
+            50,
+            57,
+            50,
+            50,
+            49,
+            54,
+            48,
+            50,
+            34,
+            44,
+            34,
+            103,
+            114,
+            97,
+            99,
+            101,
+            95,
+            109,
+            115,
+            34,
+            58,
+            34,
+            54,
+            48,
+            52,
+            56,
+            48,
+            48,
+            48,
+            48,
+            48,
+            34,
+            44,
+            34,
+            116,
+            111,
+            107,
+            101,
+            110,
+            34,
+            58,
+            110,
+            117,
+            108,
+            108,
+            44,
+            34,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            34,
+            58,
+            34,
+            80,
+            65,
+            73,
+            68,
+            34,
+            44,
+            34,
+            112,
+            97,
+            105,
+            100,
+            95,
+            98,
+            121,
+            34,
+            58,
+            34,
+            115,
+            109,
+            49,
+            49,
+            49,
+            48,
+            45,
+            122,
+            105,
+            51,
+            45,
+            112,
+            97,
+            121,
+            101,
+            114,
+            46,
+            116,
+            101,
+            115,
+            116,
+            110,
+            101,
+            116,
+            34,
+            44,
+            34,
+            112,
+            97,
+            105,
+            100,
+            95,
+            97,
+            116,
+            95,
+            109,
+            115,
+            34,
+            58,
+            34,
+            49,
+            55,
+            57,
+            52,
+            51,
+            49,
+            57,
+            55,
+            50,
+            54,
+            52,
+            49,
+            56,
+            34,
+            44,
+            34,
+            112,
+            97,
+            105,
+            100,
+            95,
+            97,
+            109,
+            111,
+            117,
+            110,
+            116,
+            34,
+            58,
+            34,
+            49,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            34,
+            44,
+            34,
+            116,
+            97,
+            120,
+            95,
+            97,
+            109,
+            111,
+            117,
+            110,
+            116,
+            34,
+            58,
+            34,
+            56,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            34,
+            44,
+            34,
+            111,
+            119,
+            101,
+            100,
+            95,
+            109,
+            101,
+            114,
+            99,
+            104,
+            97,
+            110,
+            116,
+            34,
+            58,
+            34,
+            48,
+            34,
+            44,
+            34,
+            111,
+            119,
+            101,
+            100,
+            95,
+            116,
+            97,
+            120,
+            34,
+            58,
+            34,
+            48,
+            34,
+            44,
+            34,
+            111,
+            119,
+            101,
+            100,
+            95,
+            112,
+            97,
+            121,
+            101,
+            114,
+            34,
+            58,
+            34,
+            48,
+            34,
+            44,
+            34,
+            114,
+            101,
+            102,
+            117,
+            110,
+            100,
+            95,
+            116,
+            111,
+            34,
+            58,
+            110,
+            117,
+            108,
+            108,
+            44,
+            34,
+            98,
+            117,
+            115,
+            121,
+            95,
+            117,
+            110,
+            116,
+            105,
+            108,
+            95,
+            109,
+            115,
+            34,
+            58,
+            34,
+            48,
+            34,
+            125
+          ]
+        },
+        "id": "zi"
+      }
+    },
+    {
+      "seq": 12,
+      "invoice_id": "LATE-V3",
+      "label": "aux: status",
+      "method": "status",
+      "params": [],
+      "response": {
+        "jsonrpc": "2.0",
+        "result": {
+          "chain_id": "testnet",
+          "genesis_hash": "FWJ9kR6KFWoyMoNjpLXXGHeuiy7tEY6GmoFeCA5yuc6b",
+          "latest_protocol_version": 88,
+          "node_key": null,
+          "node_public_key": "ed25519:vknQwA6gp5wvADawPZEX1TC1bgBvo1VAZhFLebThbsi",
+          "protocol_version": 88,
+          "rpc_addr": "0.0.0.0:3030",
+          "sync_info": {
+            "earliest_block_hash": "6gjrZpQYuFA4u6nQtHmgwn4QgdfKoqZ8L2hcRJBb3JUe",
+            "earliest_block_height": 276867655,
+            "earliest_block_time": "2026-11-09T03:43:23.348167908Z",
+            "epoch_id": "FnAjVQVurgL1DVHysgCXZA3y7DjEx2Q819E9ncYdgtLw",
+            "epoch_start_height": 277040455,
+            "latest_block_hash": "CXKSewoTKFQzqXBWffpsLzYmQjuCSEHAQpLsQ27eKLqC",
+            "latest_block_height": 277083391,
+            "latest_block_time": "2026-11-10T15:04:26.984345698Z",
+            "latest_state_root": "DLRApRUgobN59XGcoqbgvMzgumRkAy1hbgiTnR2R4w4i",
+            "syncing": false
+          },
+          "uptime_sec": 422175,
+          "validator_account_id": null,
+          "validator_public_key": null,
+          "validators": [
+            {
+              "account_id": "node0"
+            },
+            {
+              "account_id": "node1"
+            },
+            {
+              "account_id": "kiln.pool.f863973.m0"
+            },
+            {
+              "account_id": "node2"
+            },
+            {
+              "account_id": "node3"
+            },
+            {
+              "account_id": "aurora.pool.f863973.m0"
+            },
+            {
+              "account_id": "01node.pool.f863973.m0"
+            },
+            {
+              "account_id": "stakely_v2.pool.f863973.m0"
+            },
+            {
+              "account_id": "legends.pool.f863973.m0"
+            },
+            {
+              "account_id": "ni.pool.f863973.m0"
+            },
+            {
+              "account_id": "ts.pool.f863973.m0"
+            },
+            {
+              "account_id": "lunanova2.pool.f863973.m0"
+            },
+            {
+              "account_id": "validator4.testnet"
+            },
+            {
+              "account_id": "validator5.testnet"
+            },
+            {
+              "account_id": "validator6.testnet"
+            },
+            {
+              "account_id": "validator7.testnet"
+            },
+            {
+              "account_id": "validator8.testnet"
+            },
+            {
+              "account_id": "validator9.testnet"
+            },
+            {
+              "account_id": "validator10.testnet"
+            },
+            {
+              "account_id": "validator11.testnet"
+            }
+          ],
+          "version": {
+            "build": "2.14.0-rc.5",
+            "commit": "b7b4737cab46f17a6daa2ed694d7aebbd204363a",
+            "rustc_version": "1.95.0",
+            "version": "2.14.0-rc.5"
+          }
+        },
+        "id": "zi"
+      }
+    },
+    {
+      "seq": 13,
+      "invoice_id": "LATE-V3",
+      "label": "aux: query",
+      "method": "query",
+      "params": {
+        "request_type": "view_account",
+        "finality": "final",
+        "account_id": "0u605qjm2v1vmwqn4svaf2k9ssbqmp8mjknnbkkp50as0et92wk9r0"
+      },
+      "response": {
+        "jsonrpc": "2.0",
+        "result": {
+          "amount": "0",
+          "block_hash": "3BnrxjuWUDy4mWeAVd8GETkhcQyPc2xNgNGNo9jhfhqD",
+          "block_height": 277083390,
+          "code_hash": "11111111111111111111111111111111",
+          "global_contract_hash": "Ut7EQhLDrvYVarHb6ZaXk6m7o9kQqYPCpyqiamvreWa",
+          "locked": "0",
+          "storage_paid_at": 0,
+          "storage_usage": 426
+        },
+        "id": "zi"
+      }
+    },
+    {
+      "seq": 14,
+      "invoice_id": "LATE-V3",
+      "label": "aux: query",
+      "method": "query",
+      "params": {
+        "request_type": "call_function",
+        "finality": "final",
+        "account_id": "0u605qjm2v1vmwqn4svaf2k9ssbqmp8mjknnbkkp50as0et92wk9r0",
+        "method_name": "get_invoice",
+        "args_base64": "e30="
+      },
+      "response": {
+        "jsonrpc": "2.0",
+        "result": {
+          "block_hash": "3BnrxjuWUDy4mWeAVd8GETkhcQyPc2xNgNGNo9jhfhqD",
+          "block_height": 277083390,
+          "logs": [],
+          "result": [
+            123,
+            34,
+            118,
+            34,
+            58,
+            51,
+            44,
+            34,
+            97,
+            99,
+            99,
+            111,
+            117,
+            110,
+            116,
+            95,
+            105,
+            100,
+            34,
+            58,
+            34,
+            48,
+            117,
+            54,
+            48,
+            53,
+            113,
+            106,
+            109,
+            50,
+            118,
+            49,
+            118,
+            109,
+            119,
+            113,
+            110,
+            52,
+            115,
+            118,
+            97,
+            102,
+            50,
+            107,
+            57,
+            115,
+            115,
+            98,
+            113,
+            109,
+            112,
+            56,
+            109,
+            106,
+            107,
+            110,
+            110,
+            98,
+            107,
+            107,
+            112,
+            53,
+            48,
+            97,
+            115,
+            48,
+            101,
+            116,
+            57,
+            50,
+            119,
+            107,
+            57,
+            114,
+            48,
+            34,
+            44,
+            34,
+            105,
+            110,
+            118,
+            111,
+            105,
+            99,
+            101,
+            95,
+            105,
+            100,
+            34,
+            58,
+            34,
+            76,
+            65,
+            84,
+            69,
+            45,
+            86,
+            51,
+            34,
+            44,
+            34,
+            109,
+            101,
+            114,
+            99,
+            104,
+            97,
+            110,
+            116,
+            34,
+            58,
+            34,
+            108,
+            97,
+            116,
+            101,
+            46,
+            115,
+            109,
+            49,
+            49,
+            49,
+            48,
+            45,
+            122,
+            105,
+            51,
+            45,
+            109,
+            101,
+            114,
+            99,
+            104,
+            97,
+            110,
+            116,
+            46,
+            116,
+            101,
+            115,
+            116,
+            110,
+            101,
+            116,
+            34,
+            44,
+            34,
+            116,
+            97,
+            120,
+            95,
+            118,
+            97,
+            117,
+            108,
+            116,
+            34,
+            58,
+            34,
+            115,
+            109,
+            49,
+            49,
+            49,
+            48,
+            45,
+            122,
+            105,
+            51,
+            45,
+            116,
+            97,
+            120,
+            118,
+            97,
+            117,
+            108,
+            116,
+            46,
+            116,
+            101,
+            115,
+            116,
+            110,
+            101,
+            116,
+            34,
+            44,
+            34,
+            116,
+            97,
+            120,
+            95,
+            98,
+            112,
+            115,
+            34,
+            58,
+            56,
+            48,
+            48,
+            44,
+            34,
+            97,
+            109,
+            111,
+            117,
+            110,
+            116,
+            34,
+            58,
+            34,
+            49,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            34,
+            44,
+            34,
+            101,
+            120,
+            112,
+            105,
+            114,
+            101,
+            115,
+            95,
+            97,
+            116,
+            95,
+            109,
+            115,
+            34,
+            58,
+            34,
+            49,
+            55,
+            57,
+            52,
+            51,
+            50,
+            54,
+            57,
+            50,
+            52,
+            56,
+            49,
+            52,
+            34,
+            44,
+            34,
+            115,
+            97,
+            108,
+            116,
+            34,
+            58,
+            34,
+            52,
+            51,
+            52,
+            48,
+            49,
+            50,
+            54,
+            52,
+            50,
+            52,
+            56,
+            50,
+            57,
+            50,
+            50,
+            49,
+            54,
+            48,
+            50,
+            34,
+            44,
+            34,
+            103,
+            114,
+            97,
+            99,
+            101,
+            95,
+            109,
+            115,
+            34,
+            58,
+            34,
+            54,
+            48,
+            52,
+            56,
+            48,
+            48,
+            48,
+            48,
+            48,
+            34,
+            44,
+            34,
+            116,
+            111,
+            107,
+            101,
+            110,
+            34,
+            58,
+            110,
+            117,
+            108,
+            108,
+            44,
+            34,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            34,
+            58,
+            34,
+            80,
+            65,
+            73,
+            68,
+            34,
+            44,
+            34,
+            112,
+            97,
+            105,
+            100,
+            95,
+            98,
+            121,
+            34,
+            58,
+            34,
+            115,
+            109,
+            49,
+            49,
+            49,
+            48,
+            45,
+            122,
+            105,
+            51,
+            45,
+            112,
+            97,
+            121,
+            101,
+            114,
+            46,
+            116,
+            101,
+            115,
+            116,
+            110,
+            101,
+            116,
+            34,
+            44,
+            34,
+            112,
+            97,
+            105,
+            100,
+            95,
+            97,
+            116,
+            95,
+            109,
+            115,
+            34,
+            58,
+            34,
+            49,
+            55,
+            57,
+            52,
+            51,
+            49,
+            57,
+            55,
+            50,
+            54,
+            52,
+            49,
+            56,
+            34,
+            44,
+            34,
+            112,
+            97,
+            105,
+            100,
+            95,
+            97,
+            109,
+            111,
+            117,
+            110,
+            116,
+            34,
+            58,
+            34,
+            49,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            34,
+            44,
+            34,
+            116,
+            97,
+            120,
+            95,
+            97,
+            109,
+            111,
+            117,
+            110,
+            116,
+            34,
+            58,
+            34,
+            56,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            48,
+            34,
+            44,
+            34,
+            111,
+            119,
+            101,
+            100,
+            95,
+            109,
+            101,
+            114,
+            99,
+            104,
+            97,
+            110,
+            116,
+            34,
+            58,
+            34,
+            48,
+            34,
+            44,
+            34,
+            111,
+            119,
+            101,
+            100,
+            95,
+            116,
+            97,
+            120,
+            34,
+            58,
+            34,
+            48,
+            34,
+            44,
+            34,
+            111,
+            119,
+            101,
+            100,
+            95,
+            112,
+            97,
+            121,
+            101,
+            114,
+            34,
+            58,
+            34,
+            48,
+            34,
+            44,
+            34,
+            114,
+            101,
+            102,
+            117,
+            110,
+            100,
+            95,
+            116,
+            111,
+            34,
+            58,
+            110,
+            117,
+            108,
+            108,
+            44,
+            34,
+            98,
+            117,
+            115,
+            121,
+            95,
+            117,
+            110,
+            116,
+            105,
+            108,
+            95,
+            109,
+            115,
+            34,
+            58,
+            34,
+            48,
+            34,
+            125
+          ]
+        },
+        "id": "zi"
+      }
+    }
+  ],
+  "resumed": [
+    "LATE-V3"
+  ]
+}

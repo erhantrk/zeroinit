@@ -2,14 +2,14 @@
 
 Live testnet results and build numbers. Every tx hash recorded here is real unless marked synthetic.
 
-**Current contract: v3** (code hash `Ut7EQhLDrvYVarHb6ZaXk6m7o9kQqYPCpyqiamvreWa`, global deploy tx `43D4EifRGJJBtWUVhFPXPFsZqooPwz1czD8LwRz6sjYT`), see the last
-section ("Contract v3 live"). v2 (`4bQ61AgHWWmYXp5c3fwj9NJxS79D9R3cGZAZxHyx9zEA`, deploy tx `DvNnUtvqMg5Q5e2Mn4fMx7GYBFNFhTo7z9wo64szAFKG`) is recorded
+**Current contract: v3.1** (code hash `2prMzXHZVWdeHfmdqqxzb5ahLy2pWBWZjuE25EDJDaYX`, global deploy tx `52dRw7RcBom9EbUJ6hCExDF5esWjsHPh5e1sUa87XyvB`), see the last
+section ("Contract v3.1 live"). v3 (`Ut7EQhLDrvYVarHb6ZaXk6m7o9kQqYPCpyqiamvreWa`, deploy tx `43D4EifRGJJBtWUVhFPXPFsZqooPwz1czD8LwRz6sjYT`) is recorded history too (section "Contract v3 live"). v2 (`4bQ61AgHWWmYXp5c3fwj9NJxS79D9R3cGZAZxHyx9zEA`, deploy tx `DvNnUtvqMg5Q5e2Mn4fMx7GYBFNFhTo7z9wo64szAFKG`) is recorded
 history (sections "Contract v2 build", "Contract v2 live"). Everything above those is the **v1** log (code hash
 `Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k`), kept as recorded history too.
 
 **Paths:** the text is a record of the paths used on the day. The v2 contract now lives in `contract-v2/` (wasm
 `contract-v2/res/`), the v2 recordings in `fixtures/v2/` and `invoices/v2/`, and the v1 recordings in `fixtures/v1/`
-and `invoices/v1/`. `contract/` is the v3 contract (deployed), `fixtures/v3/` and `invoices/v3/` are its live recordings, and `fixtures/v3-synthetic-token.json` is a **synthetic** parser fixture (not a recording).
+and `invoices/v1/`. `contract/` is the v3.1 contract (deployed), `fixtures/v31/` and `invoices/v31/` are its live recordings, `fixtures/v3/` and `invoices/v3/` the v3 ones, and `fixtures/v3-synthetic-token.json` is a **synthetic** parser fixture (not a recording).
 
 ## T03 build
 
@@ -667,3 +667,79 @@ L3 (needs an account to be created), S-F4, a reproducible wasm build, a browser 
 | `zi verify <id>` (online) on the 26 invoices of `invoices/v3/` | 26 of 26 pass |
 
 The slot wrapper (`$CONDUCTOR_BIN slot run`) exited 255 without output here, so `npm test` and `cargo test` were run directly.
+
+## Contract v3.1 live (2026-11-10)
+
+Contract v3.1 is v3 plus the final-review fix F1 (a token `sweep` that reads the balance while an `ft_transfer_call` is in flight plans nothing and returns `CONCURRENT_PAYMENT`).
+It was deployed by the operator (Claude Opus 5.5) and run live by Claude Sonnet 5.5 with the operator's accounts. All hashes below are real testnet transactions; each run is a
+fixture that replays offline (`npm run zi -- replay fixtures/v31/<name>.json`). RPC `https://rpc.testnet.fastnear.com`; signing with the repo's own encoder (parity-tested against
+near-api-js 7.4.0), keys from `.env`, never printed. Recordings keep ids and tx hashes; the 64-byte signatures are redacted.
+
+### Build and deploy (operator)
+
+- wasm: `contract/res/zeroinit_invoice.wasm`, 163,771 bytes (local `npm run contract:build` from commit `49ec835`, **not** a reproducible build), sha256
+  `1b1dcc7515f2b9d6bada0540ed20833dd3050d074e155fb8d489ac2afe01e278`, code hash (base58) `2prMzXHZVWdeHfmdqqxzb5ahLy2pWBWZjuE25EDJDaYX`. This run re-checked the sha256 of the committed file
+  (`sha256sum`: the same digest) and ran `zi verify`, which compares the on-chain `global_contract_hash` of every invoice below with that code hash (all `PASS code-hash-onchain`).
+- Global deploy: tx `52dRw7RcBom9EbUJ6hCExDF5esWjsHPh5e1sUa87XyvB`. Deployer burn **about 16.38 NEAR**: the operator's figure, not measured in this run.
+- Accounts as in "Contract v3 live". New in this round: `late.sm1110-zi3-merchant.testnet`, created by its parent (L3, below).
+
+### The runs (fixtures under `fixtures/v31/`)
+
+Merchant = `sm1110-zi3-sweeper.testnet`, tax vault `sm1110-zi3-taxvault.testnet`, payer `sm1110-zi3-payer.testnet`, 800 bps, tUSDC `sm1110-tusdc.testnet`.
+
+| Run | Invoice | Transactions | Result |
+|---|---|---|---|
+| NEAR demo: pay | `INV-1111-V31-A` (1 NEAR) | pay `8gYZVNFT9DBk9PTZ7jqbe7w2iz4Fnewo4fudVYAzAwFF` | `PAID`, 0.92 / 0.08, `invoice_paid` from `on_settled` (`scripts/demo.sh 1111-V31`) |
+| NEAR demo: plain + sweep | `INV-1111-V31-B` | plain transfer `AzASJAvoViqMhFcUX38MtJvMGijdwAc3xCi2rtA3qujd`, sweep `CNoLGGbaUAaYZKcCyrATmU6SHgY9hzWUJx2uykBSLVgR` | `PAID`, `paid_by` null, 0.92 / 0.08 |
+| NEAR demo: underpay | `INV-1111-V31-C` | pay 0.5 `CAs1exvFhRwcRT5wCKK8HYoijbpQkdRwoCNPWCqfqhRg` | `REFUNDED_UNDERPAID`, status `OPEN` |
+| tUSDC demo: plain `ft_transfer` + sweep | `TOK-1111-V31-A` (1 tUSDC) | register the id `A3LGRoPeaWNXb6oC4UW1eo7v413E5ahftLoB4qJkKuFV`, plain `ft_transfer` `6bj1B77NHBnK8jwfRfKvVEqNw9HMUpnQQmPrqfRgBXCM`, sweep (state init + fund + sweep) `HnN8YwYDG9R8rap34fuTibAVEDcdUpc8xa7jrouY7efK` | before the sweep NEAR says `NONEXISTENT` and `tokens_parked=1 tUSDC`; after it `PAID`, 0.92 / 0.08 tUSDC (`scripts/demo-token.sh 1111-V31`) |
+| tUSDC one-step | `TOK-V31-B` | init (state init + fund) `66x7f5Dm8jWoRBCka7FTc3T8Un1cj4pcRJjsc9uccc4X`, register the id `BUzVpsAJo8vUJnXcx7bBXpJiaMJq9FNo4smH1oHK3b96`, `ft_transfer_call` `2P3iTieD2Sg5gxz4ANANKALLW358CKHUqapv3EdopY8i`, second call `Au6JXELexV8LiARqrU9GLwwxZZYSk5YwSzDthPwqK9rL` | `invoice_paid` via `pay`, payer recorded, the call's final value is `"1000000"` (amount used); the second call `payment_rejected not_open`, final value `"0"` (`scripts/record-v31-tokens.sh`) |
+| **F1 race** | `RACE-V31-4` | init `47Jujj8fmLSRPfSx1F6j5nrMBHMUZmaSTfFJEmnDjm3g`, register the id `AsEDHLUXYHGoVPb7TZx42uLR8m8g7vcB4aevSaUwS9zc`, sweep `8vtV5twiaxVdUvTUopcs2eUAG2hzANxdeMWSSqoYJZ9Y` and `ft_transfer_call` `7BZsoa9Sc5wCe9pbWvJhs3Pc7QuZcKZWR1sQRtvZoKQe` sent at the same moment (offset 0 ms), then the retry `3GuRUGcm8CMUHsqhu55thgU8NARadEjYD57JwkarWgpK` | the sweep returned **`CONCURRENT_PAYMENT`** (no payout, no event, success); the payment got `payment_rejected busy`, final value `"0"`, and the token's `ft_transfer` with `memo: "refund"` returned the whole 1 tUSDC to the payer; the invoice stayed `OPEN`, nothing owed, `paid_by` null, `busy_until_ms` 0; the retried call was accepted: `PAID`, 0.92 / 0.08 tUSDC (`scripts/record-v31-race.sh`, `scripts/race-v31.ts`) |
+| L2 (v3.1) | `LATE-V31` (merchant `late.sm1110-zi3-merchant.testnet`, not yet created) | pay `8FS68syB7ETYjMEXzRHRrePhyxcMEPnSFS5K1Nzo5jTC` | `PAYOUT_PENDING`, `transfer_failed` (merchant, `AccountDoesNotExist`), status `SETTLING`, **no `invoice_paid`**, 0.092 NEAR stays on the invoice |
+| **L3** (account created) | | `sm1110-zi3-merchant.testnet` creates `late.sm1110-zi3-merchant.testnet` with its own key (`CreateAccount` + 0.1 NEAR + the parent's public key as full access key): `6eX2vJwSSZ1n8wB7VtzUvzfADXPZhseik4uupNGpPq6v` | the account exists |
+| **L3** on v3.1 | `LATE-V31` | sweep (sweeper key) `4nXzCkeCZxyvW5rN3kx55jG39RDj8VqSfyfPPxq647jJ` | `PAID`; `owed_resent` of exactly 0.092 NEAR to `late.…`, `invoice_paid` with `retried: true`, one Transfer receipt, invoice balance 0 |
+| **L3** on the recorded v3 invoice | `LATE-V3` (its 0.092 NEAR was owed on the v3 account since the first v3 round) | sweep with `ZI_CODE_HASH` pinned to the v3 hash `DracoGyTgSuxYAqHH35ySGbnRXmfETrt1Z5TuKTjF6y1` | `PAID`, `owed_resent` 0.092 to `late.…`, `invoice_paid` `retried: true`; recorded as `fixtures/v3/late-resweep.json` (the first v3 recording is unchanged) |
+| **S-F4** | `SF4-V31` (NEAR, 0.1) | `UniversalStateInit` with a **0.02 NEAR** deposit and nothing else, signed by the sweeper: `ENrFCa9DS1yUpPukQ6qSkAPcheNs3JH12DyEKnx5dXee` | **not credited**: the new account held 0 NEAR (storage 392 B); the system sent a `Transfer` of 0.02 NEAR back to the signer, who lost only gas (0.0071190411 NEAR). Evidence: `fixtures/v31/sf4.json` (not a replay fixture). Nothing relied on the deposit; `fund` stays |
+
+**Failed attempts, kept on purpose.** Attempts 1 to 3 of the race (`RACE-V31-1..3`, not fixtures) forgot to register the invoice id on tUSDC. Each attempt's init is
+`5vvgpfeCMW945FFfCPvXU5RN2wKWLYL4X9iRohbosp2N`, `GQMuDdEouVNqdAHzDHqkJuxqJizKaxK1roqdkbSxk72f`, `5mgn5UAcBx27QEjgpCfdmusP5JTDSBzY1bbQkxi1i3kJ`; the sweeps
+(`49e4QJjLsB8AUS6dMVTNScEKiNSQ7sYuC9rtvaruHSrP`, `J5ihqzFyuk4MnRquTL7MdX42zfv1ZSumRAFNYfyhcUbn`, `6bN79ceNF43RoiUXsXq5xx4xQcUw5rLKrhnbTm4vSKz5`) returned `UNDERPAID` (nothing parked), and the
+`ft_transfer_call`s (`5myRS7ExYhapRGLQFfYuedT5PygtPTm24Q4tRHrSgMRT`, `GzxZFhrqDip912oL2VRArKHQdHhQcXqGgvgATPz6p9ma`, `6Wh6NJtg72x52Jg4YreZNFFaUzXoi1fZsMTdoVUmYaqV`) failed in the token with
+`The account … is not registered`; nothing moved. The script now registers the id first. The fourth attempt, the first with the registration, produced the race at once (offsets
+0 / 150 / -150 ms were tried for attempts 1 to 3, 0 ms for attempt 4); with a single success the chance of hitting the alignment is not known.
+No other transaction of this round failed or was retried.
+
+How the race works on chain (why the sweep and the payment must share a block): both are executed on the first block after they are included. The payment credits the invoice on the token and
+sends `ft_on_transfer` one block later; the sweep takes the lock in block N and reads `ft_balance_of` in block N+1, which already sees the credit; `ft_on_transfer` arrives in block N+1
+while the lock is held and is rejected as `busy`; the callback in N+2 sees the changed lock value and returns `CONCURRENT_PAYMENT`. This explanation is inferred from the recorded receipts, not
+from block numbers.
+
+### Measured on v3.1 (single runs; tokens burnt = sum over all receipts, deposits not included)
+
+| What | Measured |
+|---|---|
+| NEAR `pay` creating the account (`INV-1111-V31-A`) | 13.70 Tgas, 0.007561 NEAR (v3: 0.0075600) |
+| token init `[UniversalStateInit, fund]` (`TOK-V31-B`) | 9.96 Tgas, 0.007253 NEAR |
+| token `ft_transfer_call` that settles (`TOK-V31-B`, retry in `RACE-V31-4`) | 13.14 Tgas, 0.001179 / 0.001180 NEAR |
+| token `ft_transfer_call` that is rejected `busy` (`RACE-V31-4`) | 6.93 Tgas, 0.000626 NEAR |
+| token sweep that returned `CONCURRENT_PAYMENT` (`RACE-V31-4`) | 5.58 Tgas, 0.000491 NEAR |
+| token sweep: state init + fund + sweep (`TOK-1111-V31-A`) | 22.04 Tgas, 0.008349 NEAR, 200 Tgas attached |
+| NEAR `pay` with a failed merchant payout (`LATE-V31`) | 21.04 Tgas, 0.007552 NEAR |
+| NEAR `sweep` that delivers an owed share (`LATE-V31` / `LATE-V3`) | 4.93 Tgas, 0.000426 / 0.000425 NEAR |
+| `storage_usage` after a NEAR `pay` / after plain + sweep / token initialized / token paid by `ft_transfer_call` | 427 B / 399 B / 418 B / 446 B (limit 770 B) |
+
+### Verification run (this round, 2026-11-10)
+
+| Command | Result |
+|---|---|
+| `node --test test/*.test.ts` (= `npm test`) | `# tests 169` / `# pass 169` / `# fail 0` |
+| `cd contract && cargo test --offline` | 65 passed, 0 failed |
+| `cd contract-v2 && cargo test --offline` | 14 passed, 0 failed |
+| `node src/cli.ts vectors` | 8 `PASS` |
+| `scripts/judge-offline.sh` with `npm run -s zi --` mapped to `node src/cli.ts` and without its `npm ci` / `npm test` lines (those were run separately) | 0 `FAIL`, `JUDGE-OFFLINE: ALL PASS` |
+| `zi verify <id>` (online) on the 8 invoices of `invoices/v31/` and on `LATE-V3` | 0 `FAIL`; each `PASS code-hash-onchain` against its own deployment's hash |
+
+### Not run
+
+A reproducible wasm build, a browser walk-through of the dashboard, wallet checks, an audit, mainnet, and a repeat of the race (one success is recorded; the alignment is chance, so it
+was not run again). The slot wrapper `$CONDUCTOR_BIN slot run` was not used: nothing here was heavy (`cargo test` and `node --test` ran directly).

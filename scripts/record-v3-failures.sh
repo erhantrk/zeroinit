@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# HISTORY: this recorder ran against contract v3 (Ut7EQhLD…reWa) on 2026-11-10. The client default is v3.1 now, so re-running it records v3.1 invoices; use the record-v31-*.sh scripts for v3.1.
 # LIVE v3 failure runs L11-L13, L19 (docs/STABLECOIN.md §11.4).
 # Requires a second mock token (ZI_FAKE_TOKEN_ACCOUNT, same test-usdc source) and an account that exists on NEAR but is not
 # registered on tUSDC (ZI_UNREG_ACCOUNT).

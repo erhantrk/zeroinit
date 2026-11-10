@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Usage: scripts/demo.sh <suffix>     e.g. scripts/demo.sh 1112a   (invoice ids INV-<suffix>-A/B/C must be new each run)
 # Non-interactive (no TTY): the prompts are skipped. The recorded v2 run: ZI_RECORD=fixtures/v2/demo-run.json scripts/demo.sh 1111-V2 </dev/null
-# The recorded v3 run (current contract, NEAR): ZI_RECORD=fixtures/v3/demo-run.json scripts/demo.sh 1111-V3 </dev/null
-# (v2 needs ZI_CODE_HASH=<v2 hash>; the default is v3.)
+# The recorded v3.1 run (current contract, NEAR): ZI_RECORD=fixtures/v31/demo-run.json scripts/demo.sh 1111-V31 </dev/null
+# (the v3 run, fixtures/v3/demo-run.json, used suffix 1111-V3 on the previous contract; v2 and v3 need ZI_CODE_HASH=<their hash>; the default is v3.1.)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 set -a; source .env; set +a

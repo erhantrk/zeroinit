@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# HISTORY: this recorder ran against contract v3 (Ut7EQhLD…reWa) on 2026-11-10. The client default is v3.1 now, so re-running it records v3.1 invoices; use the record-v31-*.sh scripts for v3.1.
 # LIVE v3 run L1 (docs/STABLECOIN.md §11.4): NEAR parity on the v3 deployment.
 # Run against the deployed v3 (Ut7EQhLDrvYVarHb6ZaXk6m7o9kQqYPCpyqiamvreWa) with the operator's sm1110-zi3-* accounts from .env.
 # Records fixtures/v3/near.json: pay, plain transfer + sweep by the sweeper, underpay, expired, double pay.

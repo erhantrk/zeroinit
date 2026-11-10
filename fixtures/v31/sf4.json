@@ -1,0 +1,41 @@
+{
+  "what": "S-F4: UniversalStateInit deposit credited or refunded",
+  "tx_hash": "ENrFCa9DS1yUpPukQ6qSkAPcheNs3JH12DyEKnx5dXee",
+  "signer": "sm1110-zi3-sweeper.testnet",
+  "invoice": "SF4-V31",
+  "account_id": "0uwch1pfgessfv1g8sd78ymh9fgxdhb15f4z2e0r3rj2zth515kkw0",
+  "deposit_near": "0.02",
+  "status": {
+    "SuccessValue": ""
+  },
+  "account_after": {
+    "kind": "INITIALIZED",
+    "amount_near": "0",
+    "storage_usage": 392
+  },
+  "signer_delta_near": "0.0071190411",
+  "tokens_burnt_near": "0.0071190411",
+  "receipts": [
+    {
+      "receiver": "0uwch1pfgessfv1g8sd78ymh9fgxdhb15f4z2e0r3rj2zth515kkw0",
+      "predecessor": "sm1110-zi3-sweeper.testnet",
+      "actions": [
+        "UniversalStateInit"
+      ]
+    },
+    {
+      "receiver": "sm1110-zi3-sweeper.testnet",
+      "predecessor": "system",
+      "actions": [
+        "Transfer 0.02"
+      ]
+    },
+    {
+      "receiver": "sm1110-zi3-sweeper.testnet",
+      "predecessor": "system",
+      "actions": [
+        "Transfer 0.00070230215"
+      ]
+    }
+  ]
+}

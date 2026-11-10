@@ -1,4 +1,5 @@
-// The live v3 recordings (2026-11-10, NEAR testnet, global contract Ut7EQhLD…reWa, tUSDC mock sm1110-tusdc.testnet).
+// The live v3 recordings (2026-11-10, NEAR testnet, global contract Ut7EQhLD…reWa, tUSDC mock sm1110-tusdc.testnet). v3 is history since v3.1
+// (test/live-v31.test.ts): these recordings replay and verify under their own hash.
 // Every fixture under fixtures/v3/ must replay clean offline; the tests below pin what each run proved and mutate the recordings
 // to check the replay catches tampering. Run: node --test test/live-v3.test.ts
 import { test } from 'node:test';
@@ -8,11 +9,11 @@ import { join } from 'node:path';
 import { replayFixture } from '../src/replay.ts';
 import { parseTxStatus, type ParsedTx } from '../src/outcome.ts';
 import { accountStateFromResponse, decodeViewResult } from '../src/rpc.ts';
-import { DEPLOYED, tempDir } from './helpers.ts';
+import { V3, tempDir } from './helpers.ts';
 
-const FILES = ['near', 'fixes', 'tokens', 'failures', 'demo-run', 'token-demo-run'].map((n) => `fixtures/v3/${n}.json`);
+const FILES = ['near', 'fixes', 'tokens', 'failures', 'demo-run', 'token-demo-run', 'late-resweep'].map((n) => `fixtures/v3/${n}.json`);
 const load = (file: string) => JSON.parse(readFileSync(file, 'utf8'));
-const checks = (file: string) => replayFixture(file, DEPLOYED).map((c) => `${c.name} ${c.id}${c.detail ? ' ' + c.detail : ''}`);
+const checks = (file: string) => replayFixture(file, V3).map((c) => `${c.name} ${c.id}${c.detail ? ' ' + c.detail : ''}`);
 const has = (file: string, want: string) => assert.ok(checks(file).some((s) => s === want || s.startsWith(`${want} `)), `missing check "${want}" in ${file}`);
 const tx = (file: string, id: string, label: string, n = 0): ParsedTx => {
   const f = load(file);
@@ -30,7 +31,7 @@ const finalStatus = (file: string, id: string): string => {
 function mutated(file: string, mutate: (fx: any) => void): string[] {
   const fx = load(file); mutate(fx);
   const p = join(tempDir(), 'f.json'); writeFileSync(p, JSON.stringify(fx));
-  return replayFixture(p, DEPLOYED).filter((c) => !c.ok).map((c) => `${c.name} ${c.id}`);
+  return replayFixture(p, V3).filter((c) => !c.ok).map((c) => `${c.name} ${c.id}`);
 }
 const callOf = (fx: any, id: string, label: string, n = 0) => fx.calls.filter((c: any) => c.invoice_id === id && c.label === label)[n];
 
@@ -40,8 +41,8 @@ test('every live v3 fixture exists, was made on the v3 hash and replays clean', 
     const f = load(file);
     assert.notEqual(f.synthetic, true, `${file} must be a recording`);
     assert.ok(f.invoices.length > 0);
-    for (const d of f.invoices) { assert.equal(d.code_hash, DEPLOYED); assert.equal(d.format, 'zeroinit-invoice/2'); }
-    const out = replayFixture(file, DEPLOYED);
+    for (const d of f.invoices) { assert.equal(d.code_hash, V3); assert.equal(d.format, 'zeroinit-invoice/2'); }
+    const out = replayFixture(file, V3);
     assert.ok(out.length > 0, file);
     for (const c of out) assert.ok(c.ok, `${file}: FAIL ${c.name} ${c.id} ${c.detail}`);
   }
@@ -238,7 +239,33 @@ test('replay catches a tampered live recording', () => {
   // the first snapshot of a demo invoice must be an account that does not exist yet
   assert.ok(mutated('fixtures/v3/demo-run.json', (fx) => {
     const c = callOf(fx, 'INV-1111-V3-A', 'before: view_account');
-    c.response = { jsonrpc: '2.0', id: 'zi', result: { amount: '1', storage_usage: 1, global_contract_hash: DEPLOYED } };
+    c.response = { jsonrpc: '2.0', id: 'zi', result: { amount: '1', storage_usage: 1, global_contract_hash: V3 } };
   }).includes('before-unknown-account INV-1111-V3-A'));
   assert.equal(accountStateFromResponse(callOf(load('fixtures/v3/demo-run.json'), 'INV-1111-V3-A', 'before: view_account').response).kind, 'NONEXISTENT');
+});
+
+test('L3 (v3 history): the late merchant exists now, a sweep of LATE-V3 delivers the owed 0.092 NEAR (resumed recording)', () => {
+  const F = 'fixtures/v3/late-resweep.json';
+  for (const w of ['resumed-initialized LATE-V3', 'sweep-tx-result LATE-V3', 'invoice-paid-after-callback LATE-V3', 'owed-resent LATE-V3 late.sm1110-zi3-merchant.testnet 92000000000000000000000',
+    'after-status-PAID LATE-V3']) has(F, w);
+  const p = tx(F, 'LATE-V3', 'sweep');
+  assert.equal(p.returnValue, 'PAID');
+  assert.equal(ev(p, 'owed_resent').to, 'late.sm1110-zi3-merchant.testnet');
+  assert.equal(ev(p, 'invoice_paid').retried, true);
+  assert.equal(p.transfers.length, 1);
+  assert.equal(p.transfers[0].to, 'late.sm1110-zi3-merchant.testnet');
+  assert.equal(p.transfers[0].yocto, 92_000_000_000_000_000_000_000n);
+  assert.equal(finalStatus(F, 'LATE-V3'), 'PAID');
+  // without the `resumed` marker the replay expects a first transaction that carries the state init: it must FAIL
+  assert.ok(mutated(F, (fx) => { delete fx.resumed; }).some((x) => x.startsWith('tx-carries-state-init') || x.startsWith('transfer-path-uninitialized')));
+  // the account at the start must be initialized on the v3 code
+  assert.ok(mutated(F, (fx) => {
+    const c = callOf(fx, 'LATE-V3', 'transfer-path: view_account (uninitialized)');
+    c.response = { jsonrpc: '2.0', id: 'zi', result: { amount: '1', storage_usage: 1, global_contract_hash: V3.replace(/.$/, 'x') } };
+  }).includes('resumed-initialized LATE-V3'));
+  // a delivered share without its event is a FAIL
+  assert.ok(mutated(F, (fx) => {
+    const r = callOf(fx, 'LATE-V3', 'sweep: tx_status').response.result;
+    for (const ro of r.receipts_outcome) ro.outcome.logs = ro.outcome.logs.filter((l: string) => !l.includes('owed_resent'));
+  }).some((x) => x.startsWith('owed-resent LATE-V3')));
 });

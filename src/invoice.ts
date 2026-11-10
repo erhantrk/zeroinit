@@ -85,9 +85,9 @@ export function createInvoiceDoc(scheme: Scheme, codeHashB58: string, t: Invoice
     if (!isValidNearAccountId(value)) throw new Error(`${name} "${value}" is not a valid NEAR account id (2-64 chars, lowercase a-z 0-9 - _ and dots)`);
   }
   const dep = deploymentOf(codeHashB58);
-  const layout: StateLayout = t.layout ?? (dep?.version === 'v3' ? 3 : 1);
-  if (dep && dep.version !== 'v3' && layout === 3) throw new Error(`the ${dep.version} deployment uses the old state layout: issue a /1 document`);
-  if (dep?.version === 'v3' && layout !== 3) throw new Error('the v3 deployment needs the v3 state layout (layout 3)');
+  const layout: StateLayout = t.layout ?? (dep?.layout ?? 1);
+  if (dep && dep.layout !== 3 && layout === 3) throw new Error(`the ${dep.version} deployment uses the old state layout: issue a /1 document`);
+  if (dep?.layout === 3 && layout !== 3) throw new Error(`the ${dep.version} deployment needs the v3 state layout (layout 3)`);
   if (t.token != null && scheme !== '0u') throw new Error('tokens are only issued for 0u invoices (0s is untested for tokens)');
   if (layout === 3 && t.token != null && (t.token_symbol === undefined || t.token_decimals === undefined)) {
     throw new Error('a token document needs the token symbol and decimals (from the allow-list)');
@@ -152,7 +152,7 @@ export function checkDoc(d: InvoiceDoc, trusted?: string, allowed?: readonly All
   const codeHashTrusted = trusted === undefined || d.code_hash === trusted;
   const codeHash = trusted ?? d.code_hash;
   const dep = deploymentOf(codeHash);
-  const expectedFormat = dep ? (dep.version === 'v3' ? 'zeroinit-invoice/2' : 'zeroinit-invoice/1') : d.format;
+  const expectedFormat = dep ? (dep.layout === 3 ? 'zeroinit-invoice/2' : 'zeroinit-invoice/1') : d.format;
   const formatMatchesDeployment = d.format === expectedFormat;
   try {
     if (typeof d.scheme !== 'string' || (d.scheme !== '0u' && d.scheme !== '0s')) throw new Error('bad scheme');
@@ -264,10 +264,10 @@ export function saveDoc(dir: string, d: InvoiceDoc): string {
   return p;
 }
 export function loadDoc(dir: string, id: string): InvoiceDoc {
-  for (const p of [join(dir, `${id}.json`), join(dir, 'examples', `${id}.json`), join(dir, 'v3', `${id}.json`), join(dir, 'v2', `${id}.json`), join(dir, 'v1', `${id}.json`), join(dir, 'demo', `${id}.json`)]) {
+  for (const p of [join(dir, `${id}.json`), join(dir, 'examples', `${id}.json`), join(dir, 'v31', `${id}.json`), join(dir, 'v3', `${id}.json`), join(dir, 'v2', `${id}.json`), join(dir, 'v1', `${id}.json`), join(dir, 'demo', `${id}.json`)]) {
     if (existsSync(p)) return JSON.parse(readFileSync(p, 'utf8'));
   }
-  throw new Error(`invoice ${id} not found in ${dir}/, ${dir}/examples/, ${dir}/v3/, ${dir}/v2/, ${dir}/v1/ or ${dir}/demo/`);
+  throw new Error(`invoice ${id} not found in ${dir}/, ${dir}/examples/, ${dir}/v31/, ${dir}/v3/, ${dir}/v2/, ${dir}/v1/ or ${dir}/demo/`);
 }
 export function listDocs(dir: string): InvoiceDoc[] {
   if (!existsSync(dir)) return [];

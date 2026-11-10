@@ -8,7 +8,7 @@ import { u64 } from '../src/bytes.ts';
 import { invoiceStateBytes } from '../src/stateinit.ts';
 import { checkDoc, assertDocTrusted, rawFromTerms, createInvoiceDoc, isV3Doc, docAmountRaw, docToken, docGraceMs, loadDoc } from '../src/invoice.ts';
 import { DEPLOYED_CODE_HASH } from '../src/config.ts';
-import { DEPLOYED, V1, V2, FOREIGN, terms, makeDoc, makeTokenDoc, tempDir } from './helpers.ts';
+import { DEPLOYED, V1, V2, V3, FOREIGN, terms, makeDoc, makeTokenDoc, tempDir } from './helpers.ts';
 
 const TOKEN_ENTRY = { symbol: 'tUSDC', decimals: 6, accountId: 'tusdc.example.testnet' };
 
@@ -31,17 +31,19 @@ test('invoiceStateBytes rejects invalid merchant / tax_vault account ids, so no 
   assert.throws(() => invoiceStateBytes(terms({ tax_vault: 'a..b' })), /tax_vault .* not a valid NEAR account id/);
 });
 
-test('createInvoiceDoc writes /2 (v3 layout) for the v3 deployment and /1 for v2/v1', () => {
+test('createInvoiceDoc writes /2 (v3 layout) for the v3.1 and v3 deployments and /1 for v2/v1', () => {
   const v3 = makeDoc();
   assert.equal(v3.format, 'zeroinit-invoice/2');
   assert.equal(isV3Doc(v3), true);
   assert.equal(docAmountRaw(v3), terms().amount);
   assert.equal(docToken(v3), null);
   assert.equal(docGraceMs(v3), 604_800_000n);
+  assert.equal(makeDoc(V3).format, 'zeroinit-invoice/2');
   assert.equal(makeDoc(V2).format, 'zeroinit-invoice/1');
   assert.equal(makeDoc(V1).format, 'zeroinit-invoice/1');
   // a /1 document on the v3 hash would initialize an account with bytes the v3 contract cannot read: refused at creation
-  assert.throws(() => createInvoiceDoc('0u', DEPLOYED, terms({ layout: 1 })), /v3 deployment needs the v3 state layout/);
+  assert.throws(() => createInvoiceDoc('0u', DEPLOYED, terms({ layout: 1 })), /v3\.1 deployment needs the v3 state layout/);
+  assert.throws(() => createInvoiceDoc('0u', V3, terms({ layout: 1 })), /v3 deployment needs the v3 state layout/);
 });
 
 test('a v3 /2 document checks out; every tampered field fails', () => {
@@ -142,5 +144,17 @@ test('loadDoc finds a recorded v3 invoice in invoices/v3/ (and the top-level fil
   const top = makeDoc(DEPLOYED, { invoice_id: 'REC-V3-1', salt: 99n });
   writeFileSync(join(dir, 'REC-V3-1.json'), JSON.stringify(top));
   assert.equal(loadDoc(dir, 'REC-V3-1').account_id, top.account_id);
+  assert.throws(() => loadDoc(dir, 'NOPE'), /invoices?|not found/);
+});
+
+test('loadDoc finds a recorded v3.1 invoice in invoices/v31/ (and the top-level file wins)', () => {
+  const dir = tempDir();
+  mkdirSync(join(dir, 'v31'));
+  const doc = makeDoc(DEPLOYED, { invoice_id: 'REC-V31-1' });
+  writeFileSync(join(dir, 'v31', 'REC-V31-1.json'), JSON.stringify(doc));
+  assert.equal(loadDoc(dir, 'REC-V31-1').account_id, doc.account_id);
+  const top = makeDoc(DEPLOYED, { invoice_id: 'REC-V31-1', salt: 99n });
+  writeFileSync(join(dir, 'REC-V31-1.json'), JSON.stringify(top));
+  assert.equal(loadDoc(dir, 'REC-V31-1').account_id, top.account_id);
   assert.throws(() => loadDoc(dir, 'NOPE'), /invoices?|not found/);
 });

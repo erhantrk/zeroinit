@@ -184,7 +184,7 @@ async function main(argv: string[]): Promise<number> {
     const dep = deploymentOf(codeHash);
     const layoutFlag = v.layout === undefined ? null : Number(v.layout);
     if (layoutFlag !== null && layoutFlag !== 1 && layoutFlag !== 3) throw new UsageError('--layout must be 1 or 3');
-    const layout = (layoutFlag ?? (dep?.version === 'v3' ? 3 : 1)) as 1 | 3;
+    const layout = (layoutFlag ?? (dep?.layout ?? 1)) as 1 | 3;
     const tokenEntry = v.token ? tokenBySymbol(cfg.allowedTokens, v.token) : null;
     if (v.token && !tokenEntry) {
       throw new UsageError(cfg.allowedTokens.length
