@@ -33,10 +33,12 @@ Built at NEAR HACKATHON (2026-11). Track: Open Innovation (also Real-World Money
 
 ## Try it offline in 2 minutes (no keys, no network) — do X, see Y
 
-Every command below was run in a fresh clone of this repo, with no `.env` (`npm ci` needs the npm registry once).
+Every command below was run in a fresh clone of this repo, with no `.env` (`npm ci --include=dev` needs the npm
+registry once).
 
-1. `npm ci` → installs the 3 runtime packages (`@noble/hashes`, `@noble/curves`, `@scure/base`) plus
-   `near-api-js` 7.4.0 for one encoder-parity test:
+1. `npm ci --include=dev` → installs the 3 runtime packages (`@noble/hashes`, `@noble/curves`, `@scure/base`) plus
+   `near-api-js` 7.4.0 for one encoder-parity test. The flag matters: with `NODE_ENV=production` a plain `npm ci`
+   skips devDependencies and the parity test cannot import `near-api-js`:
 
    ```
    added 68 packages, and audited 69 packages
@@ -89,7 +91,7 @@ Every command below was run in a fresh clone of this repo, with no `.env` (`npm 
    PASS sweep-underpaid-reverted REF-SWEEPLOW 6DGQAdk46AnRxJuN8ZHgjxBw7vkJeMxesGgDj2KNd7sW
    ```
 
-One command for the whole judge path: `bash scripts/judge-offline.sh` → `npm ci`, `npm test`, `vectors`, both
+One command for the whole judge path: `bash scripts/judge-offline.sh` → `npm ci --include=dev`, `npm test`, `vectors`, both
 replays and an offline `verify` of every demo invoice; its last line was:
 
 ```
@@ -321,7 +323,7 @@ a failed transfer reverts the receipt (atomic).
 
 | Claim | Verify with | Expected |
 |---|---|---|
-| Issuing an invoice needs no transaction | `npm run zi -- invoice new --id TEST-1 --merchant example-zi-merchant.testnet --tax-vault example-zi-taxvault.testnet --tax-bps 800 --amount 0.1 --expires-in 2h` (works offline with `ZI_CODE_HASH` set) | `INVOICE`/`ACCOUNT`/`PAY`/`FILE` lines; no RPC call |
+| Issuing an invoice needs no transaction | `npm run zi -- invoice new --id TEST-1 --merchant example-zi-merchant.testnet --tax-vault example-zi-taxvault.testnet --tax-bps 800 --amount 0.1 --expires-in 2h --code-hash Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k` (works offline; `--code-hash` supplies the deployed code hash, so no `.env` is needed) | `INVOICE`/`ACCOUNT`/`PAY`/`FILE` lines; no RPC call |
 | The address commits to the terms and code | `npm run zi -- verify INV-1111-A --offline` | `PASS id-from-terms 0u4kwsbd…ave60`, `PASS raw-from-terms` |
 | One tx creates + pays + splits | `npm run zi -- replay fixtures/demo-run.json` (or the nearblocks link in the previous section) | `PASS pay-tx-success INV-1111-A BdzRBcFf… result=PAID`, `PASS split-merchant INV-1111-A 0.92`, `PASS split-vault INV-1111-A 0.08` |
 | Plain transfers are safe before init | `npm run zi -- replay fixtures/demo-run.json` | `PASS transfer-path-uninitialized INV-1111-B 1`, `PASS sweep-tx-success INV-1111-B 5P2rkpk… result=PAID` |
