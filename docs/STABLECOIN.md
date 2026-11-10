@@ -3,8 +3,8 @@
 Status: **built and unit-tested, not deployed.** (This header replaces "design only"; the original design text below is
 kept as the interface spec, and "Build notes" at the end lists every deviation and what was actually run.) The contract,
 the client, the dashboard and the tests are in this repo. The wasm was built with `npm run contract:build`:
-162,060 bytes, sha256 `8c7e41070f5f0638e987e080b738c6cc7b462323a2898f8695bcda457aae8f38`, code hash
-`ATRjmY1xny8mznwsqYjMUgJLYFEgiKqg3mRM7NfS3Dp3`. **That hash is not deployed on testnet**, the `sm1110-zi3-*` accounts
+161,213 bytes, sha256 `0724781dd2c9f4f1b8bb30abbff0602578a7ad649fc5a450d4656ffde4740b1f`, code hash
+`Ut7EQhLDrvYVarHb6ZaXk6m7o9kQqYPCpyqiamvreWa`. **That hash is not deployed on testnet**, the `sm1110-zi3-*` accounts
 and the tUSDC registration/mint do not exist, and no live v3 run (S-F1…S-F6, L1…L19) has been made. The deployed
 contract is still v2 (`4bQ61AgH…yx9zEA`), so `README.md` keeps describing v2 and marks every v3 statement
 "v-next, not deployed yet". The numbers
@@ -649,11 +649,11 @@ What was actually run (all offline; nothing touched testnet):
 
 | Command | Result |
 |---|---|
-| `npm run contract:test` | 61 v3 unit tests pass (`contract/`) |
+| `npm run contract:test` | 61 v3 unit tests pass (`contract/`); 64 after the review round below |
 | `npm run contract:test:v2` | 14 v2 tests still pass (`contract-v2/`, the pure rename) |
-| `npm test` | 140 client tests pass |
+| `npm test` | 140 client tests pass; 141 after the review round |
 | `npm run zi -- vectors` | 8 PASS (v1/v2 vectors unchanged; the v3 hex is pinned in `test/vectors.test.ts`) |
-| `npm run contract:build` | 162,060 bytes, sha256 `8c7e4107…8f38`, code hash `ATRjmY1x…3Dp3` |
+| `npm run contract:build` | 161,213 bytes, sha256 `0724781d…0b1f`, code hash `Ut7EQhLD…reWa` |
 | `bash scripts/judge-offline.sh` | v2 and v1 fixtures replay and verify; **no v3 fixture is in the judge path** (none was recorded) |
 
 Not run (impossible before the deploy): S-F1…S-F6, L1…L19, the live gas/storage/cost measurements, the token-side
@@ -711,7 +711,7 @@ and the "deployed" statements in README remain estimates or v-next.
     `scripts/judge-offline.sh`. The recorder scripts (`scripts/record-v3-*.sh`) write `fixtures/v3-near.json`,
     `fixtures/v3-fixes.json`, `fixtures/v3-tokens.json`, `fixtures/v3-failures.json`; they were not run. `judge-offline.sh`
     still replays only the v2 and v1 recordings.
-15. **The wasm is larger than v2** (162,060 vs 82,942 bytes). The strict `msg` parser uses a serde derive; the deploy
+15. **The wasm is larger than v2** (161,213 vs 82,942 bytes). The strict `msg` parser uses a serde derive; the deploy
     burn is therefore unmeasured and will be larger than v2's 8.2949 NEAR. `image_digest` in
     `contract/Cargo.toml` is still `UNSET`, like v2's; the reproducible-build note in README applies to the v2 crate
     now under `contract-v2/`.
@@ -729,3 +729,57 @@ and the "deployed" statements in README remain estimates or v-next.
   tested with `node --test`.
 - README/ARCHITECTURE describe v2 as the deployed contract and mark the v3 text "v-next, not deployed yet". After the
   operator deploys, the measured numbers, the deployment labels and the AI-use section have to be updated again.
+
+## Review round (2026-11-10, Claude Sonnet 5.5, commit "review: stablecoin fixes")
+
+I read the whole v3 diff against this spec, ran `cargo test` (61 pass) and `node --test test/*.test.ts` (140 pass) as the
+baseline, then fixed what I found. Each fix has a test that fails without it (checked by putting the old code back).
+Everything is offline; nothing touched testnet.
+
+Fixed:
+
+1. **Contract: a failed NEAR refund on a token invoice was recorded as owed tokens.** `pay()` on a token invoice refunds the
+   attached NEAR. If that refund failed, `on_settled` added the yoctoNEAR amount to `owed_payer`. A later token `sweep`
+   would then pay `min(owed_payer, token balance)` in **tokens** to `refund_to`, that is, other people's parked tokens.
+   Now a failed NEAR refund on a token invoice emits `refund_failed` (`recorded: false`) and changes no ledger field; the
+   NEAR stays on the account. Test: `failed_near_refund_on_token_invoice_is_not_recorded_as_owed_tokens`.
+2. **Contract: `refund_payer` could redirect another account's `owed_payer`.** It always overwrote `refund_to` with `paid_by`.
+   If `owed_payer` already belonged to another account, that amount would then go to `paid_by`. It now leaves `refund_to`
+   alone while `owed_payer > 0` (rule 2 of 4.2 holds). Test: `refund_payer_does_not_redirect_an_owed_payer_of_another_account`.
+3. **Contract: the tax split could overflow in a callback.** `split_of` computed `x * tax_bps`, which overflows for a balance
+   above `u128::MAX / 10000`; the token balance read by `on_token_balance` is not bounded by the invoice amount rule. A panic
+   there would leave the lock stale for 5 minutes. It now computes the same floor without the product. Test:
+   `split_does_not_overflow_for_huge_balances` (the old formula panics on it; `split_never_loses_a_unit` still pins the values).
+4. **Client: a token `zi pay` (and the dashboard's) parsed the `ft_transfer_call` transaction with the token as "the invoice".**
+   The transaction's receiver is the token, so a payout that failed on the token (merchant not registered) was counted as a
+   failure of the transaction itself: `RESULT FAILED`, `success: false`, the dashboard answered 502, and `FT_TRANSFER` lines
+   were never printed. `sendActions` now takes the invoice account id for that call, so the failure is a downstream failure
+   (as in `replay`) and the exit message is the "payout(s) failed, run sweep" one. Test: `pay token: an unregistered merchant ...`
+   in `test/cli-token.test.ts` (the earlier fake transactions used the invoice as receiver, which hid this).
+
+Also fixed (no behaviour change in the contract):
+
+- `web/index.html` said "0 = default 7 days" for the grace field, but 0 is rejected (60,000 ms minimum); the field is now
+  labelled "empty = default 7 days".
+- `scripts/record-v3-fixes.sh`: L4 reused the merchant that L3 had just created, so no payout would have failed; it now
+  uses a merchant that is never created (`never.sm1110-zi3-merchant.testnet`). The `near account create-account
+  sponsor-by-faucet-service` line cannot create a sub-account; it is now `fund-myself ... sign-as <parent>` (**not run**; check
+  the near-cli-rs syntax).
+- `scripts/record-v3-tokens.sh`: L14 reused `ZI_UNREG_ACCOUNT`, which `record-v3-failures.sh` (L13) registers, and used a 1 minute
+  expiry with a 125 s sleep that does not reach `max(expiry, paid_at) + grace`; it now has its own account (`ZI_UNREG2_ACCOUNT`),
+  3 minute expiry and a 240 s sleep. `.env.example` lists the extra variables.
+- The wasm was rebuilt: 161,213 bytes, sha256 `0724781d…0b1f`, code hash `Ut7EQhLD…reWa`. The hash in this file's header and
+  everywhere else was updated, and the synthetic v3 fixture was regenerated for it (`node scripts/make-synthetic-v3-fixture.mjs`).
+  The earlier hash `ATRjmY1x…3Dp3` is obsolete and must not be deployed.
+
+Read and left as it is (noted, not fixed):
+
+- `zi pay` (token) does not check the payer's token balance first (the 7.1 table says it does). A payer with too little tokens
+  gets a failed `ft_transfer_call` after registering the id and initialising the invoice; no funds are lost.
+- `zi status` and the dashboard show `0` tokens if the `ft_balance_of` view fails (the error is swallowed).
+- A token `sweep` that reads its balance while a plain `ft_transfer_call` credit is in flight (credited, `ft_on_transfer` not run yet)
+  can include that credit in the balance; the later `ft_on_transfer` then rejects as `busy` and the token returns it, so the
+  payouts of that sweep may partly fail and be recorded as owed. No money is paid to a wrong party; it needs the payer to retry.
+- Not tested live: everything in "Not done, explicitly" above. The `ft_on_transfer` detached batch and the callback gas (20 Tgas)
+  are the first things to check in the spikes.
+- The slot wrapper `$CONDUCTOR_BIN slot run` failed here with `spawn EPERM`, so `cargo` and `node --test` were run directly.

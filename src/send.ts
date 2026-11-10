@@ -4,7 +4,7 @@ import { rpcCall, accessKeyNonce, finalBlockHash, checkNetwork } from './rpc.ts'
 import { keyPairFromSecret, signTransaction } from './tx.ts';
 import { parseTxStatus, type ParsedTx } from './outcome.ts';
 
-export async function sendActions(cfg: Config, signer: Signer, receiverId: string, actions: Uint8Array[], labelPrefix: string): Promise<ParsedTx> {
+export async function sendActions(cfg: Config, signer: Signer, receiverId: string, actions: Uint8Array[], labelPrefix: string, invoiceAccountId?: string): Promise<ParsedTx> {
   await checkNetwork(cfg);   // every signing path asserts chain_id === 'testnet' before it touches a key
   const kp = keyPairFromSecret(signer.secret);
   const nonce = (await accessKeyNonce(cfg, signer.accountId, kp.publicKeyStr)) + 1n;
@@ -14,5 +14,7 @@ export async function sendActions(cfg: Config, signer: Signer, receiverId: strin
   if (sent.error) throw new Error(`send_tx rejected (tx ${txHash}): ${JSON.stringify(sent.error)}`);
   const st = await rpcCall(cfg, 'EXPERIMENTAL_tx_status', { tx_hash: txHash, sender_account_id: signer.accountId, wait_until: 'FINAL' }, `${labelPrefix}: tx_status`);
   if (st.error) throw new Error(`tx_status failed (tx ${txHash}): ${JSON.stringify(st.error)}`);
-  return parseTxStatus(st.result, receiverId);
+  // A transaction sent TO the token (ft_transfer_call) has the token as receiver, but the receipts that matter ran on the
+  // invoice account: pass the invoice so a failed ft_transfer on the token is a downstream failure, not a failed transaction.
+  return parseTxStatus(st.result, invoiceAccountId ?? receiverId);
 }

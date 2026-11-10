@@ -5,7 +5,7 @@ testnet at protocol 88; `docs/SPIKES.md` (sections S-A…S-E, and "Contract v2")
 The **deployed** contract is **v2** (code hash `4bQ61AgHWWmYXp5c3fwj9NJxS79D9R3cGZAZxHyx9zEA`); v1 (`Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k`) stays on testnet as recorded history, see "v1 → v2" at the end.
 
 **v-next, not deployed yet:** contract **v3** (NEP-141 invoices, `SETTLING`, an owed ledger and a payout lock) is built
-in this repo, unit-tested and has a wasm (code hash `ATRjmY1xny8mznwsqYjMUgJLYFEgiKqg3mRM7NfS3Dp3`, 162,060 bytes).
+in this repo, unit-tested and has a wasm (code hash `Ut7EQhLDrvYVarHb6ZaXk6m7o9kQqYPCpyqiamvreWa`, 161,213 bytes).
 It is **not** a global contract on testnet, its `sm1110-zi3-*` accounts and the tUSDC registration do not exist, and no
 live v3 transaction was recorded. The v3 appendix at the end describes the design; `docs/STABLECOIN.md` is the interface
 spec and its "Build notes" list what is built versus measured.
@@ -164,6 +164,6 @@ code is global and ownerless.
 | REFUND PAYER | anyone | invoice `0u…` | `[FunctionCall refund_payer, {}, 100/200 Tgas]` |
 
 Gas values are starting constants from the design, **not measured**; the deploy burn is unmeasured (`contract/`'s wasm
-is 162,060 bytes, built but not deployed). Client side (`src/config.ts`): v3 is the trusted build (labelled
+is 161,213 bytes, built but not deployed). Client side (`src/config.ts`): v3 is the trusted build (labelled
 "v-next, not deployed yet"), v2 and v1 are historical; `pinForVerification` accepts a historical document only against
 its own hash, and pay/sweep/init refuse a historical or foreign document.

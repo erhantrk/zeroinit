@@ -14,7 +14,8 @@ set -a; source .env; set +a
 S="${1:-V3}"
 M="${ZI_SWEEPER_ACCOUNT:?set ZI_SWEEPER_ACCOUNT}"
 V="${ZI_TAXVAULT_ACCOUNT:?set ZI_TAXVAULT_ACCOUNT}"
-LATE="${LATE_MERCHANT:-late.sm1110-zi3-merchant.testnet}"   # must NOT exist during L2/L4
+LATE="${LATE_MERCHANT:-late.sm1110-zi3-merchant.testnet}"     # must NOT exist during L2; the parent creates it for L3
+NEVER="${NEVER_MERCHANT:-never.sm1110-zi3-merchant.testnet}"  # must NEVER exist: L4 needs a merchant that stays missing
 export ZI_RECORD=fixtures/v3-fixes.json
 zi() { npm run -s zi -- "$@"; }
 acct() { node -e "console.log(JSON.parse(require('fs').readFileSync('invoices/$1.json','utf8')).account_id)"; }
@@ -25,12 +26,13 @@ zi pay "LATE-$S" || echo "(expected: PAYOUT_PENDING, exit 1, status SETTLING, tr
 zi status "LATE-$S"
 
 echo "== v3 L3: the parent creates the merchant, then sweep re-sends the share to it only"
-near account create-account sponsor-by-faucet-service "$LATE" autogenerate-new-keypair save-to-legacy-keychain network-config testnet create
+# A sub-account is created by its parent (the faucet service only makes top-level names). Not run: check the near-cli-rs syntax first.
+near account create-account fund-myself "$LATE" '0.1 NEAR' autogenerate-new-keypair save-to-legacy-keychain sign-as "${LATE#*.}" network-config testnet sign-with-legacy-keychain send
 zi sweep "LATE-$S"
 zi status "LATE-$S"
 
 echo "== v3 L4: short grace, merchant never created, refund_payer"
-zi invoice new --id "REFUND-$S" --merchant "$LATE" --tax-vault "$V" --tax-bps 800 --amount 0.1 --expires-in 1m --grace 60000ms --offline
+zi invoice new --id "REFUND-$S" --merchant "$NEVER" --tax-vault "$V" --tax-bps 800 --amount 0.1 --expires-in 1m --grace 60000ms --offline
 zi pay "REFUND-$S" || echo "(expected: PAYOUT_PENDING, exit 1)"
 zi refund-payer "REFUND-$S" || echo "(expected: NOT_YET, exit 1: the window has not passed)"
 sleep 125

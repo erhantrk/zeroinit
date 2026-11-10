@@ -192,7 +192,10 @@ impl Invoice {
     }
 
     fn split_of(&self, x: u128) -> (u128, u128) {
-        let tax = x * (self.tax_bps as u128) / 10_000u128;
+        // floor(x * bps / 10000) without the x * bps product, which overflows for balances above
+        // u128::MAX / 10000 (a callback must never panic). Identical result: x = 10000q + r.
+        let bps = self.tax_bps as u128;
+        let tax = (x / 10_000u128) * bps + (x % 10_000u128) * bps / 10_000u128;
         (x - tax, tax)
     }
 
@@ -644,7 +647,11 @@ impl Invoice {
         // RECLAIM is a payout from the owed ledger. The ledger is already debited (owed_merchant
         // and owed_tax are 0 above); on_settled credits owed_payer back if the payout fails, and
         // a later sweep retries it to refund_to.
-        self.refund_to = Some(payer.clone());
+        // Never redirect an owed_payer that already belongs to another account: that amount is paid
+        // to its own refund_to only. A failed reclaim then reports refund_failed (unrecorded) instead.
+        if self.owed_payer == 0 || self.refund_to.is_none() {
+            self.refund_to = Some(payer.clone());
+        }
         self.busy_until_ms = now + BUSY_MS;
         let batch = Batch { kind: KIND_RECLAIM, result: "REFUNDED".to_string(), late: false, excess: 0,
             refund_reason: String::new(), merchant_part, tax_part, lock: true,
@@ -686,7 +693,15 @@ impl Invoice {
                 ROLE_TAX => self.owed_tax += p.amount,
                 _ => {
                     let same = self.refund_to.as_ref() == Some(&p.to);
-                    if self.refund_to.is_none() || same {
+                    if p.near && self.token.is_some() {
+                        // A refund of an attached NEAR deposit on a token invoice. The owed ledger of a
+                        // token invoice counts token units: recording NEAR yocto there would later be paid
+                        // out as tokens (other people's parked tokens). The NEAR stays on the account.
+                        self.emit_event("refund_failed", serde_json::json!({
+                            "invoice_id": self.invoice_id, "account_id": me,
+                            "to": p.to, "amount": p.amount.to_string(), "recorded": false,
+                        }));
+                    } else if self.refund_to.is_none() || same {
                         self.refund_to = Some(p.to.clone());
                         self.owed_payer += p.amount;
                     } else {
@@ -1060,6 +1075,21 @@ mod tests {
                 let (net, tax) = inv.split_of(x);
                 assert_eq!(net + tax, x, "bps {bps} x {x}");
                 assert_eq!(tax, x * (bps as u128) / 10_000);
+            }
+        }
+    }
+
+    #[test]
+    fn split_does_not_overflow_for_huge_balances() {
+        // A token balance (or NEAR balance) above u128::MAX / 10000 must not panic a callback.
+        let mut inv = near_invoice();
+        for bps in [1u16, 800, 9999, 10_000] {
+            inv.tax_bps = bps;
+            for x in [u128::MAX, u128::MAX - 1, u128::MAX / 3, u128::MAX / 10_000 + 1] {
+                let (net, tax) = inv.split_of(x);
+                assert_eq!(net + tax, x);
+                let exact = (x / 10_000) * (bps as u128) + ((x % 10_000) * (bps as u128)) / 10_000;
+                assert_eq!(tax, exact);
             }
         }
     }
@@ -1989,6 +2019,42 @@ mod tests {
         ctx_cb(vec![ok()], NOW + 1, 0);
         assert_eq!(inv.on_settled(b), "REFUNDED_WRONG_ASSET");
         assert_eq!(inv.status, STATUS_OPEN);
+    }
+
+    #[test]
+    fn failed_near_refund_on_token_invoice_is_not_recorded_as_owed_tokens() {
+        // pay() with NEAR on a token invoice is refunded in NEAR; if that refund fails, the NEAR amount
+        // must not enter the token-unit ledger (a later sweep would pay it out as tokens).
+        let mut inv = token_invoice();
+        ctx(ONE_NEAR, NOW, ONE_NEAR);
+        drop(inv.pay());
+        let b = refund_batch("REFUNDED_WRONG_ASSET", "wrong_asset", payouts_from_transfers(false));
+        ctx_cb(vec![PromiseResult::Failed], NOW + 1, 0);
+        assert_eq!(inv.on_settled(b), "REFUND_FAILED");
+        assert_eq!(inv.owed_payer, 0);
+        assert_eq!(inv.refund_to, None);
+        let ev = logs_with("\"event\":\"refund_failed\"");
+        assert_eq!(ev.len(), 1);
+        assert!(ev[0].contains("\"recorded\":false"));
+        // a token sweep over parked tokens pays only the merchant and the vault
+        ctx_at(PAYER, 0, NOW + 2, 1_000, 300);
+        drop(inv.sweep());
+        ctx_cb(vec![PromiseResult::Successful(b"\"1000000\"".to_vec())], NOW + 3, 1_000);
+        drop(inv.on_token_balance());
+        let to: Vec<String> = payouts_from_ft(false).into_iter().map(|p| p.to.to_string()).collect();
+        assert_eq!(to, vec![MERCHANT.to_string(), VAULT.to_string()]);
+    }
+
+    #[test]
+    fn refund_payer_does_not_redirect_an_owed_payer_of_another_account() {
+        let mut inv = ready_to_reclaim();
+        inv.owed_payer = 5;
+        inv.refund_to = Some("other.testnet".parse().unwrap());
+        let now = NOW + 60_000 + 1;
+        ctx(0, now, ONE_NEAR);
+        drop(inv.refund_payer());
+        assert_eq!(inv.refund_to, Some("other.testnet".parse().unwrap()), "the owed_payer slot keeps its own recipient");
+        assert_eq!(inv.owed_payer, 5);
     }
 
     #[test]

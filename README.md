@@ -12,8 +12,8 @@ Built at NEAR HACKATHON (2026-11). Track: Open Innovation (also Real-World Money
 
 The contract **deployed on testnet is v2** (NEAR only, code hash `4bQ61AgH…yx9zEA`). **v-next: contract v3** adds NEP-141
 stablecoin invoices, a `SETTLING` status, an owed ledger and a payout lock. v3 is **built and unit-tested in this repo,
-but not deployed**: its wasm is `contract/res/zeroinit_invoice.wasm` (162,060 bytes, code hash
-`ATRjmY1xny8mznwsqYjMUgJLYFEgiKqg3mRM7NfS3Dp3`), the `sm1110-zi3-*` accounts and the tUSDC token do not exist on
+but not deployed**: its wasm is `contract/res/zeroinit_invoice.wasm` (161,213 bytes, code hash
+`Ut7EQhLDrvYVarHb6ZaXk6m7o9kQqYPCpyqiamvreWa`), the `sm1110-zi3-*` accounts and the tUSDC token do not exist on
 testnet, and no live v3 run was recorded. Every v3 statement below is marked "v-next, not deployed yet".
 `docs/STABLECOIN.md` is its interface spec and its "Build notes" say what is built versus measured.
 
@@ -22,7 +22,7 @@ testnet, and no live v3 run was recorded. Every v3 statement below is marked "v-
 - Protocol 88 lets an account id be SHA3-256 of its future code + storage, so we can print the address first.
 - `UniversalStateInit` + `FunctionCall` in one transaction: create, pay and split happen in one tx.
 - Plain transfers to a `0u` id create an "uninitialized" account that only its matching state init can unlock.
-- Global contracts: the invoice code is deployed once by hash (v2, deployed: `4bQ61AgHWWmYXp5c3fwj9NJxS79D9R3cGZAZxHyx9zEA`; v3, v-next, not deployed: `ATRjmY1x…3Dp3`);
+- Global contracts: the invoice code is deployed once by hash (v2, deployed: `4bQ61AgHWWmYXp5c3fwj9NJxS79D9R3cGZAZxHyx9zEA`; v3, v-next, not deployed: `Ut7EQhLD…reWa`);
   each invoice only references it. The first deployment (v1, `Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k`) stays on testnet as recorded history:
   see "v1 → v2" below.
 
@@ -65,14 +65,14 @@ registry once).
    found 0 vulnerabilities
    ```
 
-2. `npm test` → 140 tests, all pass (byte vectors from nearcore 2.14 and the frozen examples, the v3 201/226-byte
+2. `npm test` → 141 tests, all pass (byte vectors from nearcore 2.14 and the frozen examples, the v3 201/226-byte
    state vectors, units, deployments, `/1` and `/2` documents, encoder parity with near-api-js 7.4.0, outcome/replay/CLI
    tests, the token CLI and dashboard, the v1 and v2 fixtures, the three audit scenarios, and the v3 replay rules on a
    **synthetic** v3 fixture):
 
    ```
-   # tests 140
-   # pass 140
+   # tests 141
+   # pass 141
    # fail 0
    # skipped 0
    ```
@@ -197,8 +197,8 @@ another one).
    `DvNnUtvqMg5Q5e2Mn4fMx7GYBFNFhTo7z9wo64szAFKG` (2026-11-10, signer `sm1110-zi-deployer.testnet`, one-time burn:
    8.2949 NEAR). The v1 wasm (digest `912ae75e…c3c9`, hash `Amg4WXKy…GW6k`) was deployed by
    `DSXd2Sjq59zRF2ZX9j3D8SMYd6GZ44XpsW1aJbKfpJ1h` (burn 7.8526 NEAR); `git show e5581e8:contract/res/zeroinit_invoice.wasm` prints it.
-   **v-next:** `shasum -a 256 contract/res/zeroinit_invoice.wasm` → `8c7e41070f5f0638e987e080b738c6cc7b462323a2898f8695bcda457aae8f38`
-   (162,060 bytes, code hash `ATRjmY1x…3Dp3`). It is **not deployed**; there is no deploy tx and no burn measured.
+   **v-next:** `shasum -a 256 contract/res/zeroinit_invoice.wasm` → `0724781dd2c9f4f1b8bb30abbff0602578a7ad649fc5a450d4656ffde4740b1f`
+   (161,213 bytes, code hash `Ut7EQhLD…reWa`). It is **not deployed**; there is no deploy tx and no burn measured.
 
 ### Rebuild the wasm (reproducible build)
 
@@ -215,7 +215,7 @@ shasum -a 256 target/near/zeroinit_invoice.wasm   # expect 3562e978…f622f, sam
 ```
 
 **v-next:** `contract/` (v3) is a plain local build, not a reproducible one: `npm run contract:build` produced
-162,060 bytes / `8c7e4107…8f38`. Do not quote it as reproducible until a reproducible build has been compared.
+161,213 bytes / `0724781d…0b1f`. Do not quote it as reproducible until a reproducible build has been compared.
 
 The build settings live in `[package.metadata.near.reproducible_build]` in both `contract/Cargo.toml` and
 `contract-v2/Cargo.toml`. Their `image_digest` is still `UNSET`: the digest of the build image has not been recorded
@@ -256,7 +256,7 @@ creation uses near-cli-rs. The steps below assume you are in the repo root.
    ```
 
    **v-next:** deploying `contract/res/zeroinit_invoice.wasm` (v3) is a different global contract
-   (`ATRjmY1x…3Dp3`) whose burn is unmeasured; do that only after the v3 review gate, then pin its hash.
+   (`Ut7EQhLD…reWa`) whose burn is unmeasured; do that only after the v3 review gate, then pin its hash.
 
 3. `cp .env.example .env` and fill it in (uncomment the account and key lines). `.env.example` prefills the **v3**
    (v-next) hash; for this walkthrough on the deployed v2 set `ZI_CODE_HASH=4bQ61AgHWWmYXp5c3fwj9NJxS79D9R3cGZAZxHyx9zEA`
@@ -516,7 +516,7 @@ and is off for v2 and v3.
 
 ## v2 → v3 (v-next, not deployed yet)
 
-Contract **v3** is a new wasm and a new code hash (`ATRjmY1xny8mznwsqYjMUgJLYFEgiKqg3mRM7NfS3Dp3`, 162,060 bytes,
+Contract **v3** is a new wasm and a new code hash (`Ut7EQhLDrvYVarHb6ZaXk6m7o9kQqYPCpyqiamvreWa`, 161,213 bytes,
 built from `contract/`; **not deployed**). The state layout changes (layout 3: `grace_ms`, `token`, the owed fields,
 `busy_until_ms`; statuses `SETTLING` and `REFUNDED`), so the same terms derive a different address than under v2. Existing
 v1/v2 invoices and their recordings are untouched; nothing is migrated. `docs/STABLECOIN.md` is the full interface spec,
@@ -545,8 +545,8 @@ code hash.
 L1…L19 live runs, and no measured gas/storage numbers; the gas constants in `docs/STABLECOIN.md` §9 and the client are
 starting values. The token-side assumptions (a never-seen `0u` id can be registered and receive `ft_transfer`;
 `ft_transfer_call` to an uninitialized id returns everything; one transaction can do `[UniversalStateInit, fund,
-sweep]`) are listed as open until the spikes are run. v3 has not been audited. The tests today are offline: 61 Rust
-tests in `contract/`, 14 in `contract-v2/`, and 140 JavaScript tests.
+sweep]`) are listed as open until the spikes are run. v3 has not been audited. The tests today are offline: 64 Rust
+tests in `contract/`, 14 in `contract-v2/`, and 141 JavaScript tests.
 
 **v3 limits that stay.** One token per invoice, `0u` only for tokens (`0s` is untested), testnet only, mock tUSDC; a NEAR
 plain transfer to a token invoice and a plain `ft_transfer` of another token are not recoverable; a callback that never
@@ -590,10 +590,11 @@ see `docs/SUBMISSION.md`.
 - **Claude Opus 5.5:** the final review, the audit, and the operator role (testnet accounts, funding and the global
   contract deploys, T04/T05; **the v2 global deploy** `DvNnUtvq…szAFKG` and the funding for the v2 runs).
 - **v3, this round (2026-11-10):** `docs/STABLECOIN.md` was designed and specified by **Claude Sonnet 5.5**. The contract,
-  its 61 unit tests, the client/document/CLI/dashboard changes, the 140-test suite, the synthetic v3 fixture and the docs
+  its unit tests, the client/document/CLI/dashboard changes, the test suite, the synthetic v3 fixture and the docs
   were built by **DeepSeek V4.1 Flash** (`deepseek/deepseek-v4.1-flash`, max effort) in a Command Code agent session
   orchestrated by Conductor. **Claude Sonnet 5.5** designed, reviewed and fixed (the build notes record the deviations it
-  forced, e.g. the `ft_on_transfer` return value and the payout asset). **Claude Opus 5.5** does the final review and the
+  forced, e.g. the `ft_on_transfer` return value and the payout asset; the review round "review: stablecoin fixes" found and fixed
+  four bugs, listed in `docs/STABLECOIN.md` "Review round", and rebuilt the wasm, so the hash above is the post-review one). **Claude Opus 5.5** does the final review and the
   operator work (accounts, tUSDC, the global deploy, the live runs) — **none of that has happened yet**: v3 is not
   deployed and no live v3 run exists.
 - **Human:** Erhan. Every protocol claim is checked by a test or an on-chain transaction listed above.

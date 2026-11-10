@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # LIVE v3 run L1 (docs/STABLECOIN.md §11.4): NEAR parity on the v3 deployment.
-# NOT RUN YET: v3 (ATRjmY1xny8mznwsqYjMUgJLYFEgiKqg3mRM7NfS3Dp3) is built but not deployed, and the
+# NOT RUN YET: v3 (Ut7EQhLDrvYVarHb6ZaXk6m7o9kQqYPCpyqiamvreWa) is built but not deployed, and the
 # sm1110-zi3-* accounts do not exist yet. Run this only after the operator deploys v3 and sets up .env.
 # Records fixtures/v3-near.json: pay, plain transfer + sweep by the sweeper, underpay, expired, double pay.
 # Usage: scripts/record-v3-near.sh [SUFFIX]      default suffix V3; invoice ids must be new each run

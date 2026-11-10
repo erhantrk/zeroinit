@@ -47,11 +47,13 @@ sleep 75
 zi pay "TOK-$S-F" || echo "(expected: payment_rejected expired, exit 1)"
 
 echo "== v3 L14: token refund_payer after the grace, merchant never registered"
-# The merchant must be an account that exists (--offline skips the online registration check) and is never registered.
-zi invoice new --id "TOK-$S-G" --merchant "${ZI_UNREG_ACCOUNT:?set ZI_UNREG_ACCOUNT}" --tax-vault "$V" --tax-bps 800 \
-  --amount 1 --expires-in 1m --grace 60000ms --token tUSDC --offline
+# The merchant must be an account that exists and is NEVER registered on the token. record-v3-failures.sh (L13) registers
+# ZI_UNREG_ACCOUNT, so this run needs its own account. --offline skips the online registration check.
+# The refund is allowed after max(expiry, paid_at) + grace = about 4 minutes after issuing; a pay takes three transactions, so expiry is 3m.
+zi invoice new --id "TOK-$S-G" --merchant "${ZI_UNREG2_ACCOUNT:?set ZI_UNREG2_ACCOUNT (exists on NEAR, never registered on tUSDC)}" --tax-vault "$V" --tax-bps 800 \
+  --amount 1 --expires-in 3m --grace 60000ms --token tUSDC --offline
 zi pay "TOK-$S-G" || echo "(expected: PAYOUT_PENDING, exit 1: the merchant share failed)"
-sleep 125
+sleep 240
 zi refund-payer "TOK-$S-G"
 
 echo "== v3 L16: NEAR attached to a token invoice is refunded (REFUNDED_WRONG_ASSET)"

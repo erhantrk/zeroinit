@@ -7,7 +7,7 @@ sections ("Contract v2 build", "Contract v2 live"). Everything above them is the
 `Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k`), kept as recorded history.
 
 **v3 (v-next) was not run:** the contract and client are built and unit-tested, but v3
-(`ATRjmY1xny8mznwsqYjMUgJLYFEgiKqg3mRM7NfS3Dp3`) is not deployed, the `sm1110-zi3-*` accounts and tUSDC do not exist,
+(`Ut7EQhLDrvYVarHb6ZaXk6m7o9kQqYPCpyqiamvreWa`) is not deployed, the `sm1110-zi3-*` accounts and tUSDC do not exist,
 and S-F1…S-F6 / L1…L19 have **no result**. Do not read any section below as a v3 measurement.
 
 **Paths:** the text is a record of the paths used on the day. The v2 contract now lives in `contract-v2/` (wasm
@@ -554,9 +554,9 @@ check replay catches tampering.
 No live result. Built and unit-tested only:
 
 - wasm: `contract/res/zeroinit_invoice.wasm` (local `npm run contract:build`, not reproducible)
-- size: 162,060 bytes; sha256 `8c7e41070f5f0638e987e080b738c6cc7b462323a2898f8695bcda457aae8f38`
-- code hash (base58): `ATRjmY1xny8mznwsqYjMUgJLYFEgiKqg3mRM7NfS3Dp3` — **not deployed**, no deploy tx, burn unmeasured
-- `npm run contract:test`: 61 pass; `npm test`: 140 pass (offline)
+- size: 161,213 bytes; sha256 `0724781dd2c9f4f1b8bb30abbff0602578a7ad649fc5a450d4656ffde4740b1f`
+- code hash (base58): `Ut7EQhLDrvYVarHb6ZaXk6m7o9kQqYPCpyqiamvreWa` — **not deployed**, no deploy tx, burn unmeasured
+- `npm run contract:test`: 64 pass; `npm test`: 141 pass (offline); the wasm was rebuilt after the review fixes (see `docs/STABLECOIN.md` "Review round")
 - `fixtures/v3-synthetic-token.json` is **synthetic** (marked) and exercises the replay rules; it is not a recording.
 
 Spikes S-F1…S-F6 and runs L1…L19 remain open (accounts, tUSDC registration/mint, second mock token, deploy). The

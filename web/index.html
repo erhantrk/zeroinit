@@ -28,7 +28,7 @@
     <label>Asset <select id="asset"><option value="near">NEAR</option><option value="tUSDC">tUSDC</option></select></label>
     <label>Amount (display units) <input id="amount" value="1"></label>
     <label>Expires in (minutes) <input id="expires_in_minutes" value="120"></label>
-    <label>Refund grace (ms, token/NEP-141 invoices; 0 = default 7 days) <input id="payout_grace_ms" value=""></label>
+    <label>Refund grace (ms, 60000 to 31536000000; empty = default 7 days; also applies to NEAR invoices) <input id="payout_grace_ms" value=""></label>
     <button id="create">Create invoice (no transaction)</button>
     <p><button id="refresh">Refresh statuses</button> <span id="refreshing"></span></p>
     <div id="invoices"></div>

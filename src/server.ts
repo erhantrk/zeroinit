@@ -63,7 +63,7 @@ async function tokenPay(cfg: Config, doc: InvoiceDoc, entry: AllowedToken, plain
   }
   const last = plain
     ? await sendActions(cfg, signer, entry.accountId, [actFtTransfer(doc.account_id, amount)], 'plain')
-    : await sendActions(cfg, signer, entry.accountId, [actFtTransferCall(doc.account_id, amount, payMsg(doc.invoice_id))], 'pay');
+    : await sendActions(cfg, signer, entry.accountId, [actFtTransferCall(doc.account_id, amount, payMsg(doc.invoice_id))], 'pay', doc.account_id);
   txs.push(last);
   return { txs, last };
 }

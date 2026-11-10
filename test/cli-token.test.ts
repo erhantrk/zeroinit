@@ -290,3 +290,30 @@ test('invoice new --token: display units, the allow-list, and the online registr
     assert.equal(existsSync(join(dir, 'INV-TOK-3.json')), false);
   } finally { await unregistered.close(); }
 });
+
+// A real ft_transfer_call transaction is sent TO the token: tx.receiver_id is the token, and a payout that fails because the
+// merchant is not registered fails on the TOKEN account. That is a downstream failure (the invoice records it as owed), not a failed
+// transaction. Before the fix sendActions parsed the tx with the token as "the invoice", so it printed RESULT FAILED and exited as a tx failure.
+test('pay token: an unregistered merchant (ft_transfer fails on the token) is a downstream failure, not a failed tx', async () => {
+  const doc = makeTokenDoc();
+  const ev = failedEvent(doc);
+  const tx = {
+    status: { SuccessValue: b64('0') },
+    transaction: { hash: 'H', signer_id: 'payer.testnet', receiver_id: TOKEN, actions: [] },
+    receipts: [],
+    receipts_outcome: [
+      { id: 'a', outcome: { executor_id: TOKEN, logs: [], status: { SuccessValue: '' } } },
+      { id: 'b', outcome: { executor_id: TOKEN, logs: [], status: { Failure: { ActionError: { index: 0, kind: { FunctionCallError: { ExecutionError: 'Smart contract panicked: The account zi-merchant.testnet is not registered' } } } } } } },
+      { id: 'c', outcome: { executor_id: doc.account_id, logs: [eventLog(ev)], status: { SuccessValue: '' } } },
+    ],
+  };
+  const { rpc, env } = await setup(doc, { storageBalance: { total: MIN, available: '0' }, invoice: onchainInvoice(doc), txResult: tx });
+  try {
+    const r = await runCli(['pay', doc.invoice_id], env);
+    assert.equal(r.code, 1, r.stdout + r.stderr);
+    assert.doesNotMatch(r.stdout, /RESULT FAILED/, 'the transaction itself succeeded');
+    assert.match(r.stdout, /RESULT 0/);
+    assert.match(r.stdout, /TRANSFER_FAILED/);
+    assert.match(r.stderr, /payout\(s\) failed/);
+  } finally { await rpc.close(); }
+});

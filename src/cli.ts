@@ -324,7 +324,7 @@ async function main(argv: string[]): Promise<number> {
         out(json, init, [...txLines(init), `INITIALIZED ${doc.account_id}`]);
         if (!init.success) return 1;
       }
-      const p = await sendActions(cfg, signer, entry.accountId, [actFtTransferCall(doc.account_id, amount, payMsg(doc.invoice_id))], 'pay');
+      const p = await sendActions(cfg, signer, entry.accountId, [actFtTransferCall(doc.account_id, amount, payMsg(doc.invoice_id))], 'pay', doc.account_id);
       const after = await statusLine(cfg, doc, 'after: view_account');
       out(json, { tx: p, after: after.obj }, [...txLines(p, dec, unit), after.line]);
       const paid = p.events.some((e) => e.event === 'invoice_paid');

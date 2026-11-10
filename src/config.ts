@@ -13,8 +13,8 @@ export interface Deployment {
 }
 export const V1_CODE_HASH = 'Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k';
 export const V2_CODE_HASH = '4bQ61AgHWWmYXp5c3fwj9NJxS79D9R3cGZAZxHyx9zEA';
-/** v3 wasm built from this repo (`npm run contract:build`), 162,060 bytes. v-next: not deployed yet. */
-export const V3_CODE_HASH = 'ATRjmY1xny8mznwsqYjMUgJLYFEgiKqg3mRM7NfS3Dp3';
+/** v3 wasm built from this repo (`npm run contract:build`), 161,213 bytes. v-next: not deployed yet. */
+export const V3_CODE_HASH = 'Ut7EQhLDrvYVarHb6ZaXk6m7o9kQqYPCpyqiamvreWa';
 export const KNOWN_DEPLOYMENTS: readonly Deployment[] = [
   { version: 'v3', hash: V3_CODE_HASH, label: 'v3 (v-next, not deployed yet: NEP-141, SETTLING, owed ledger)', fixes: ['contract-1', 'contract-2', 'contract-3', 'settling', 'owed-ledger', 'tax-extras', 'tokens'], historical: false },
   { version: 'v2', hash: V2_CODE_HASH, label: 'v2 (history, frozen: fixes contract-1/2/3; verify and replay only)', fixes: ['contract-1', 'contract-2', 'contract-3'], historical: true },
