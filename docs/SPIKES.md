@@ -2,11 +2,17 @@
 
 Live testnet results and build numbers. Every tx hash recorded here is real unless marked synthetic.
 
-**Current contract: v2** (code hash `4bQ61AgHWWmYXp5c3fwj9NJxS79D9R3cGZAZxHyx9zEA`, deploy tx `DvNnUtvqMg5Q5e2Mn4fMx7GYBFNFhTo7z9wo64szAFKG`), see the last two
+**Deployed contract: v2** (code hash `4bQ61AgHWWmYXp5c3fwj9NJxS79D9R3cGZAZxHyx9zEA`, deploy tx `DvNnUtvqMg5Q5e2Mn4fMx7GYBFNFhTo7z9wo64szAFKG`), see the last two
 sections ("Contract v2 build", "Contract v2 live"). Everything above them is the **v1** log (code hash
-`Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k`), kept as recorded history. When a v1 section names `fixtures/demo-run.json`,
-`fixtures/refund-cases.json` or `invoices/demo/`, those recordings now live in `fixtures/v1/` and `invoices/v1/`; the v2
-re-recordings took the old paths (with `-V2` invoice ids).
+`Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k`), kept as recorded history.
+
+**v3 (v-next) was not run:** the contract and client are built and unit-tested, but v3
+(`ATRjmY1xny8mznwsqYjMUgJLYFEgiKqg3mRM7NfS3Dp3`) is not deployed, the `sm1110-zi3-*` accounts and tUSDC do not exist,
+and S-F1…S-F6 / L1…L19 have **no result**. Do not read any section below as a v3 measurement.
+
+**Paths:** the text is a record of the paths used on the day. The v2 contract now lives in `contract-v2/` (wasm
+`contract-v2/res/`), the v2 recordings in `fixtures/v2/` and `invoices/v2/`, and the v1 recordings in `fixtures/v1/`
+and `invoices/v1/`. `contract/` and `fixtures/v3-synthetic-token.json` are the v3 (not deployed) files.
 
 ## T03 build
 
@@ -469,7 +475,7 @@ Claude sessions or reviewed by a human, which did not match the run record or th
 
 ## Contract v2 build (audit contract-1/2/3)
 
-- wasm: `contract/res/zeroinit_invoice.wasm` (v2; v1 is in git history, `git show e5581e8:contract/res/zeroinit_invoice.wasm`)
+- wasm: `contract-v2/res/zeroinit_invoice.wasm` (moved from `contract/res/` by the v3 rename; v1 is in git history, `git show e5581e8:contract/res/zeroinit_invoice.wasm`)
 - size: 82,942 bytes
 - sha256 hex: `3562e978e6924a2c538e9906fc42d15a652947891f18f7816e3c7807d20f622f`
 - code hash (base58): `4bQ61AgHWWmYXp5c3fwj9NJxS79D9R3cGZAZxHyx9zEA`
@@ -542,3 +548,16 @@ check replay catches tampering.
 | `cd contract && cargo test --offline` (= `npm run contract:test`) | 0 | 14 passed, 0 failed |
 | `node src/cli.ts vectors` (= `npm run zi -- vectors`) | 0 | 8 `PASS` lines |
 | `bash scripts/judge-offline.sh` (npm shimmed) | 0 | 309 `PASS`, 0 `FAIL`, `JUDGE-OFFLINE: ALL PASS` |
+
+## Contract v3 (v-next, not deployed) — 2026-11-10
+
+No live result. Built and unit-tested only:
+
+- wasm: `contract/res/zeroinit_invoice.wasm` (local `npm run contract:build`, not reproducible)
+- size: 162,060 bytes; sha256 `8c7e41070f5f0638e987e080b738c6cc7b462323a2898f8695bcda457aae8f38`
+- code hash (base58): `ATRjmY1xny8mznwsqYjMUgJLYFEgiKqg3mRM7NfS3Dp3` — **not deployed**, no deploy tx, burn unmeasured
+- `npm run contract:test`: 61 pass; `npm test`: 140 pass (offline)
+- `fixtures/v3-synthetic-token.json` is **synthetic** (marked) and exercises the replay rules; it is not a recording.
+
+Spikes S-F1…S-F6 and runs L1…L19 remain open (accounts, tUSDC registration/mint, second mock token, deploy). The
+design's gas/storage numbers are estimates until those run.

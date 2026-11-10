@@ -65,13 +65,14 @@ test('POST /api/invoices refuses a merchant that does not exist on testnet', asy
   assert.deepEqual(readdirSync(dir), []);
 });
 
-test('pay: REFUNDED_* is not a payment (409, paid:false); PAID is 200, paid:true', async (t) => {
+test('pay: REFUNDED_* is not a payment (409, paid:false); PAID is 200; PAYOUT_PENDING is 202 pending', async (t) => {
   const doc = makeDoc();
-  for (const [value, status, paid] of [['REFUNDED_UNDERPAID', 409, false], ['REFUNDED_EXPIRED', 409, false], ['PAID', 200, true]] as const) {
+  for (const [value, status, paid, pending] of [['REFUNDED_UNDERPAID', 409, false, false], ['REFUNDED_EXPIRED', 409, false, false], ['PAID', 200, true, false], ['PAYOUT_PENDING', 202, false, true]] as const) {
     const { port } = await boot(t, doc, { invoice: onchainInvoice(doc), txResult: payResult(doc, value) });
     const r = await call(port, 'POST', `/api/invoices/${doc.invoice_id}/pay`, {});
     assert.equal(r.status, status, value);
     assert.equal(r.json.paid, paid);
+    assert.equal(r.json.pending, pending, value);
     assert.equal(r.json.result, value);
   }
 });

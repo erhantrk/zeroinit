@@ -1,6 +1,13 @@
 # ZeroInit contract v3: stablecoin (NEP-141) support and the v2 residual fixes
 
-Status: **design only.** Nothing in this file is built, deployed or run yet. No contract code was written for it. The numbers
+Status: **built and unit-tested, not deployed.** (This header replaces "design only"; the original design text below is
+kept as the interface spec, and "Build notes" at the end lists every deviation and what was actually run.) The contract,
+the client, the dashboard and the tests are in this repo. The wasm was built with `npm run contract:build`:
+162,060 bytes, sha256 `8c7e41070f5f0638e987e080b738c6cc7b462323a2898f8695bcda457aae8f38`, code hash
+`ATRjmY1xny8mznwsqYjMUgJLYFEgiKqg3mRM7NfS3Dp3`. **That hash is not deployed on testnet**, the `sm1110-zi3-*` accounts
+and the tUSDC registration/mint do not exist, and no live v3 run (S-F1…S-F6, L1…L19) has been made. The deployed
+contract is still v2 (`4bQ61AgH…yx9zEA`), so `README.md` keeps describing v2 and marks every v3 statement
+"v-next, not deployed yet". The numbers
 marked "derived" were computed from earlier v2 measurements; everything marked "to measure" has to be measured live before
 it is written into the README. `docs/plan/` is the locked original plan and is not touched. `README.md` and the other docs
 keep describing v2 until v3 is built and recorded (section 13 lists what to change then).
@@ -635,3 +642,90 @@ the test count and the offline output (only after running them), the cost lines,
 
 - **Claude Sonnet 5.5** wrote this design (reading the code and docs, the vector computation and the read-only checks listed at the top).
 - Plan for the build, not done yet: **DeepSeek V4.1 Flash** builds the contract, client and tests from this file; **Claude Sonnet 5.5** designs, reviews and fixes; **Claude Opus 5.5** does the final review and the operator deploys (accounts, tUSDC registration and mint, the global deploy, the live runs). The README disclosure is updated with what actually happened when each step is done.
+
+## Build notes (2026-11-10, this round)
+
+What was actually run (all offline; nothing touched testnet):
+
+| Command | Result |
+|---|---|
+| `npm run contract:test` | 61 v3 unit tests pass (`contract/`) |
+| `npm run contract:test:v2` | 14 v2 tests still pass (`contract-v2/`, the pure rename) |
+| `npm test` | 140 client tests pass |
+| `npm run zi -- vectors` | 8 PASS (v1/v2 vectors unchanged; the v3 hex is pinned in `test/vectors.test.ts`) |
+| `npm run contract:build` | 162,060 bytes, sha256 `8c7e4107…8f38`, code hash `ATRjmY1x…3Dp3` |
+| `bash scripts/judge-offline.sh` | v2 and v1 fixtures replay and verify; **no v3 fixture is in the judge path** (none was recorded) |
+
+Not run (impossible before the deploy): S-F1…S-F6, L1…L19, the live gas/storage/cost measurements, the token-side
+`0u` acceptance checks, and the operator's accounts/tUSDC/deploy. So every number in §9, §3's live storage expectation
+and the "deployed" statements in README remain estimates or v-next.
+
+### Deviations from the design, and why
+
+1. **The §3 hex vectors were truncated.** The strings printed in section 3 are 200 and 220 bytes; the stated lengths
+   (201/226) and the field layout are authoritative. The hex lost trailing zero bytes (1 and 6). The tests pin the
+   padded vectors (`test/vectors.test.ts`, `state_layout_is_frozen_*`), and `src/stateinit.ts` writes 201/226 bytes.
+2. **`Payout` carries two extra fields.** `from_owed` marks a retry of an amount that was already in the owed ledger
+   (only those emit `tax_resent`/`owed_resent` and were debited when scheduled). `near` says the payout is a NEAR
+   transfer even on a token invoice: a rejected `pay()` on a token invoice refunds an attached **NEAR** deposit, and a
+   test caught the first implementation sending it as `ft_transfer`. `Payout`/`Batch` are private callback args, so
+   their borsh layout is not a public compatibility surface.
+3. **`Batch` carries `merchant_part`, `tax_part` and `lock`.** The `owed_reclaimed` event needs the split, and a
+   rejected `pay()` refunds the deposit without owning the payout lock: `on_settled` clears the lock only when the
+   batch took it (`lock: true`). Clearing it unconditionally (as §4.4 step 1 says) would let a sweep run while the
+   original settlement payouts are still in flight.
+4. **`on_settled` event selection is per payout, not per batch kind.** A sweep can re-send owed amounts and settle
+   extra funds in one batch; the design's kind-only rule cannot express both. Successful payouts with `from_owed` emit
+   `tax_resent`/`owed_resent`; the `extra_swept` event is emitted only when every payout of the batch succeeded, as designed.
+5. **`ft_on_transfer` returns `U128(unused)` immediately and runs the payout batch detached.** If it returned the
+   `on_settled` promise, the token's `ft_resolve_transfer` would receive the callback's string instead of a `U128` and
+   treat the whole amount as unused (near-contract-standards refunds everything when the value is not a `U128`) — every
+   accepted token payment would be silently refunded. The client therefore reads `invoice_paid`/`payment_rejected`, not
+   the final value (section 10 already says this).
+6. **`on_token_balance` returns the `on_settled` promise** for a scheduled batch, so a token `sweep` transaction's final
+   value is the real outcome. For no-op cases it returns the short value; a panic string that starts with `UNDERPAID`
+   is mapped to `UNDERPAID` (§5.3 says the token path returns the value, not the NEAR panic string).
+7. **A reclaim retry that completes sets `REFUNDED`, not `PAID`.** §4.4 step 5 would mark a `SETTLING` invoice `PAID`
+   after a `RESEND` that only paid `owed_payer`; that is a payer refund, not a payment. A `RESEND` that delivers a
+   merchant/tax share still completes the settlement as designed.
+8. **`paid_amount` grows on the expired pro-rata release and on extras.** Field 14 is "total settled to the merchant
+   side"; the design's step tables did not say whether the release counts. It is added (and `tax_amount` with it), so
+   `tax_amount` stays the sum of the taxes of everything in `paid_amount`.
+9. **Lock scope.** The lock is taken by settlements, sweeps and `refund_payer`; rejection refunds of a `pay()` do not
+   take or clear it (see deviation 3). A stale lock (5 minutes) is taken over, as designed.
+10. **Documents follow the deployment.** New issuance on the v3 hash writes `zeroinit-invoice/2` (layout 3); v1/v2
+    hashes write `/1` (layout 1). A `/1` document on the v3 hash is refused (`format-matches-deployment`): its state
+    bytes would be unreadable by the v3 contract. A custom pinned hash defaults to `/1`; `--layout 3` is the escape
+    hatch for a custom v3-like deployment. `checkDoc` takes the allow-list as an optional argument: replay and history
+    verification skip it, `zi verify`/`pay`/`invoice new` enforce it (`FAIL token-allowed` when the allow-list is empty).
+11. **`zi pay --plain` never initializes the invoice**, even when it does not exist: that is the exchange path, and the
+    tokens park on the token contract until someone sweeps. (An implementation that initialized first was caught by the
+    action-order test.)
+12. **`zi sweep` funds a nonexistent token account.** The design says "fund only if fewer than 100 yocto or does not
+    exist"; the first implementation skipped the fund for a nonexistent account, so the sweep had no yocto to attach.
+13. **The 48 numbered Rust test items are 61 test functions** (grouped items such as the refund paths, the bad-msg
+    variants and the token failures are split into one test each). No v2 test was changed: `contract-v2/` still runs
+    its 14 tests, and the v1/v2 document vectors are untouched.
+14. **v3 fixtures do not exist.** `fixtures/v3-synthetic-token.json` is **SYNTHETIC** (marked `synthetic: true`): it
+    exercises the new replay rules and their 10 tamper mutations in `npm test`, but it is not a recording and is not in
+    `scripts/judge-offline.sh`. The recorder scripts (`scripts/record-v3-*.sh`) write `fixtures/v3-near.json`,
+    `fixtures/v3-fixes.json`, `fixtures/v3-tokens.json`, `fixtures/v3-failures.json`; they were not run. `judge-offline.sh`
+    still replays only the v2 and v1 recordings.
+15. **The wasm is larger than v2** (162,060 vs 82,942 bytes). The strict `msg` parser uses a serde derive; the deploy
+    burn is therefore unmeasured and will be larger than v2's 8.2949 NEAR. `image_digest` in
+    `contract/Cargo.toml` is still `UNSET`, like v2's; the reproducible-build note in README applies to the v2 crate
+    now under `contract-v2/`.
+16. **The reproducible build was not run** (no Docker here). The wasm is a local `cargo near build
+    non-reproducible-wasm` build; a judge's reproducible build must be compared before anyone quotes it as reproducible.
+
+### Not done, explicitly
+
+- The global v3 deploy, the `sm1110-zi3-*` accounts, tUSDC registration/mint, and the second mock token (L11).
+- S-F1…S-F6 and L1…L19, the live fixtures, and every gas/storage/cost number marked "to measure".
+- The token-side assumption that a never-seen `0u` id can be registered and receive `ft_transfer` (S-F1), that an
+  uninitialized `0u` id rejects `ft_transfer_call` safely (S-F2), and that the one-transaction
+  `[UniversalStateInit, fund, sweep]` works (S-F3).
+- The dashboard was not clicked in a browser this round (no browsers); its pure state functions and the HTTP API are
+  tested with `node --test`.
+- README/ARCHITECTURE describe v2 as the deployed contract and mark the v3 text "v-next, not deployed yet". After the
+  operator deploys, the measured numbers, the deployment labels and the AI-use section have to be updated again.

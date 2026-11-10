@@ -3,8 +3,7 @@
 import { formatUnits } from './ft.ts';
 import { accountStateFromResponse, decodeViewResult } from './rpc.ts';
 import { parseTxStatus, type ParsedTx } from './outcome.ts';
-import { checkDoc, isV3Doc, docDecimals, docToken, termsMatchOnchain, type InvoiceDoc } from './invoice.ts';
-import type { Check } from './replay.ts';
+import { checkDoc, docDecimals, docToken, termsMatchOnchain, type InvoiceDoc } from './invoice.ts';
 
 type Add = (ok: boolean, name: string, id: string, detail?: string) => void;
 
@@ -229,4 +228,3 @@ export function replayV3Invoice(f: any, doc: InvoiceDoc, trusted: string | undef
   flush();
 }
 
-export const isV3FixtureDoc = (doc: InvoiceDoc): boolean => isV3Doc(doc);

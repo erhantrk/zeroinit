@@ -2,7 +2,13 @@
 
 One immutable contract, one derivation function, and three transaction shapes. Everything below runs on NEAR
 testnet at protocol 88; `docs/SPIKES.md` (sections S-A…S-E, and "Contract v2") records the live transactions that prove it.
-The current contract is **v2** (code hash `4bQ61AgHWWmYXp5c3fwj9NJxS79D9R3cGZAZxHyx9zEA`); v1 (`Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k`) stays on testnet as recorded history, see "v1 → v2" at the end.
+The **deployed** contract is **v2** (code hash `4bQ61AgHWWmYXp5c3fwj9NJxS79D9R3cGZAZxHyx9zEA`); v1 (`Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k`) stays on testnet as recorded history, see "v1 → v2" at the end.
+
+**v-next, not deployed yet:** contract **v3** (NEP-141 invoices, `SETTLING`, an owed ledger and a payout lock) is built
+in this repo, unit-tested and has a wasm (code hash `ATRjmY1xny8mznwsqYjMUgJLYFEgiKqg3mRM7NfS3Dp3`, 162,060 bytes).
+It is **not** a global contract on testnet, its `sm1110-zi3-*` accounts and the tUSDC registration do not exist, and no
+live v3 transaction was recorded. The v3 appendix at the end describes the design; `docs/STABLECOIN.md` is the interface
+spec and its "Build notes" list what is built versus measured.
 
 ## Diagram
 
@@ -111,7 +117,53 @@ Residual: `invoice_paid` precedes the transfers; extra funds arriving while a ta
 vault as the owed share; a nonexistent merchant still cannot receive its share, so the CLI and the dashboard check both
 accounts exist at issue time. Full tx hashes and the README table are in `README.md` → "v1 → v2".
 
-Client side (`src/config.ts`): a known-deployments list holds v2 (current, the default trusted hash) and v1 (historical).
+Client side (`src/config.ts`): a known-deployments list holds v3 (the trusted build, labelled "v-next, not deployed yet"), v2 (deployed, historical for the client) and v1 (historical).
 `zi verify`, `zi receipt` and `zi replay` accept a v1 invoice or fixture against the v1 hash to replay the recorded history
 and say which deployment it uses; `zi pay`, `zi sweep`, `zi init`, `zi invoice new` and the dashboard use only the trusted
 hash (v2 or the `ZI_CODE_HASH` pin). Foreign hashes are never accepted.
+
+## v3 (v-next, not deployed yet)
+
+Contract v3 keeps the v2 account model — one global code hash, one `0u` id derived from code + terms, no init method,
+no access keys — and changes what an invoice can hold and how a payment settles. The full interface is
+`docs/STABLECOIN.md`; this is the shape.
+
+**State.** Layout 3 adds `grace_ms` and `token` (a NEP-141 contract id, or None = NEAR) to the terms, and
+`owed_merchant`, `owed_tax`, `owed_payer`, `refund_to`, `busy_until_ms` to the record. Status `SETTLING` means "money
+accepted, shares in flight or failed"; `PAID` means every share was delivered; `REFUNDED` means the payer got the
+undelivered shares back after the grace period. A NEAR invoice is 201 bytes, a token invoice 226; the maximum-length
+state is 519 bytes, so 519 + 45 (record) + 132 (account overhead) = 696 B stays under the 770-byte zero-balance limit.
+
+**Settlement.** `pay`, `ft_on_transfer` (a token payment), `sweep` and `refund_payer` build one list of payouts and one
+private callback batch. `on_settled` checks every transfer, records failures per recipient (`owed_*`), emits
+`transfer_failed`, and is the only place `invoice_paid` is emitted (after all merchant/tax shares succeeded). A 5-minute
+lock stops a second settlement while payouts are in flight; a stale lock is taken over. Owed amounts are paid only to
+their own recipient: `owed_merchant` → merchant, `owed_tax` → vault, `owed_payer` → `refund_to`.
+
+**Tax rule (v2 residual fixed).** Every amount the contract pays to the merchant side goes through
+`split_of(x) = (x − floor(x·tax_bps/10000), floor(x·tax_bps/10000))`: the price on a pay, the whole parked balance on a
+plain-transfer settle (overpay included), later extras, and the pro-rata release after expiry. Refunds of the payer's
+own money and re-sent owed shares are not taxed again.
+
+**Token flows.** One token per invoice, fixed in the terms and therefore in the address; the contract accepts only that
+token (`predecessor == token`). Plain path (exchange): register the `0u` id on the token (NEP-145), plain `ft_transfer`
+(the tokens sit on the token contract), then anyone sends `[UniversalStateInit, fund(1000 yocto), sweep]` to the
+invoice; `sweep` reads `ft_balance_of(self)` in a callback and settles. One-step path: `[UniversalStateInit, fund]`
+first, then `ft_transfer_call` with the strict msg `{"action":"pay","invoice_id":"…"}`; `ft_on_transfer` returns the
+unused amount (the token refunds the excess) and records `payment_rejected <reason>` when it refuses. The client
+allow-list (`ZI_TUSDC_ACCOUNT`) pins the token contract and its 6 decimals; the contract cannot hold a list because its
+code is global and ownerless.
+
+| v3 transaction | signer | receiver | actions |
+|---|---|---|---|
+| PAY (NEAR) | payer | invoice `0u…` | `[UniversalStateInit, FunctionCall pay, {} , 100 Tgas, deposit]` |
+| SWEEP (NEAR) | anyone | invoice `0u…` | `[UniversalStateInit, FunctionCall sweep, {}, 100 Tgas]` |
+| INIT (token) | payer/merchant | invoice `0u…` | `[UniversalStateInit, FunctionCall fund, {}, 10 Tgas, 1000 yocto]` |
+| PAY (token) | payer | token contract | `[FunctionCall ft_transfer_call{receiver_id: invoice, amount, msg}, 1 yocto, 200 Tgas]` |
+| SWEEP (token) | anyone | invoice `0u…` | `[UniversalStateInit?, fund?, FunctionCall sweep, {}, 200 Tgas]` |
+| REFUND PAYER | anyone | invoice `0u…` | `[FunctionCall refund_payer, {}, 100/200 Tgas]` |
+
+Gas values are starting constants from the design, **not measured**; the deploy burn is unmeasured (`contract/`'s wasm
+is 162,060 bytes, built but not deployed). Client side (`src/config.ts`): v3 is the trusted build (labelled
+"v-next, not deployed yet"), v2 and v1 are historical; `pinForVerification` accepts a historical document only against
+its own hash, and pay/sweep/init refuse a historical or foreign document.
