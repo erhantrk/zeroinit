@@ -354,7 +354,7 @@ async function main(argv: string[]): Promise<number> {
       if (!v['no-init'] && (cmd !== 'sweep' || before.obj.kind !== 'INITIALIZED')) actions.push(stateInitAction(doc, trusted));
       if (cmd === 'pay') actions.push(actFunctionCall('pay', utf8('{}'), GAS.payNear, v.amount ? parseNear(v.amount) : docAmountRaw(doc)));
       if (cmd === 'sweep') {
-        if (entry && before.obj.kind !== 'NONEXISTENT' && (before.obj.kind !== 'INITIALIZED' || before.obj.amount < 100n)) actions.push(actFund());
+        if (entry && (before.obj.kind !== 'INITIALIZED' || before.obj.amount < 100n)) actions.push(actFund());
         actions.push(actFunctionCall('sweep', utf8('{}'), entry ? GAS.tokenSweep : GAS.sweepNear, 0n));
       }
     }

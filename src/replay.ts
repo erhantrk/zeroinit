@@ -2,8 +2,9 @@
 import { readFileSync } from 'node:fs';
 import { base64 } from '@scure/base';
 import { formatNear, toHex } from './bytes.ts';
-import { checkDoc, rawFromTerms, type InvoiceDoc } from './invoice.ts';
+import { checkDoc, isV3Doc, rawFromTerms, type InvoiceDoc } from './invoice.ts';
 import { pinForVerification } from './config.ts';
+import { replayV3Invoice } from './replay-v3.ts';
 import { accountStateFromResponse, decodeViewResult } from './rpc.ts';
 import { parseTxStatus, type ParsedTx } from './outcome.ts';
 
@@ -98,6 +99,8 @@ export function replayFixture(path: string, trusted?: string): Check[] {
   const checks: Check[] = [];
   const add = (ok: boolean, name: string, id: string, detail = '') => checks.push({ ok, name, id, detail });
   for (const doc of f.invoices as InvoiceDoc[]) {
+    // v3 documents use the v3 rule set (docs/STABLECOIN.md §11.2); v1/v2 keep the rules below untouched.
+    if (isV3Doc(doc)) { replayV3Invoice(f, doc, trusted, add); continue; }
     const id = doc.invoice_id;
     const calls = (f.calls as any[])
       .filter((c) => c.invoice_id === id)

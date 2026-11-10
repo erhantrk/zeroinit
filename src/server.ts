@@ -8,7 +8,7 @@ import { trustedCodeHash, deploymentOf, tokenBySymbol, type Config, type Allowed
 import { viewAccount, viewInvoice } from './rpc.ts';
 import { sendActions } from './send.ts';
 import { createInvoiceDoc, saveDoc, loadDoc, listDocs, assertDocTrusted, assertAccountsUsable, stateInitAction, randomSalt,
-  isV3Doc, docAmountRaw, docAmountDisplay, docToken, docUnit, docDecimals, docGraceMs, type InvoiceDoc } from './invoice.ts';
+  isV3Doc, docAmountRaw, docAmountDisplay, docToken, docUnit, docDecimals, docGraceMs, GRACE_MIN_MS, GRACE_MAX_MS, type InvoiceDoc } from './invoice.ts';
 import { GAS, FLOAT_YOCTO, actFund, actFtTransfer, actFtTransferCall, actStorageDeposit, payMsg, parseUnits, formatUnits,
   ftBalanceOf, storageBalanceBounds, storageBalanceOf } from './ft.ts';
 
@@ -129,6 +129,7 @@ export function serve(cfg: Config, port: number): Promise<Server> {
           const amount = entry ? parseUnits(amountText, entry.decimals) : parseNear(amountText);
           const graceRaw = b.value.payout_grace_ms;
           const grace = graceRaw === undefined || graceRaw === '' ? undefined : BigInt(uintField('payout_grace_ms', graceRaw));
+          if (grace !== undefined && (grace < GRACE_MIN_MS || grace > GRACE_MAX_MS)) throw new Error(`payout_grace_ms must be between ${GRACE_MIN_MS} and ${GRACE_MAX_MS}`);
           const terms = { invoice_id: nonEmptyString('id', b.value.id), merchant: nonEmptyString('merchant', b.value.merchant), tax_vault: nonEmptyString('tax_vault', b.value.tax_vault),
             tax_bps: uintField('tax_bps', b.value.tax_bps), amount,
             expires_at_ms: BigInt(Date.now() + expiresInMinutes * 60_000), salt: randomSalt(),

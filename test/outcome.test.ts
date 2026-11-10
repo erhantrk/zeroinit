@@ -54,3 +54,53 @@ test('redactSignatures replaces every ed25519 signature value (no secret-looking
   assert.deepEqual(out.approvals, ['ed25519:REDACTED-PUBLIC-SIGNATURE', null]);
   assert.match(out.a.signature, /^ed25519:REDACTED/);
 });
+
+// ---- v3 token fields (docs/STABLECOIN.md §10) ----
+const b64o = (o: unknown) => Buffer.from(JSON.stringify(o)).toString('base64');
+const ftTx = () => ({
+  status: { SuccessValue: b64o('0') },
+  transaction: { hash: 'FT', signer_id: 'payer.testnet', receiver_id: 'tusdc.example.testnet',
+    actions: [{ FunctionCall: { method_name: 'ft_transfer_call', args: b64o({ receiver_id: '0uinvoice', amount: '1500000', msg: '{"action":"pay"}' }), deposit: '1', gas: '200000000000000' } }] },
+  receipts: [
+    { receipt_id: 'r1', predecessor_id: '0uinvoice', receiver_id: 'tusdc.example.testnet',
+      receipt: { Action: { actions: [{ FunctionCall: { method_name: 'ft_transfer', args: b64o({ receiver_id: 'zi-merchant.testnet', amount: '1380000' }), deposit: '1', gas: '15000000000000' } }] } } },
+    { receipt_id: 'r2', predecessor_id: '0uinvoice', receiver_id: 'tusdc.example.testnet',
+      receipt: { Action: { actions: [{ FunctionCall: { method_name: 'ft_transfer', args: b64o({ receiver_id: 'zi-taxvault.testnet', amount: '120000' }), deposit: '1', gas: '15000000000000' } }] } } },
+  ],
+  receipts_outcome: [
+    { id: 'r1', outcome: { executor_id: 'tusdc.example.testnet', status: { SuccessValue: '' },
+      logs: ['EVENT_JSON:' + JSON.stringify({ standard: 'nep141', version: '1.0.0', event: 'ft_transfer', data: [{ old_owner_id: '0uinvoice', new_owner_id: 'zi-merchant.testnet', amount: '1380000' }] })] } },
+    { id: 'r2', outcome: { executor_id: 'tusdc.example.testnet', status: { SuccessValue: '' }, logs: [] } },
+  ],
+});
+
+test('v3: ftTransfers are decoded from the ft_transfer actions sent by the invoice account', () => {
+  const p = parseTxStatus(ftTx(), '0uinvoice');
+  assert.deepEqual(p.ftTransfers.map((t) => [t.token, t.to, t.amount.toString()]), [
+    ['tusdc.example.testnet', 'zi-merchant.testnet', '1380000'],
+    ['tusdc.example.testnet', 'zi-taxvault.testnet', '120000'],
+  ]);
+  assert.equal(p.transfers.length, 0);
+});
+
+test('v3: nep141 events are parsed separately from zeroinit events', () => {
+  const p = parseTxStatus(ftTx(), '0uinvoice');
+  assert.equal(p.events.length, 0);
+  assert.equal(p.nep141Events.length, 1);
+  assert.equal((p.nep141Events[0].data as any)[0].amount, '1380000');
+});
+
+test('v3: a failed ft_transfer receipt on the token account is a downstream failure', () => {
+  const tx = ftTx();
+  tx.receipts_outcome[0].outcome.status = { Failure: { ActionError: { index: 0, kind: { AccountDoesNotExist: { account_id: 'zi-merchant.testnet' } } } } };
+  const p = parseTxStatus(tx, '0uinvoice');
+  assert.equal(p.success, true);
+  assert.deepEqual(p.failures, []);
+  assert.equal(p.downstreamFailures.length, 1);
+});
+
+test('v3: an ft_transfer_call final value "0" is the unused amount, never PAID', () => {
+  const p = parseTxStatus(ftTx(), '0uinvoice');
+  assert.equal(p.returnValue, '0');
+  assert.notEqual(p.returnValue, 'PAID');
+});

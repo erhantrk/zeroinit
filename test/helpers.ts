@@ -101,6 +101,7 @@ export interface Chain {
   ftMetadata?: { symbol: string; decimals: number };
   storageBalance?: { total: string; available: string } | null;
   storageMin?: string;
+  accountAmount?: string;
 }
 export function handlers(doc: InvoiceDoc, ch: Chain) {
   const initialized = ch.invoice !== undefined && ch.invoice !== null;
@@ -127,10 +128,37 @@ export function handlers(doc: InvoiceDoc, ch: Chain) {
         case 'view_account':
           if (ch.uninitialized) return { state: 'uninitialized', amount: '1000000000000000000000000', storage_usage: 0 };
           if (!initialized) return unknownAccount;
-          return { amount: '1000000000000000000000000', storage_usage: 300, global_contract_hash: ch.hash === undefined ? DEPLOYED : ch.hash };
+          return { amount: ch.accountAmount ?? '1000000000000000000000000', storage_usage: 300, global_contract_hash: ch.hash === undefined ? DEPLOYED : ch.hash };
         default: return { __error: { name: 'HANDLER_ERROR', cause: { name: 'X' }, message: p.request_type } };
       }
     },
   };
 }
 export const payResult = (doc: InvoiceDoc, value: string) => ({ status: { SuccessValue: b64(value) }, transaction: { hash: 'H', signer_id: 'x', receiver_id: doc.account_id, actions: [] }, receipts_outcome: [], receipts: [] });
+
+/** Minimal borsh reader for the signed V0 transactions the CLI sends (tests only). */
+export interface DecodedAction { kind: 'FunctionCall' | 'Transfer' | 'UniversalStateInit'; method?: string; args?: string; gas?: bigint; deposit?: bigint; rawLen?: number }
+export function decodeSignedTx(b64: string): { signer: string; receiver: string; actions: DecodedAction[] } {
+  const b = Buffer.from(b64, 'base64');
+  let o = 0;
+  const u8 = () => b[o++];
+  const u32 = () => { const v = b.readUInt32LE(o); o += 4; return v; };
+  const u64 = () => { const v = b.readBigUInt64LE(o); o += 8; return v; };
+  const u128 = () => { let v = 0n; for (let i = 15; i >= 0; i--) v = (v << 8n) | BigInt(b[o + i]); o += 16; return v; };
+  const bytes = (n: number) => { const x = b.subarray(o, o + n); o += n; return x; };
+  const str = () => bytes(u32()).toString('utf8');
+  const signer = str();
+  u8(); bytes(32); u64();
+  const receiver = str();
+  bytes(32);
+  const n = u32();
+  const actions: DecodedAction[] = [];
+  for (let i = 0; i < n; i++) {
+    const kind = u8();
+    if (kind === 2) actions.push({ kind: 'FunctionCall', method: str(), args: bytes(u32()).toString('utf8'), gas: u64(), deposit: u128() });
+    else if (kind === 3) actions.push({ kind: 'Transfer', deposit: u128() });
+    else if (kind === 15) actions.push({ kind: 'UniversalStateInit', rawLen: bytes(u32()).length, deposit: u128() });
+    else throw new Error(`unknown action discriminant ${kind}`);
+  }
+  return { signer, receiver, actions };
+}
