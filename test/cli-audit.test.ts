@@ -169,3 +169,14 @@ test('invoice new refuses a merchant that does not exist on testnet (typo) unles
     assert.equal(ok.code, 0, ok.stderr);
   } finally { await rpc.close(); }
 });
+
+test('pay refuses when a plain transfer already parked funds (contract v1 would charge twice) and never sends', async () => {
+  const doc = makeDoc();
+  const { rpc, env } = await setup(doc, { uninitialized: true });
+  try {
+    const r = await runCli(['pay', doc.invoice_id], env);
+    assert.notEqual(r.code, 0, r.stdout);
+    assert.match(r.stderr, /already holds 1 NEAR from a plain transfer: run `zi sweep/);
+    assert.equal(rpc.calls.some((c) => c.method === 'send_tx'), false);
+  } finally { await rpc.close(); }
+});

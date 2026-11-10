@@ -68,7 +68,7 @@ async function main(argv: string[]): Promise<number> {
   const { values: v, positionals: pos } = parseArgs({ args: cmd === 'invoice' ? rest.slice(1) : rest, allowPositionals: true, options: {
     id: { type: 'string' }, merchant: { type: 'string' }, 'tax-vault': { type: 'string' }, 'tax-bps': { type: 'string' },
     amount: { type: 'string' }, 'expires-in': { type: 'string' }, 'expires-at': { type: 'string' }, salt: { type: 'string' },
-    scheme: { type: 'string' }, 'code-hash': { type: 'string' }, 'no-init': { type: 'boolean' }, offline: { type: 'boolean' },
+    scheme: { type: 'string' }, 'code-hash': { type: 'string' }, 'no-init': { type: 'boolean' }, offline: { type: 'boolean' }, 'allow-parked': { type: 'boolean' },
     tx: { type: 'string' }, port: { type: 'string' }, json: { type: 'boolean' },
   } });
   const json = !!v.json;
@@ -150,7 +150,12 @@ async function main(argv: string[]): Promise<number> {
     assertDocTrusted(doc, trusted);   // never sign for a doc whose terms/code hash/state init do not re-derive
     await checkNetwork(cfg);
     const signer = cmd === 'pay' ? need(cfg.payer, 'PAYER') : need(cfg.sweeper, 'SWEEPER');
-    await statusLine(cfg, doc, cmd === 'pay' ? 'before: view_account' : 'transfer-path: view_account (uninitialized)');
+    const before = await statusLine(cfg, doc, cmd === 'pay' ? 'before: view_account' : 'transfer-path: view_account (uninitialized)');
+    // contract v1 limitation (audit contract-3): pay() ignores funds already parked by a plain transfer, so paying again
+    // would charge the payer twice. Settle parked funds with `zi sweep` instead; --allow-parked overrides on purpose.
+    if (cmd === 'pay' && before.obj.kind === 'UNINITIALIZED' && before.obj.amount > 0n && !v['allow-parked']) {
+      throw new UsageError(`invoice ${doc.invoice_id} already holds ${formatNear(before.obj.amount)} NEAR from a plain transfer: run \`zi sweep ${doc.invoice_id}\` instead of paying again (or pass --allow-parked)`);
+    }
     const actions: Uint8Array[] = [];
     if (!v['no-init']) actions.push(stateInitAction(doc, trusted));
     if (cmd === 'pay') actions.push(actFunctionCall('pay', utf8('{}'), GAS_50T, v.amount ? parseNear(v.amount) : BigInt(doc.amount_yocto)));

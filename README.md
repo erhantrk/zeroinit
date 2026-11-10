@@ -45,12 +45,12 @@ registry once).
    found 0 vulnerabilities
    ```
 
-2. `npm test` → 63 tests, all pass (byte vectors from nearcore 2.14 and the frozen example, encoder parity with
+2. `npm test` → 64 tests, all pass (byte vectors from nearcore 2.14 and the frozen example, encoder parity with
    near-api-js 7.4.0, outcome/replay/CLI tests):
 
    ```
-   # tests 63
-   # pass 63
+   # tests 64
+   # pass 64
    # fail 0
    # skipped 0
    ```
@@ -170,14 +170,16 @@ creation uses near-cli-rs. The steps below assume you are in the repo root.
      as-global-hash "$P"-zi-deployer.testnet network-config testnet sign-with-legacy-keychain send
    ```
 
-3. `cp .env.example .env` and fill it in (uncomment the account and key lines; `ZI_CODE_HASH` is prefilled). Set `ZI_CODE_HASH=Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k`,
+3. `cp .env.example .env` and fill it in (uncomment the account and key lines). `ZI_CODE_HASH` is prefilled with the
+   deployed hash `Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k`; change it only if you deployed your own global contract in step 2. Set
    `ZI_PAYER_ACCOUNT=example-zi-payer.testnet`, `ZI_SWEEPER_ACCOUNT=example-zi-merchant.testnet`,
    `ZI_TAXVAULT_ACCOUNT=example-zi-taxvault.testnet`, and for `ZI_PAYER_KEY` / `ZI_SWEEPER_KEY` paste the
    `private_key` values from `~/.near-credentials/testnet/example-zi-payer.testnet.json` and
    `~/.near-credentials/testnet/example-zi-merchant.testnet.json`. `.env` is gitignored: never commit it.
    Load it in every shell with `set -a; source .env; set +a`.
 
-4. Issue an invoice. This makes no RPC call and needs no key; the address is computed locally:
+4. Issue an invoice. It needs no key and the address is computed locally; by default it makes two read-only RPC calls
+   (network check, and that the merchant and tax vault accounts exist). Add `--offline` to skip them:
 
    ```bash
    npm run zi -- invoice new --id INV-RUN-1 --merchant example-zi-merchant.testnet \
@@ -394,8 +396,8 @@ transfer has succeeded or failed.
   transfer (nothing visibly happens), then runs `zi pay`. `pay()` looks only at the attached deposit, settles a
   second amount (92/8, PAID), and the first amount stays parked until `sweep()` sends it to the merchant as
   `EXTRA_SWEPT`, with no tax share and no refund because the payer is unknown. Impact: the payer is charged twice,
-  the vault gets 0.08 instead of 0.16 on a 1 NEAR invoice. Mitigation in v1: check `zi status` before paying and
-  `zi sweep` instead if a balance is parked. v2 fix: in `pay()`, if status is OPEN and the free balance minus the
+  the vault gets 0.08 instead of 0.16 on a 1 NEAR invoice. Mitigation in v1: `zi pay` checks the account first and
+  refuses to pay when a balance is already parked (it tells you to run `zi sweep`; `--allow-parked` overrides). v2 fix: in `pay()`, if status is OPEN and the free balance minus the
   deposit already covers `amount`, settle the parked funds as `sweep()` does and refund the deposit in full.
 
 ## Pre-hackathon code
@@ -404,8 +406,9 @@ There is no code from before the hackathon window. The repository's first commit
 frozen plan, and it contains `docs/plan/reference/`: a reference implementation (the TypeScript sources, tests and
 the contract) that was **drafted with Claude during the planning phase of this hackathon (2026-11-08/09)**, not
 before it. Task T02 (`9c4faf7`, "scaffold the repo from reference/") copied it verbatim into `src/` and
-`contract/`. The deployed contract is that reference contract, and `src/bytes.ts`, `config.ts`, `outcome.ts`,
-`rpc.ts`, `send.ts`, `stateinit.ts`, `tx.ts` and `vectors.ts` are unchanged from it. Anyone reading a diff that
+`contract/`. The deployed contract is that reference contract. `src/outcome.ts`, `tx.ts` and `vectors.ts` are still
+unchanged from it; `bytes.ts`, `config.ts`, `rpc.ts`, `send.ts` and `stateinit.ts` were later changed by the audit fixes
+(range checks, the pinned code hash, the testnet check). Anyone reading a diff that
 starts after `38fc3f0` therefore does not see that code; to see the whole history use
 `git log --reverse` (or the diff from the first commit, inclusive). What was added after the reference:
 the scaffold and toolchain, the live testnet spikes and their fixtures (`docs/SPIKES.md`, `fixtures/`), the replay and
