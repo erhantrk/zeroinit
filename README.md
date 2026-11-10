@@ -53,7 +53,7 @@ testnet, and no live v3 run was recorded. Every v3 statement below is marked "v-
 
 ## Try it offline in 2 minutes (no keys, no network) — do X, see Y
 
-Every command below was run in a fresh clone of this repo, with no `.env` (`npm ci --include=dev` needs the npm
+Every command below was run in this checkout, with no `.env` (`npm ci --include=dev` needs the npm
 registry once).
 
 1. `npm ci --include=dev` → installs the 3 runtime packages (`@noble/hashes`, `@noble/curves`, `@scure/base`) plus
