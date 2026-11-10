@@ -474,7 +474,7 @@ dashboard server extensions (`src/replay.ts`, `src/server.ts`, `web/`), the scri
 the docs and the review fixes (including the audit fixes: pinned code hash, issuance validation, exit codes), and the v2
 work after the audit (contract fixes, known-deployments list, re-recorded fixtures, `fixtures/v1/`).
 Test vectors are copied from nearcore (MIT/Apache-2.0), cited inline. A compare link
-(`<REPO_URL>/compare/...hackathon-submission`) is added to this section once the repo is public and the tag exists:
+(`https://github.com/erhantrk/zeroinit/compare/...hackathon-submission`) is added to this section once the repo is public and the tag exists:
 see `docs/SUBMISSION.md`.
 
 ## AI use disclosure
@@ -499,7 +499,7 @@ cargo-near 0.23.0, near-cli-rs 0.31.1. Spec sources: NEP-655, NEP-616, nearcore 
 
 ## Other project by the same builder (NEAR HACKATHON rule Q-015)
 
-Erhan also submits **ProvenExit**: <SIBLING_REPO_URL>. The two projects are independent and
+Erhan also submits **ProvenExit**: https://github.com/erhantrk/provenexit. The two projects are independent and
 share no code.
 
 ## License
