@@ -42,19 +42,38 @@ export function recordInvoiceDoc(cfg: Config, doc: { invoice_id: string }): void
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** Returns the full JSON-RPC response object ({result} or {error}). Throws only on transport failure after 3 tries. */
+const PROXY_VARS = ['HTTPS_PROXY', 'https_proxy', 'HTTP_PROXY', 'http_proxy', 'ALL_PROXY', 'all_proxy'];
+
+/** Turns Node's bare "fetch failed" into a message with the RPC URL and the underlying cause (err.cause code/message). */
+export function describeNetworkError(rpcUrl: string, e: unknown, env: Record<string, string | undefined> = process.env): string {
+  const msg = e instanceof Error ? e.message : String(e);
+  const cause: any = e instanceof Error ? (e as any).cause : undefined;
+  let detail = '';
+  if (cause) {
+    const code = cause.code ? String(cause.code) : '';
+    const cmsg = cause.message ? String(cause.message) : String(cause);
+    detail = ` (cause: ${code && !cmsg.includes(code) ? `${code} ` : ''}${cmsg})`;
+  }
+  const proxySet = PROXY_VARS.some((k) => env[k]);
+  const hint = proxySet && env.NODE_USE_ENV_PROXY !== '1' ? ' Hint: a proxy variable is set; Node ignores it for fetch unless NODE_USE_ENV_PROXY=1 is set.' : '';
+  return `RPC request to ${rpcUrl} failed: ${msg}${detail}.${hint}`;
+}
+
 export async function rpcCall(cfg: Config, method: string, params: unknown, label = `aux: ${method}`): Promise<any> {
   const body = JSON.stringify({ jsonrpc: '2.0', id: 'zi', method, params });
+  const backoffMs = Number(process.env.ZI_RPC_BACKOFF_MS ?? 1000);
   let lastErr: unknown = null;
-  for (let attempt = 0; attempt < 5; attempt++) {   // 429 / 5xx: back off 1, 2, 3, 4 s (public testnet RPCs rate-limit bursts)
+  for (let attempt = 0; attempt < 5; attempt++) {   // 429 / 5xx / network errors: back off 1, 2, 3, 4 s (public testnet RPCs rate-limit bursts)
     try {
       const res = await fetch(cfg.rpcUrl, { method: 'POST', headers: { 'content-type': 'application/json' }, body });
       if (res.status === 429 || res.status >= 500) throw new Error(`RPC HTTP ${res.status}`);
       const json = await res.json();
       if (cfg.record) record(cfg.record, { label, method, params, response: json });
       return json;
-    } catch (e) { lastErr = e; await sleep(1000 * (attempt + 1)); }
+    } catch (e) { lastErr = e; if (attempt < 4) await sleep(backoffMs * (attempt + 1)); }
   }
-  throw lastErr;
+  if (lastErr instanceof Error && lastErr.message.startsWith('RPC HTTP ')) throw new Error(`RPC request to ${cfg.rpcUrl} failed: ${lastErr.message}`);
+  throw new Error(describeNetworkError(cfg.rpcUrl, lastErr));
 }
 
 function unwrap(json: any, what: string): any {

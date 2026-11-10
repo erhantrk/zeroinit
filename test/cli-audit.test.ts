@@ -235,3 +235,15 @@ test('replay of the recorded v1 fixtures passes whatever ZI_CODE_HASH is set to,
   const own = await runCli(['replay', 'fixtures/demo-run.json'], { ZI_CODE_HASH: FOREIGN });
   assert.equal(own.code, 1, 'the current fixtures are pinned to the trusted hash');
 });
+
+test('network failure: the CLI names the RPC URL and the underlying cause, not just "fetch failed"', async () => {
+  const doc = makeDoc(); const dir = tempDir(); writeDoc(dir, doc);
+  const probe = await fakeRpc({}); const url = probe.url; await probe.close();   // a port that was just freed: connection refused
+  const r = await runCli(['verify', doc.invoice_id], { ZI_INVOICE_DIR: dir, ZI_RPC_URL: url, ZI_RPC_BACKOFF_MS: '1' });
+  assert.equal(r.code, 1, r.stdout);
+  assert.ok(r.stderr.includes(`ERROR RPC request to ${url} failed: fetch failed`), r.stderr);
+  assert.match(r.stderr, /cause: .*ECONNREFUSED/);
+  assert.doesNotMatch(r.stderr, /Hint/);   // no proxy variable set
+  const p = await runCli(['verify', doc.invoice_id], { ZI_INVOICE_DIR: dir, ZI_RPC_URL: url, ZI_RPC_BACKOFF_MS: '1', HTTPS_PROXY: 'http://127.0.0.1:1' });
+  assert.match(p.stderr, /NODE_USE_ENV_PROXY=1/);
+});

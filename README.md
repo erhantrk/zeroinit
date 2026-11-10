@@ -50,12 +50,12 @@ registry once).
    found 0 vulnerabilities
    ```
 
-2. `npm test` → 97 tests, all pass (byte vectors from nearcore 2.14 and the frozen example, encoder parity with
+2. `npm test` → 98 tests, all pass (byte vectors from nearcore 2.14 and the frozen example, encoder parity with
    near-api-js 7.4.0, outcome/replay/CLI tests, v1 and v2 fixtures, the three audit scenarios):
 
    ```
-   # tests 97
-   # pass 97
+   # tests 98
+   # pass 98
    # fail 0
    # skipped 0
    ```
@@ -178,6 +178,26 @@ another one).
    `DvNnUtvqMg5Q5e2Mn4fMx7GYBFNFhTo7z9wo64szAFKG` (2026-11-10, signer `sm1110-zi-deployer.testnet`, one-time burn:
    8.2949 NEAR). The v1 wasm (digest `912ae75e…c3c9`, hash `Amg4WXKy…GW6k`) was deployed by
    `DSXd2Sjq59zRF2ZX9j3D8SMYd6GZ44XpsW1aJbKfpJ1h` (burn 7.8526 NEAR); `git show e5581e8:contract/res/zeroinit_invoice.wasm` prints it.
+
+### Rebuild the wasm (reproducible build)
+
+A judge's fresh-clone rebuild with `cargo near build reproducible-wasm` produced a byte-identical wasm: sha256
+`3562e978e6924a2c538e9906fc42d15a652947891f18f7816e3c7807d20f622f`, 82,942 bytes. We did not re-run that build
+ourselves for this note (Docker is not usable in the environment where these fixes were made). To repeat it you need
+Docker running, cargo-near 0.23.0 and a clean git checkout (the reproducible build refuses a dirty tree):
+
+```bash
+cd contract
+cargo near build reproducible-wasm
+shasum -a 256 target/near/zeroinit_invoice.wasm   # expect 3562e978…f622f, same as contract/res/zeroinit_invoice.wasm
+```
+
+The build settings live in `[package.metadata.near.reproducible_build]` in `contract/Cargo.toml`. Its `image_digest`
+is still `UNSET`: the digest of the build image has not been recorded yet, so the image is pinned by tag only.
+Also, the tag `0.23.0-rust-1.95.0` is not in Docker Hub's tag list for `sourcescan/cargo-near` (checked on
+2026-11-10), so `image` needs to be set to the image the judge actually used before the digest can be written.
+The operator should do both after a run with Docker: read the digest with `docker images --digests sourcescan/cargo-near`
+and put it in `image_digest`.
 
 ## Run it yourself on testnet
 
@@ -432,7 +452,7 @@ the same terms give a different address under v2 (the v2 invoices are new, `-V2`
 |---|---|---|---|
 | **contract-1** (medium) | A payer's plain transfer is parked before expiry; after `expires_at_ms` anyone sends the PAY shape with a 0 deposit, `pay()` sets `EXPIRED`, and the later `sweep()` forwards everything to the merchant as `EXTRA_SWEPT`: the tax vault gets 0 and the record shows `paid_amount 0`. | `sweep()` treats `EXPIRED` with `paid_amount == 0` like `OPEN`: `avail ≥ amount` settles 92/8 (`PAID`, `late: true`); less than `amount` is released pro rata (`tax_bps` to the vault). The merchant never receives the tax share of funds that arrived before a payment. | `AUD1-V2`: plain transfer `5CuBjV7tkVt5U6kCrmvjikvgKKcwdKwsqVED2Wyy7arH`, zero-deposit pay after expiry `678rsqwkrqP6af9EKywJqJzYPKyU9oaFqd9YmRDmjsqm` (`REFUNDED_EXPIRED`, the 0.1 NEAR stays parked), sweep `8WQr2GUmH5ojoB1zniD2G4Q6V7PiRk2zjLUyYLpB4GNg` → `PAID`, 0.092 to the merchant and **0.008 to the tax vault**, record `tax_amount` 0.008. |
 | **contract-3** (low) | `pay()` looks only at the attached deposit: a payer who first sent a plain transfer and then paid is charged twice, and the first amount reaches the merchant untaxed. | `pay()` on an `OPEN`, unexpired invoice whose free balance minus the deposit already covers `amount` settles the parked funds like `sweep()` and refunds the whole deposit (`payment_refunded`, reason `already_funded`). | `AUD3-V2`: plain transfer `4Eon125bA7ujoLgku6DYoQ6XjgrvMd1aVq4hZGfkwysK`, then pay `3YPLdAp58fc8Fz6kTinRpQfXyT28ExmVY3NGXjL3p4WX` → `PAID`, 0.1 NEAR back to the payer, one 92/8 split (0.092 / 0.008), 0 left on the invoice. |
-| **contract-2** (low) | A failed merchant/tax transfer (a valid id of a missing account) bounces to the invoice account while the record already says PAID; a bounced tax share later went to the merchant. | Merchant and tax transfers carry an `on_transfer` callback: a failure emits `transfer_failed`, the tax share is tracked as owed (`OWED_TAX`, outside the frozen state; view `get_owed_tax()`), and a later `sweep()` re-sends it to the tax vault only (`tax_resent`, `TAX_RESENT`). | `AUD2-V2` (tax vault `unregistered.sm1110-zi-taxvault.testnet`, a nonexistent subaccount that only our own tax-vault account could ever create): pay `ARgzUkMKTZE46DkHVrjjHMqEQUWNMRqJ4QvTT1JaRYeg` → `PAID` + `transfer_failed` (role tax, 0.008) and 0.008 back on the invoice; sweep `7z45ySFYduzwEDAQVneYZHHyjyV9gkGYHQqTe2szgRqj` → `TAX_RESENT` to the vault only, no `extra_swept` to the merchant. |
+| **contract-2** (low) | A failed merchant/tax transfer (a valid id of a missing account) bounces to the invoice account while the record already says PAID; a bounced tax share later went to the merchant. | Merchant and tax transfers carry an `on_transfer` callback: a failure emits `transfer_failed`, the tax share is tracked as owed (`OWED_TAX`, outside the frozen state; view `get_owed_tax()`), and a later `sweep()` re-sends it to the tax vault (`tax_resent`, `TAX_RESENT`) and never to the merchant. | `AUD2-V2` (tax vault `unregistered.sm1110-zi-taxvault.testnet`, a nonexistent subaccount that only our own tax-vault account could ever create): pay `ARgzUkMKTZE46DkHVrjjHMqEQUWNMRqJ4QvTT1JaRYeg` → `PAID` + `transfer_failed` (role tax, 0.008) and 0.008 back on the invoice; sweep `7z45ySFYduzwEDAQVneYZHHyjyV9gkGYHQqTe2szgRqj` → `TAX_RESENT`: `tax_resent` 0.008 to the vault, no `extra_swept` to the merchant. This retry bounced again because the vault does not exist, so the 0.008 NEAR is still parked on the invoice; the case where the vault exists and receives the re-sent tax has not been run live yet; it is planned for the Live step. |
 
 The v1 behaviour above comes from the audit and the v1 code; v1 invoices were not re-run live (they stay as the recorded
 history). The `audit_contract_*` unit tests in `contract/src/lib.rs` pass on v2 (`cargo test`: 14 tests). Each one replays an audit scenario step by step;
@@ -488,6 +508,7 @@ see `docs/SUBMISSION.md`.
   Claude Sonnet) and the audit fixes. **The v2 work** (contract v2, the known-deployments client changes, the
   re-recorded v2 fixtures and live audit scenarios, the docs) was written by Claude Sonnet 5.5; the live v2 recordings
   were run by it with the operator-approved testnet accounts.
+- **Judge quick fixes** (`zi` network error messages, the reproducible-build note, the contract-2 wording): Claude Sonnet 5.5.
 - **Claude Opus 5.5:** the final review, the audit, and the operator role (testnet accounts, funding and the global
   contract deploys, T04/T05; **the v2 global deploy** `DvNnUtvq…szAFKG` and the funding for the v2 runs).
 - **Human:** Erhan. Every protocol claim is checked by a test or an on-chain transaction listed above.
