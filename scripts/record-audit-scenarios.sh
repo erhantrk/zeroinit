@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Records fixtures/audit-scenarios.json live on testnet: the three audit findings (contract-1/2/3) re-run against contract v2.
+# Records fixtures/v2/audit-scenarios.json live on testnet: the three audit findings (contract-1/2/3) re-run against contract v2.
 # Usage: scripts/record-audit-scenarios.sh [SUFFIX]      default suffix V2; invoice ids must be new each run
 #   AUD1-<S>  contract-1: plain transfer before expiry, a zero-deposit pay after expiry, then sweep  -> the tax vault still gets its share
 #   AUD3-<S>  contract-3: plain transfer, then pay with a full deposit                              -> the deposit is refunded, no double charge
@@ -11,7 +11,7 @@ set -a; source .env; set +a
 S="${1:-V2}"
 M="${ZI_SWEEPER_ACCOUNT:?set ZI_SWEEPER_ACCOUNT}"
 V="${ZI_TAXVAULT_ACCOUNT:?set ZI_TAXVAULT_ACCOUNT}"
-export ZI_RECORD=fixtures/audit-scenarios.json
+export ZI_RECORD=fixtures/v2/audit-scenarios.json
 zi() { npm run -s zi -- "$@"; }
 new() { local id="$1" exp="$2" vault="${3:-$V}"; shift 3 || shift $#; zi invoice new --id "$id" --merchant "$M" --tax-vault "$vault" --tax-bps 800 --amount 0.1 --expires-in "$exp" "$@"; }
 acct() { node -e "console.log(JSON.parse(require('fs').readFileSync('invoices/$1.json','utf8')).account_id)"; }

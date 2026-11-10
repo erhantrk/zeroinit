@@ -8,7 +8,7 @@ import { replayFixture } from '../src/replay.ts';
 // v1 history (fixtures/v1/, ids INV-1111-A/B/C) and the v2 re-recording (fixtures/, ids INV-1111-V2-A/B/C).
 const RUNS = [
   { name: 'v1', file: 'fixtures/v1/demo-run.json', mid: '1111' },
-  { name: 'v2', file: 'fixtures/demo-run.json', mid: '1111-V2' },
+  { name: 'v2', file: 'fixtures/v2/demo-run.json', mid: '1111-V2' },
 ];
 
 for (const { name, file, mid } of RUNS) {

@@ -1,9 +1,11 @@
 node_modules/
 contract/target/
+contract-v2/target/
 .env
 invoices/*.json
 invoices/*.receipt.json
 !invoices/examples/
+!invoices/v2/
 !invoices/demo/
 *.log
 .DS_Store

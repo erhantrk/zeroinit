@@ -1,4 +1,4 @@
-// The three audit scenarios (contract-1/2/3), re-run LIVE against contract v2 and recorded in fixtures/audit-scenarios.json
+// The three audit scenarios (contract-1/2/3), re-run LIVE against contract v2 and recorded in fixtures/v2/audit-scenarios.json
 // (scripts/record-audit-scenarios.sh). Each test pins what v1 got wrong and v2 must now do, from the recorded tx results.
 // Run: node --test test/audit-scenarios.test.ts
 import { test } from 'node:test';
@@ -11,7 +11,7 @@ import { accountStateFromResponse, decodeViewResult } from '../src/rpc.ts';
 import { parseNear } from '../src/bytes.ts';
 import { DEPLOYED, tempDir } from './helpers.ts';
 
-const FIXTURE = 'fixtures/audit-scenarios.json';
+const FIXTURE = 'fixtures/v2/audit-scenarios.json';
 const load = () => JSON.parse(readFileSync(FIXTURE, 'utf8'));
 const f = load();
 const doc = (id: string): any => { const d = f.invoices.find((x: any) => x.invoice_id === id); assert.ok(d, `${id} missing`); return d; };

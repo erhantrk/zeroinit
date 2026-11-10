@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { parseTxStatus } from '../src/outcome.ts';
 
-const f = JSON.parse(readFileSync('fixtures/synthetic-demo.json', 'utf8'));
+const f = JSON.parse(readFileSync('fixtures/v2/synthetic-demo.json', 'utf8'));
 const doc = f.invoices[0];
 const txs = f.calls.find((c: any) => c.label === 'pay: tx_status').response.result;
 

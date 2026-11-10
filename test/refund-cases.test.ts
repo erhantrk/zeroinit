@@ -11,7 +11,7 @@ import { parseNear } from '../src/bytes.ts';
 // v1 history (fixtures/v1/, ids REF-*) and the v2 re-recording (fixtures/, ids REF-*-V2).
 const RUNS = [
   { name: 'v1', FIXTURE: 'fixtures/v1/refund-cases.json', sfx: '' },
-  { name: 'v2', FIXTURE: 'fixtures/refund-cases.json', sfx: '-V2' },
+  { name: 'v2', FIXTURE: 'fixtures/v2/refund-cases.json', sfx: '-V2' },
 ];
 
 for (const { name, FIXTURE, sfx } of RUNS) {

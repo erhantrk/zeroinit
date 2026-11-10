@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Usage: scripts/demo.sh <suffix>     e.g. scripts/demo.sh 1112a   (invoice ids INV-<suffix>-A/B/C must be new each run)
-# Non-interactive (no TTY): the prompts are skipped. The recorded v2 run: ZI_RECORD=fixtures/demo-run.json scripts/demo.sh 1111-V2 </dev/null
+# Non-interactive (no TTY): the prompts are skipped. The recorded v2 run: ZI_RECORD=fixtures/v2/demo-run.json scripts/demo.sh 1111-V2 </dev/null
 set -euo pipefail
 cd "$(dirname "$0")/.."
 set -a; source .env; set +a

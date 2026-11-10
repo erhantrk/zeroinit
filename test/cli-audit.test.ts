@@ -229,10 +229,10 @@ test('replay of the recorded v1 fixtures passes whatever ZI_CODE_HASH is set to,
     assert.equal(r.code, 0, r.stdout);
     assert.match(r.stdout, /^INFO deployment v1 \(history/);
   }
-  const r = await runCli(['replay', 'fixtures/demo-run.json'], {});
+  const r = await runCli(['replay', 'fixtures/v2/demo-run.json'], {});
   assert.equal(r.code, 0, r.stdout);
   assert.match(r.stdout, /^INFO deployment v2 \(current/);
-  const own = await runCli(['replay', 'fixtures/demo-run.json'], { ZI_CODE_HASH: FOREIGN });
+  const own = await runCli(['replay', 'fixtures/v2/demo-run.json'], { ZI_CODE_HASH: FOREIGN });
   assert.equal(own.code, 1, 'the current fixtures are pinned to the trusted hash');
 });
 

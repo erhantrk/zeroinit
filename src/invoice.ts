@@ -142,10 +142,10 @@ export function saveDoc(dir: string, d: InvoiceDoc): string {
   return p;
 }
 export function loadDoc(dir: string, id: string): InvoiceDoc {
-  for (const p of [join(dir, `${id}.json`), join(dir, 'examples', `${id}.json`), join(dir, 'demo', `${id}.json`), join(dir, 'v1', `${id}.json`)]) {
+  for (const p of [join(dir, `${id}.json`), join(dir, 'examples', `${id}.json`), join(dir, 'v2', `${id}.json`), join(dir, 'v1', `${id}.json`), join(dir, 'demo', `${id}.json`)]) {
     if (existsSync(p)) return JSON.parse(readFileSync(p, 'utf8'));
   }
-  throw new Error(`invoice ${id} not found in ${dir}/, ${dir}/examples/, ${dir}/demo/ or ${dir}/v1/`);
+  throw new Error(`invoice ${id} not found in ${dir}/, ${dir}/examples/, ${dir}/v2/, ${dir}/v1/ or ${dir}/demo/`);
 }
 export function listDocs(dir: string): InvoiceDoc[] {
   if (!existsSync(dir)) return [];

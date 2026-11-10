@@ -10,7 +10,7 @@ import { DEPLOYED, V1, FOREIGN, tempDir } from './helpers.ts';
 
 const RUNS = [
   { v: 'v1', dir: 'fixtures/v1', hash: V1, mid: '1111', sfx: '' },
-  { v: 'v2', dir: 'fixtures', hash: DEPLOYED, mid: '1111-V2', sfx: '-V2' },
+  { v: 'v2', dir: 'fixtures/v2', hash: DEPLOYED, mid: '1111-V2', sfx: '-V2' },
 ];
 const failed = (checks: any[]) => checks.filter((c) => !c.ok).map((c) => `${c.name} ${c.id}`);
 const callOf = (f: any, id: string, label: string) => f.calls.find((c: any) => c.invoice_id === id && c.label === label);

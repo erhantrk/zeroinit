@@ -21,4 +21,4 @@ const f = { format:'zeroinit-fixture/1', synthetic:true, recorded_at_iso:'SYNTHE
  {seq:2,invoice_id:'INV-0001',label:'after: view_account',method:'query',params:{request_type:'view_account',finality:'final',account_id:doc.account_id},
   response:{jsonrpc:'2.0',id:'zi',result:{amount:'0',locked:'0',code_hash:'11111111111111111111111111111111',storage_usage:300,storage_paid_at:0,global_contract_hash:doc.code_hash,block_height:1,block_hash:'x'}}},
  {seq:3,invoice_id:'INV-0001',label:'after: get_invoice',method:'query',params:{request_type:'call_function'},response:{jsonrpc:'2.0',id:'zi',result:{result:[...Buffer.from(JSON.stringify(inv))],logs:[],block_height:1,block_hash:'x'}}}]};
-writeFileSync('fixtures/synthetic-demo.json', JSON.stringify(f,null,2)+'\n');
+writeFileSync('fixtures/v2/synthetic-demo.json', JSON.stringify(f,null,2)+'\n');

@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# Records fixtures/refund-cases.json live on testnet (TASKS T10) with new invoice ids "<ID>-<SUFFIX>".
+# Records fixtures/v2/refund-cases.json live on testnet (TASKS T10) with new invoice ids "<ID>-<SUFFIX>".
 # Usage: scripts/record-refund-cases.sh [SUFFIX]      default suffix V2 (v2 contract); ids must be new each run
-# Writes to fixtures/refund-cases.json (delete the old one first). Needs .env with payer, merchant (sweeper) and taxvault.
+# Writes to fixtures/v2/refund-cases.json (delete the old one first). Needs .env with payer, merchant (sweeper) and taxvault.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 set -a; source .env; set +a
 S="${1:-V2}"
 M="${ZI_SWEEPER_ACCOUNT:?set ZI_SWEEPER_ACCOUNT}"
 V="${ZI_TAXVAULT_ACCOUNT:?set ZI_TAXVAULT_ACCOUNT}"
-export ZI_RECORD=fixtures/refund-cases.json
+export ZI_RECORD=fixtures/v2/refund-cases.json
 zi() { npm run -s zi -- "$@"; }
 new() { zi invoice new --id "$1" --merchant "$M" --tax-vault "$V" --tax-bps 800 --amount 0.1 --expires-in "$2"; }
 new "REF-UNDER-$S" 2h
