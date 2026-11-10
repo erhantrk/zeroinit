@@ -122,7 +122,7 @@ export function serve(cfg: Config, port: number): Promise<Server> {
             const p = await sendActions(cfg, signer, doc.account_id, [stateInitAction(doc, trusted), actFunctionCall(m[2], utf8('{}'), GAS, deposit)], m[2]);
             // pay() refunds instead of panicking: only PAID is a payment (409 + paid:false for REFUNDED_*).
             const paid = p.success && (!isPay || p.returnValue === 'PAID');
-            return send(res, !p.success ? 502 : paid ? 200 : 409, { paid, tx_hash: p.txHash, result: p.returnValue, events: p.events,
+            return send(res, !p.success ? 502 : paid ? 200 : 409, { paid, tx_hash: p.txHash, result: p.returnValue, events: p.events, transfers_failed: p.downstreamFailures.length,
               transfers: p.transfers.map((t) => ({ to: t.to, yocto: t.yocto.toString() })) });
           } catch (e) {
             return send(res, 502, { error: message(e) });

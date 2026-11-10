@@ -10,7 +10,9 @@ import { base58 } from '@scure/base';
 import { parseNear } from '../src/bytes.ts';
 import { createInvoiceDoc, saveDoc, type InvoiceDoc } from '../src/invoice.ts';
 
-export const DEPLOYED = 'Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k';
+/** The current (v2) deployed hash, the default trusted hash. V1 is the frozen history deployment. */
+export const DEPLOYED = '4bQ61AgHWWmYXp5c3fwj9NJxS79D9R3cGZAZxHyx9zEA';
+export const V1 = 'Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k';
 export const FOREIGN = base58.encode(new Uint8Array(32).fill(0xee));
 
 export const tempDir = (): string => mkdtempSync(join(tmpdir(), 'zi-test-'));

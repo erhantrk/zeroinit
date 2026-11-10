@@ -5,7 +5,7 @@ import { base58 } from '@scure/base';
 import { toHex, formatNear } from './bytes.ts';
 import { invoiceStateBytes, invoiceStateInit, isValidNearAccountId, type InvoiceTerms, type CodeRef, type Scheme } from './stateinit.ts';
 import { actUniversalStateInit, actDeterministicStateInit } from './tx.ts';
-import type { Config } from './config.ts';
+import { deploymentOf, type Config } from './config.ts';
 import { checkNetwork, viewAccount } from './rpc.ts';
 
 export { isValidNearAccountId };
@@ -96,7 +96,7 @@ export function checkDoc(d: InvoiceDoc, trusted?: string): DocChecks {
 /** Refuse to sign anything for a doc that is not exactly the invoice its terms + the pinned code hash derive. */
 export function assertDocTrusted(d: InvoiceDoc, trusted: string): void {
   const c = checkDoc(d, trusted);
-  const bad = [!c.codeHashTrusted && `code_hash ${d.code_hash} is not the trusted hash ${trusted}`, !c.idFromTerms && `account_id does not match the terms (expected ${c.expectedId})`,
+  const bad = [!c.codeHashTrusted && `code_hash ${d.code_hash} is not the trusted hash ${trusted}${deploymentOf(d.code_hash)?.historical ? ` (it is the ${deploymentOf(d.code_hash)!.version} deployment: history, verify only; issue and pay on the trusted hash)` : ''}`, !c.idFromTerms && `account_id does not match the terms (expected ${c.expectedId})`,
     !c.rawFromTerms && 'raw_state_init_hex does not match the terms', !c.fieldsConsistent && 'display fields (amount_near/expires_at_iso/state_hex/format/network) do not match the terms'].filter(Boolean);
   if (bad.length) throw new Error(`refusing invoice ${d.invoice_id}: ${bad.join('; ')}`);
 }
@@ -142,10 +142,10 @@ export function saveDoc(dir: string, d: InvoiceDoc): string {
   return p;
 }
 export function loadDoc(dir: string, id: string): InvoiceDoc {
-  for (const p of [join(dir, `${id}.json`), join(dir, 'examples', `${id}.json`), join(dir, 'demo', `${id}.json`)]) {
+  for (const p of [join(dir, `${id}.json`), join(dir, 'examples', `${id}.json`), join(dir, 'demo', `${id}.json`), join(dir, 'v1', `${id}.json`)]) {
     if (existsSync(p)) return JSON.parse(readFileSync(p, 'utf8'));
   }
-  throw new Error(`invoice ${id} not found in ${dir}/, ${dir}/examples/ or ${dir}/demo/`);
+  throw new Error(`invoice ${id} not found in ${dir}/, ${dir}/examples/, ${dir}/demo/ or ${dir}/v1/`);
 }
 export function listDocs(dir: string): InvoiceDoc[] {
   if (!existsSync(dir)) return [];

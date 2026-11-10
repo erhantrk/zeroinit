@@ -1,7 +1,8 @@
 # ZeroInit — Architecture
 
 One immutable contract, one derivation function, and three transaction shapes. Everything below runs on NEAR
-testnet at protocol 88; `docs/SPIKES.md` (sections S-A…S-E) records the live transactions that prove it.
+testnet at protocol 88; `docs/SPIKES.md` (sections S-A…S-E, and "Contract v2") records the live transactions that prove it.
+The current contract is **v2** (code hash `4bQ61AgHWWmYXp5c3fwj9NJxS79D9R3cGZAZxHyx9zEA`); v1 (`Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k`) stays on testnet as recorded history, see "v1 → v2" at the end.
 
 ## Diagram
 
@@ -58,7 +59,7 @@ Facts this relies on (all verified in source / official tests; Day-0 spikes re-p
   so no key exists that could ever sign for it. `zi verify` asks RPC `view_access_key_list` and prints
   `PASS no-access-keys` only when the list is empty.
 - **The code is fixed by hash.** The invoice account is a global-contract account: `view_account.global_contract_hash`
-  must equal the deployed code hash (`Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k`, checked by `PASS code-hash-onchain`).
+  must equal the deployed code hash (v2 `4bQ61AgHWWmYXp5c3fwj9NJxS79D9R3cGZAZxHyx9zEA`, checked by `PASS code-hash-onchain`; v1 history invoices are checked against the v1 hash and labelled by `zi verify`).
   A state init can only install code whose hash is already baked into the address, and repeating it on an initialized
   account is a no-op that refunds the deposit (INTERFACES §1, fact 3).
 - **The terms are in the address.** The id is `0u` + crockford-base32(SHA3-256(borsh
@@ -77,41 +78,40 @@ Facts this relies on (all verified in source / official tests; Day-0 spikes re-p
 
 ## Costs measured
 
-Measured on testnet 2026-11-10 (protocol 88, code hash `Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k`); the raw
-output and tx hashes are in `docs/SPIKES.md` → S-E.
+v1 numbers were measured on testnet 2026-11-10 (protocol 88, code hash `Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k`); the raw output and tx hashes are in
+`docs/SPIKES.md` → S-E. The v2 rows come from the re-recorded fixtures (`docs/SPIKES.md` → "Contract v2 live").
 
 | What | Measured | Evidence |
 |---|---|---|
-| `storage_usage` after `pay()` | **352 B** — well under the 770 B zero-balance limit (INTERFACES §4.3 estimated ~312 B before and ~329 B after) | SMOKE-1, `zi status SMOKE-1 --json` → `storageUsage:352` |
-| `storage_usage` after `sweep()` (plain-transfer path) | **325 B** | SMOKE-2, `zi sweep` → `storage=325` |
-| State-init deposit needed | **0** — the pre-approved 0.01 NEAR deposit was not needed | both rows above ≤ 770 B |
-| Payer cost of one materialization | **0.0073617847981195 NEAR** on a 0.1 NEAR invoice (7.36%): gas plus the protocol's 0.007 NEAR account-creation charge | balance 9.6847289421768805 → 9.577367157378761 NEAR minus 0.1, equal to the tx's `tokens_burnt`; pay tx `AaVJr8jgAZ2jwG4j4xR5pYvFnDPbfFADvBWpNrDuHY3M` |
-| One-time global deploy burn | **7.8526 NEAR** for the 78,519-byte wasm (deployer 10 NEAR → 2.1474 NEAR); not a per-invoice cost | deploy tx `DSXd2Sjq59zRF2ZX9j3D8SMYd6GZ44XpsW1aJbKfpJ1h` |
+| `storage_usage` after `pay()` | v1 **352 B**, v2 **358 B** — well under the 770 B zero-balance limit (INTERFACES §4.3 estimated ~312 B before and ~329 B after) | v1 SMOKE-1, `zi status SMOKE-1 --json`; v2 `INV-1111-V2-A` (`storage=358`) |
+| `storage_usage` after `sweep()` (plain-transfer path) | v1 **325 B**, v2 **331 B** | v1 SMOKE-2; v2 `INV-1111-V2-B` (`storage=331`) |
+| `storage_usage` while a tax share is owed (v2 `OWED_TAX` key) | **429 B** | `AUD2-V2` (`storage=429`) |
+| State-init deposit needed | **0** — the pre-approved 0.01 NEAR deposit was not needed | all rows above ≤ 770 B |
+| Tokens burnt by one `pay` tx that creates the account (all receipts summed) | v1 **0.0073621 NEAR**, v2 **0.0077197 NEAR** (15.5 vs 11.5 Tgas: the two `on_transfer` callbacks) | `INV-1111-A` and `INV-1111-V2-A` in the fixtures. v1 payer cost on a 0.1 NEAR invoice (balance diff): 0.0073617847981195 NEAR, pay tx `AaVJr8jgAZ2jwG4j4xR5pYvFnDPbfFADvBWpNrDuHY3M`. The protocol's 0.007 NEAR account-creation charge is included; when a plain transfer created the account first (`AUD3-V2`) the pay tx itself burnt 0.0015 NEAR |
+| One-time global deploy burn | v1 **7.8526 NEAR** (78,519-byte wasm), v2 **8.2949 NEAR** (82,942-byte wasm); not per-invoice costs | v1 deploy tx `DSXd2Sjq59zRF2ZX9j3D8SMYd6GZ44XpsW1aJbKfpJ1h`; v2 deploy tx `DvNnUtvqMg5Q5e2Mn4fMx7GYBFNFhTo7z9wo64szAFKG` |
 
 Issuing an invoice costs nothing and sends no transaction. After a completed payment the account sits at 0 NEAR
 (352 B of storage, below the zero-balance limit), so there is no per-invoice storage to fund and nothing left
 behind for the merchant to reclaim.
 
-## Known limitations (contract v1, frozen)
+## v1 → v2
 
-The contract is deployed by code hash (`Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k`) and all fixtures depend on
-it, so these audit findings are documented, not fixed; a fix is a v2 (new wasm, new hash). `pay()` and `sweep()`
-write the record and emit `invoice_paid` in the same receipt that schedules detached transfers (no callback), so
-the design does **not** give atomicity between the record and the money movement.
+v1 was a global contract and cannot be patched. The audit found three issues in it; **v2** fixes them in a new wasm (new
+code hash, same borsh state layout, same methods and events plus additions). `pay()` and `sweep()` still write the record
+and emit `invoice_paid` in the same receipt that schedules the transfers, so atomicity between the record and the money
+movement is **not** claimed; v2 adds callbacks that record what failed.
 
-1. **contract-1 (medium): tax skipped after EXPIRED.** Funds parked by a plain transfer before expiry, then anyone
-   sends `pay()` with a 0 deposit after `expires_at_ms`: the invoice becomes `EXPIRED` (paid_amount 0), and a later
-   `sweep()` (non-OPEN branch) sends the whole balance to the merchant as `EXTRA_SWEPT`. The tax vault gets 0
-   instead of `tax_bps`. Sweeping before expiry splits correctly. v2: apply the split in `sweep()` to funds that
-   arrive while `paid_amount == 0` even after `EXPIRED`, and always route `tax_bps` of extra-swept funds to the vault.
-2. **contract-2 (low): failed transfer after PAID.** If the merchant or tax vault is a valid id of a non-existent
-   account, its detached transfer fails and bounces to the invoice account while the record already says PAID.
-   A bounced tax share is later forwarded to the merchant by `sweep()`; a missing merchant leaves the funds stuck
-   until someone registers that name. The CLI/dashboard check both accounts exist when issuing (hand-made
-   invoices bypass this). v2: `then()` callbacks recording failed transfers, retrying a failed tax share to the
-   vault only (`pending_tax`).
-3. **contract-3 (low): `pay()` ignores parked funds.** A payer who already sent the amount by plain transfer and
-   then runs `pay` is charged twice: the second amount is split 92/8, the first stays parked and goes to the
-   merchant untaxed via `sweep()` with no refund path (payer unknown). Check `zi status` before paying. v2: in
-   `pay()`, if OPEN and the free balance minus the deposit already covers `amount`, settle the parked funds like
-   `sweep()` and refund the deposit.
+| Finding | v1 behaviour | v2 fix | Live evidence (`fixtures/audit-scenarios.json`) |
+|---|---|---|---|
+| contract-1 (medium): tax skipped after EXPIRED | funds parked by a plain transfer, a 0-deposit `pay()` after expiry sets `EXPIRED`, and `sweep()` sends everything to the merchant: the tax vault gets 0 | `sweep()` treats `EXPIRED` with `paid_amount == 0` like `OPEN` (92/8, `late: true`; pro rata if short) | `AUD1-V2`: zero pay `678rsqwk…`, sweep `8WQr2GUm…` → vault gets 0.008 |
+| contract-3 (low): `pay()` ignores parked funds | transfer then pay charges twice, the first amount reaches the merchant untaxed | `pay()` settles parked funds like `sweep()` and refunds the whole deposit (`already_funded`) | `AUD3-V2`: pay `3YPLdAp5…` → deposit refunded, one split |
+| contract-2 (low): failed transfer after PAID | the record says PAID, the bounced funds go to the merchant on the next sweep | `on_transfer` callbacks emit `transfer_failed`, the tax stays owed (`OWED_TAX`, `get_owed_tax()`), `sweep()` re-sends it to the vault only (`tax_resent`) | `AUD2-V2`: pay `ARgzUkMK…`, sweep `7z45ySFY…` → `TAX_RESENT` |
+
+Residual: `invoice_paid` precedes the transfers; extra funds arriving while a tax transfer is in flight can be sent to the
+vault as the owed share; a nonexistent merchant still cannot receive its share, so the CLI and the dashboard check both
+accounts exist at issue time. Full tx hashes and the README table are in `README.md` → "v1 → v2".
+
+Client side (`src/config.ts`): a known-deployments list holds v2 (current, the default trusted hash) and v1 (historical).
+`zi verify`, `zi receipt` and `zi replay` accept a v1 invoice or fixture against the v1 hash to replay the recorded history
+and say which deployment it uses; `zi pay`, `zi sweep`, `zi init`, `zi invoice new` and the dashboard use only the trusted
+hash (v2 or the `ZI_CODE_HASH` pin). Foreign hashes are never accepted.

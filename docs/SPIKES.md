@@ -2,6 +2,12 @@
 
 Live testnet results and build numbers. Every tx hash recorded here is real unless marked synthetic.
 
+**Current contract: v2** (code hash `4bQ61AgHWWmYXp5c3fwj9NJxS79D9R3cGZAZxHyx9zEA`, deploy tx `DvNnUtvqMg5Q5e2Mn4fMx7GYBFNFhTo7z9wo64szAFKG`), see the last two
+sections ("Contract v2 build", "Contract v2 live"). Everything above them is the **v1** log (code hash
+`Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k`), kept as recorded history. When a v1 section names `fixtures/demo-run.json`,
+`fixtures/refund-cases.json` or `invoices/demo/`, those recordings now live in `fixtures/v1/` and `invoices/v1/`; the v2
+re-recordings took the old paths (with `-V2` invoice ids).
+
 ## T03 build
 
 - wasm: `contract/res/zeroinit_invoice.wasm`
@@ -10,7 +16,7 @@ Live testnet results and build numbers. Every tx hash recorded here is real unle
 - code hash (base58 of sha256): `Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k`
 - cargo-near version: `cargo-near-near 0.23.0`
 - contract tests: `test result: ok. 7 passed; 0 failed`
-- **The contract is now frozen.** Do not rebuild after T05 unless the owner approves; a rebuild = new hash = another ~8 NEAR burn.
+- **v1 was frozen** after T05 (a rebuild = new hash = another ~8 NEAR burn). The audit later justified that burn: see "Contract v2" below.
 
 ## S-B deploy
 
@@ -460,9 +466,75 @@ Claude sessions or reviewed by a human, which did not match the run record or th
 
 ## Contract v2 build (audit contract-1/2/3)
 
-- wasm: `contract/res/zeroinit_invoice.wasm` (v2; v1 is in git history, deployed hash `Amg4WXKy…GW6k`)
+- wasm: `contract/res/zeroinit_invoice.wasm` (v2; v1 is in git history, `git show e5581e8:contract/res/zeroinit_invoice.wasm`)
 - size: 82,942 bytes
 - sha256 hex: `3562e978e6924a2c538e9906fc42d15a652947891f18f7816e3c7807d20f622f`
 - code hash (base58): `4bQ61AgHWWmYXp5c3fwj9NJxS79D9R3cGZAZxHyx9zEA`
-- Not deployed; `ZI_CODE_HASH`, `src/config.ts` and the fixtures are unchanged. Unit tests: 14 pass; the five
-  `audit_contract_*` tests fail against v1 (checked with a v1 copy plus stubs).
+- Unit tests: 14 pass; the five `audit_contract_*` tests fail against v1 (checked with a v1 copy plus stubs).
+- Deployed as a global contract on 2026-11-10 ~13:20 Istanbul by the operator (Claude Opus 5.5, on Erhan's approval) from
+  `sm1110-zi-deployer.testnet`: tx `DvNnUtvqMg5Q5e2Mn4fMx7GYBFNFhTo7z9wo64szAFKG` (a `DeployGlobalContract` action whose
+  code hash is the sha256 above, checked read-only over RPC), burn 8.2949 NEAR for 82,942 bytes. v1 stays deployed as history.
+
+## Contract v2 live
+
+Run 2026-11-10 from ~13:23 Istanbul (testnet, protocol 88, accounts `sm1110-zi-payer/merchant/taxvault`, trusted hash
+= v2). Three recordings with new `-V2` invoice ids; the old v1 recordings were moved to `fixtures/v1/` and still replay.
+RPC: `rpc.testnet.near.org` began answering HTTP 429 ("endpoint is deprecated") during the run, so the default RPC is now
+`https://test.rpc.fastnear.com` and the refund-case recording was redone from scratch on it (the two refund txs of the
+aborted first attempt, `9pqhMqzYScDTN1woZWXF7cwDj4ufsrkHD5dMBNwwWR1W` and `BuKHW3wj2R7L2j8Y7o2XpUaAicF7ZQqkUYu473HNhJuH`,
+are on chain but not in a fixture). `npm run` cannot spawn its shell inside the agent sandbox (`spawn EPERM`), so the
+scripts ran through a shim that maps `npm run -s zi -- …` to `node src/cli.ts …`; the commands are the same.
+
+**Demo run** (`ZI_RECORD=fixtures/demo-run.json scripts/demo.sh 1111-V2`, ids `INV-1111-V2-A/B/C`, 1 NEAR each,
+`fixtures/demo-run.json`, docs in `invoices/demo/`):
+
+| Shot | Tx | Result |
+|---|---|---|
+| A: pay (state init + pay in one tx) | `B7pwrVigiBoziDyFakYa5kFE1JMDkYtg8BNMm2k7XbEz` | `PAID`, 0.92 → merchant, 0.08 → tax vault, `STATE INITIALIZED status=PAID … balance=0 storage=358` |
+| B: plain transfer | `FvENy8cNf5S31tgjydtYsHuYtcb15wAq5epWGJBPnTPK` | `STATE UNINITIALIZED balance=1` |
+| B: sweep | `HUnCWN2kVy3HQVsVZAL3pL3VrcuJAH6XwxDQUgW8Vyig` | `PAID`, 0.92 / 0.08, `paid_by=null`, `storage=331` |
+| C: underpay 0.5 | `GMB8WaGLw2UyBbPVwSPTFU3XnL6uT7FiBVToaqEV2YxH` | `REFUNDED_UNDERPAID`, 0.5 back to the payer, status `OPEN` |
+
+`zi verify INV-1111-V2-A` (live): `PASS code-hash-trusted`, `INFO deployment v2 (current: fixes contract-1/2/3)`,
+`PASS id-from-terms 0udab1xwq7vv8jx0nxbg79gabtq0y3z31822qyfwh8env9bytrpc90`, `PASS raw-from-terms`, `PASS doc-fields-from-terms`,
+`PASS code-hash-onchain 4bQ61AgH…`, `PASS terms-onchain`, `PASS no-access-keys`, `INFO status=PAID`. `zi verify INV-1111-A` on the v1
+invoice still passes and prints `INFO deployment v1 (history, frozen: …)`.
+
+**Refund cases** (`scripts/record-refund-cases.sh V2`, `fixtures/refund-cases.json`, 0.1 NEAR each):
+
+| Case | Tx | Result |
+|---|---|---|
+| REF-UNDER-V2 | `6X6ia7EeVVGmPshQjtWC3LJUuRq5qyhvxS6EtjshYhzr` | `REFUNDED_UNDERPAID`, 0.05 back, status `OPEN` |
+| REF-EXPIRED-V2 | `Gapm9F9VRtQJwW2D3pXAVTDJ9FRyyPxvKYNd1roZ6QgH` | `REFUNDED_EXPIRED`, 0.1 back, status `EXPIRED` |
+| REF-TWICE-V2 | `4QwpapDXDSHRNS4VxEjUkY65KhQsuVtMEhJNXNrK5q7E`, then `FvBz3wEEzq8tcS6PuNKtE4GA6ZkdmHL4M7cUrsuSdeKT` | `PAID` (0.092 / 0.008), then `REFUNDED_NOT_OPEN`, 0.1 back |
+| REF-OVER-V2 | `8syXPJNeDYKtYUXv9cwdBXXvjWawhQTcbWEBcc7vhYvC` | `PAID`: 0.092 / 0.008 and the 0.05 excess back to the payer |
+| REF-SWEEPLOW-V2 | transfer `BvKoRH5stKdjRLLMV9CEuFGraooqJnFVjEs5bUWStQvu`, sweep `2pw7QeQG8JFvzZNQ1hKGwXTwWohnsiE6Rm8Fp8bRoXJR` | sweep reverted `UNDERPAID: available 50000000000000000000000 < amount 100000000000000000000000`, 0.05 stays parked (`UNINITIALIZED`) |
+
+**Audit scenarios** (`scripts/record-audit-scenarios.sh V2`, `fixtures/audit-scenarios.json`, 0.1 NEAR, 800 bps):
+
+| Scenario | Txs | What it proves |
+|---|---|---|
+| contract-1, `AUD1-V2` (1 min expiry) | plain transfer `5CuBjV7tkVt5U6kCrmvjikvgKKcwdKwsqVED2Wyy7arH`; zero-deposit pay after expiry `678rsqwkrqP6af9EKywJqJzYPKyU9oaFqd9YmRDmjsqm` → `REFUNDED_EXPIRED` (status `EXPIRED`, balance still 0.1, storage 325); sweep `8WQr2GUmH5ojoB1zniD2G4Q6V7PiRk2zjLUyYLpB4GNg` | `PAID`, `late: true`, 0.092 → merchant, **0.008 → tax vault**, record `tax_amount` 0.008, balance 0 (v1 would give 0.1 to the merchant and 0 to the vault) |
+| contract-3, `AUD3-V2` | plain transfer `4Eon125bA7ujoLgku6DYoQ6XjgrvMd1aVq4hZGfkwysK`; pay (deposit 0.1) `3YPLdAp58fc8Fz6kTinRpQfXyT28ExmVY3NGXjL3p4WX` | `PAID` via `transfer`, event `payment_refunded` reason `already_funded` 0.1, transfers 0.1 → payer, 0.092 → merchant, 0.008 → vault, balance 0 (no double charge; v1 settled the deposit too and left 0.1 parked) |
+| contract-2, `AUD2-V2` | pay `ARgzUkMKTZE46DkHVrjjHMqEQUWNMRqJ4QvTT1JaRYeg`; sweep `7z45ySFYduzwEDAQVneYZHHyjyV9gkGYHQqTe2szgRqj` | tax vault `unregistered.sm1110-zi-taxvault.testnet` does not exist (a subaccount only our own tax-vault account could create, so nobody else can ever claim the bounced funds). Pay returns `PAID`, the tax transfer fails (`AccountDoesNotExist`), `transfer_failed` role tax 0.008 is emitted and 0.008 sits on the invoice (storage 429). The sweep returns `TAX_RESENT`, emits `tax_resent` 0.008 to the vault only (it fails again, same bounce) and sends nothing to the merchant. The 0.008 NEAR stays parked on that testnet invoice |
+
+The recorder (`src/rpc.ts` `redactSignatures`) replaces every 64-byte `ed25519:` string (block approvals, block/chunk/tx signatures) by
+`ed25519:REDACTED-PUBLIC-SIGNATURE` before writing a fixture: they are public chain data that replay never reads, but a secret
+scanner cannot tell them from a key. The v1 fixtures were recorded before this and keep theirs.
+
+Replay support added for these flows (`src/replay.ts`): `before-parked-account` (a pay on an invoice whose funds are
+already parked), a zero-deposit refund is accepted only for `REFUNDED_EXPIRED`, `refund-already-funded` (reason, amount =
+deposit, recipient = payer = signer, the exact amount transferred back, `via: transfer`), and `transfer-failures-recorded`
+(every downstream failed receipt has a `transfer_failed` event). `src/outcome.ts` now reports a failed receipt that ran on
+another account as `downstreamFailures` instead of failing the whole tx, and `zi pay` / `zi sweep` exit 1 with a warning when
+there is one. `test/audit-scenarios.test.ts` pins each scenario from the recorded tx results and mutates each recording to
+check replay catches tampering.
+
+## Verification run for v2 (2026-11-10)
+
+| Command | Exit | Result |
+|---|---|---|
+| `node --test test/*.test.ts` (= `npm test`) | 0 | `# tests 96` / `# pass 96` / `# fail 0` / `# skipped 0` |
+| `cd contract && cargo test --offline` (= `npm run contract:test`) | 0 | 14 passed, 0 failed |
+| `node src/cli.ts vectors` (= `npm run zi -- vectors`) | 0 | 8 `PASS` lines |
+| `bash scripts/judge-offline.sh` (npm shimmed) | 0 | 309 `PASS`, 0 `FAIL`, `JUDGE-OFFLINE: ALL PASS` |

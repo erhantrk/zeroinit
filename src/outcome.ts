@@ -4,7 +4,8 @@ export interface ParsedTx {
   txHash: string;
   receiverId: string;
   success: boolean;
-  failures: unknown[];
+  failures: unknown[];             // the tx itself, or a receipt run on the invoice account, failed (pay()/sweep() panicked)
+  downstreamFailures: unknown[];   // a receipt run on ANOTHER account failed (e.g. a transfer to a missing account); v2 records it via on_transfer
   logs: string[];
   events: ZiEvent[];
   returnValue: unknown;            // decoded JSON return value of pay()/sweep(), e.g. "PAID"
@@ -14,10 +15,15 @@ export interface ParsedTx {
 
 export function parseTxStatus(result: any, invoiceAccountId: string): ParsedTx {
   const failures: unknown[] = [];
+  const downstreamFailures: unknown[] = [];
   if (result.status && 'Failure' in result.status) failures.push(result.status.Failure);
   for (const ro of result.receipts_outcome ?? []) {
     const st = ro.outcome?.status;
-    if (st && typeof st === 'object' && 'Failure' in st) failures.push(st.Failure);
+    if (st && typeof st === 'object' && 'Failure' in st) {
+      // A Transfer to a nonexistent account fails ON that account; the invoice contract (v2) sees it in on_transfer and the money bounces back.
+      const executor = ro.outcome?.executor_id;
+      (executor === undefined || executor === invoiceAccountId ? failures : downstreamFailures).push(st.Failure);
+    }
   }
   const logs: string[] = (result.receipts_outcome ?? []).flatMap((ro: any) => ro.outcome?.logs ?? []);
   const events: ZiEvent[] = [];
@@ -39,5 +45,5 @@ export function parseTxStatus(result: any, invoiceAccountId: string): ParsedTx {
   let stateInitBase64: string | null = null;
   for (const a of result.transaction?.actions ?? []) if (a && typeof a === 'object' && a.UniversalStateInit) stateInitBase64 = a.UniversalStateInit.state_init;
   return { txHash: result.transaction?.hash ?? '', receiverId: result.transaction?.receiver_id ?? '', success: failures.length === 0 && !('Failure' in (result.status ?? {})),
-    failures, logs, events, returnValue, transfers, stateInitBase64 };
+    failures, downstreamFailures, logs, events, returnValue, transfers, stateInitBase64 };
 }

@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { base64 } from '@scure/base';
 import { formatNear, toHex } from './bytes.ts';
 import { checkDoc, rawFromTerms, type InvoiceDoc } from './invoice.ts';
+import { pinForVerification } from './config.ts';
 import { accountStateFromResponse, decodeViewResult } from './rpc.ts';
 import { parseTxStatus, type ParsedTx } from './outcome.ts';
 
@@ -51,12 +52,40 @@ function checkRefund(p: ParsedTx, result: any, doc: InvoiceDoc): { ok: boolean; 
     && data?.invoice_id === doc.invoice_id
     && data?.account_id === doc.account_id
     && payer !== null && payer === signer
-    && deposit !== null && deposit > 0n
+    && deposit !== null && (deposit > 0n || ret === 'REFUNDED_EXPIRED')   // a zero-deposit pay after expiry is the contract-1 scenario: refund 0, status EXPIRED
     && eventAmount !== null && eventAmount === deposit
     && backToPayer === eventAmount;
   if (ok) return { ok, detail: ret };
   return { ok, detail: `${ret} expected reason=${reason ?? '?'} refund=${deposit ?? '?'} to=${String(signer)};` +
     ` got reason=${String(data?.reason)} amount=${String(data?.amount)} payer=${String(data?.payer)} refunded=${backToPayer}` };
+}
+
+/**
+ * contract-3 (v2): a pay() whose invoice already holds the parked amount returns PAID, settles the PARKED funds and refunds the whole attached
+ * deposit. Proven by: reason already_funded, amount = attached deposit, recipient = payer = signer, and that exact amount transferred back.
+ */
+function checkAlreadyFunded(p: ParsedTx, result: any, doc: InvoiceDoc): { ok: boolean; detail: string } {
+  const ev = p.events.find((e) => e.event === 'payment_refunded');
+  const data = ev?.data?.[0] as Record<string, unknown> | undefined;
+  const deposit = attachedDeposit(result);
+  const signer = result?.transaction?.signer_id;
+  const backToPayer = p.transfers.filter((t) => t.to === signer).reduce((s, t) => s + t.yocto, 0n);
+  const paidEv = p.events.find((e) => e.event === 'invoice_paid')?.data?.[0] as Record<string, unknown> | undefined;
+  const ok = p.success && data?.reason === 'already_funded' && data?.invoice_id === doc.invoice_id && data?.account_id === doc.account_id
+    && data?.payer === signer && deposit !== null && deposit > 0n && String(data?.amount) === deposit.toString() && backToPayer === deposit
+    && paidEv?.via === 'transfer' && paidEv?.payer === null;
+  return { ok, detail: ok ? `refunded ${formatNear(deposit!)} to ${String(signer)}` : `already_funded expected refund=${deposit ?? '?'} to=${String(signer)}; got reason=${String(data?.reason)} amount=${String(data?.amount)} refunded=${backToPayer} via=${String(paidEv?.via)}` };
+}
+
+/**
+ * The hash a fixture is replayed against: the trusted hash, unless every invoice in it was issued under the same
+ * historical known deployment (v1), which is accepted for replaying the recorded history. A fixture with a foreign
+ * hash, or a mix, is pinned to `trusted` and FAILs.
+ */
+export function fixturePin(path: string, trusted: string): string {
+  const f = JSON.parse(readFileSync(path, 'utf8'));
+  const pins = new Set((f.invoices as InvoiceDoc[] ?? []).map((d) => pinForVerification(trusted, d.code_hash)));
+  return pins.size === 1 ? [...pins][0] : trusted;
 }
 
 /**
@@ -95,12 +124,18 @@ export function replayFixture(path: string, trusted?: string): Check[] {
         // Only the FIRST "before" snapshot must be NONEXISTENT (a second pay on the same invoice sees it initialized).
         if (sawBefore) continue;
         sawBefore = true;
-        add(call.params.account_id === doc.account_id && accountStateFromResponse(call.response).kind === 'NONEXISTENT', 'before-unknown-account', id);
+        const b = accountStateFromResponse(call.response);
+        if (b.kind === 'UNINITIALIZED') {
+          // A pay on an invoice whose funds are already parked by a plain transfer (audit contract-1 / contract-3 scenarios).
+          parked = b.amount;
+          add(call.params.account_id === doc.account_id && b.amount > 0n, 'before-parked-account', id, formatNear(b.amount));
+        } else add(call.params.account_id === doc.account_id && b.kind === 'NONEXISTENT', 'before-unknown-account', id);
       } else if (call.label === 'before: get_invoice') {
         if (expectedStatus === null) expectedStatus = decodeViewResult(call.response).status;
       } else if (call.label === 'transfer-path: view_account (uninitialized)') {
         // Funds parked by a plain transfer: account exists, uninitialized, balance > 0 (amount may be short; sweep decides).
-        if (sawTransferPath) continue;
+        // `zi sweep` records this snapshot on every call; once a tx has materialized the account it is only informational.
+        if (sawTransferPath || !firstTx) continue;
         sawTransferPath = true;
         const s = accountStateFromResponse(call.response);
         if (s.kind === 'UNINITIALIZED') parked = s.amount;
@@ -139,9 +174,18 @@ export function replayFixture(path: string, trusted?: string): Check[] {
           const merchantOk = prefix === 'pay' ? sum(doc.merchant) === amount - tax : sum(doc.merchant) >= amount - tax;
           add(merchantOk, `split-merchant`, id, formatNear(sum(doc.merchant)));
           add(sum(doc.tax_vault) === tax, `split-vault`, id, formatNear(sum(doc.tax_vault)));
+          if (p.events.some((e) => e.event === 'payment_refunded')) {
+            const r = checkAlreadyFunded(p, result, doc);
+            add(r.ok, 'refund-already-funded', id, r.detail);
+          }
         } else if (typeof p.returnValue === 'string' && p.returnValue.startsWith('REFUNDED')) {
           const r = checkRefund(p, result, doc);
           add(r.ok, `refund-event`, id, r.detail);
+        }
+        // v2 (contract-2): every transfer that failed downstream must be recorded on chain by the on_transfer callback as a transfer_failed event.
+        const failedEvents = p.events.filter((e) => e.event === 'transfer_failed').length;
+        if (p.downstreamFailures.length > 0 || failedEvents > 0) {
+          add(failedEvents === p.downstreamFailures.length, 'transfer-failures-recorded', id, `${p.downstreamFailures.length} failed, ${failedEvents} transfer_failed events`);
         }
         expectedStatus = statusAfter(p.returnValue, expectedStatus);
       } else if (call.label === 'after: view_account' || call.label === 'sweep-after: view_account') {

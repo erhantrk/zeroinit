@@ -7,7 +7,7 @@ import type { AddressInfo } from 'node:net';
 import { serve } from '../src/server.ts';
 import { loadConfig } from '../src/config.ts';
 
-const CODE_HASH = 'Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k';
+const CODE_HASH = '4bQ61AgHWWmYXp5c3fwj9NJxS79D9R3cGZAZxHyx9zEA';
 
 function call(port: number, method: string, path: string, body?: string, headers: Record<string, string> = {}) {
   return new Promise<{ status: number; type: string; text: string }>((resolve, reject) => {

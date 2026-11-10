@@ -5,8 +5,8 @@ import assert from 'node:assert/strict';
 import { u64 } from '../src/bytes.ts';
 import { invoiceStateBytes } from '../src/stateinit.ts';
 import { checkDoc, assertDocTrusted, rawFromTerms, createInvoiceDoc } from '../src/invoice.ts';
-import { trustedCodeHash, DEPLOYED_CODE_HASH } from '../src/config.ts';
-import { DEPLOYED, FOREIGN, terms, makeDoc } from './helpers.ts';
+import { trustedCodeHash, DEPLOYED_CODE_HASH, KNOWN_DEPLOYMENTS, deploymentOf, deploymentLabel, pinForVerification, fixesParkedFunds, V1_CODE_HASH, V2_CODE_HASH } from '../src/config.ts';
+import { DEPLOYED, V1, FOREIGN, terms, makeDoc } from './helpers.ts';
 
 test('u64 throws instead of wrapping modulo 2^64', () => {
   assert.equal(u64(0n).length, 8);
@@ -72,4 +72,32 @@ test('createInvoiceDoc still produces a doc that checks out', () => {
   const doc = createInvoiceDoc('0u', DEPLOYED, terms());
   const c = checkDoc(doc, DEPLOYED);
   assert.ok(c.codeHashTrusted && c.idFromTerms && c.rawFromTerms && c.fieldsConsistent);
+});
+
+test('known deployments: v2 is the default trusted hash; v1 is historical and only pinned for verification', () => {
+  assert.equal(DEPLOYED, V2_CODE_HASH);
+  assert.equal(V1, V1_CODE_HASH);
+  assert.notEqual(V1_CODE_HASH, V2_CODE_HASH);
+  assert.equal(trustedCodeHash({ codeHashB58: null }), V2_CODE_HASH);
+  assert.deepEqual(KNOWN_DEPLOYMENTS.map((d) => [d.version, d.historical]), [['v2', false], ['v1', true]]);
+  assert.match(deploymentLabel(V2_CODE_HASH), /^v2 \(current/);
+  assert.match(deploymentLabel(V1_CODE_HASH), /^v1 \(history/);
+  assert.match(deploymentLabel(FOREIGN), /^custom/);
+  assert.equal(deploymentOf(FOREIGN), null);
+  // verification pins: trusted for everything, except a doc issued under the historical v1 deployment
+  assert.equal(pinForVerification(V2_CODE_HASH, V1_CODE_HASH), V1_CODE_HASH);
+  assert.equal(pinForVerification(FOREIGN, V1_CODE_HASH), V1_CODE_HASH);
+  assert.equal(pinForVerification(V2_CODE_HASH, V2_CODE_HASH), V2_CODE_HASH);
+  assert.equal(pinForVerification(V2_CODE_HASH, FOREIGN), V2_CODE_HASH, 'a foreign hash resolves to the trusted hash, so it FAILs');
+  assert.equal(pinForVerification(FOREIGN, V2_CODE_HASH), FOREIGN, 'v2 is not history: an own pin overrides it');
+  assert.equal(fixesParkedFunds(V2_CODE_HASH), true);
+  assert.equal(fixesParkedFunds(V1_CODE_HASH), false);
+  assert.equal(fixesParkedFunds(FOREIGN), false);
+});
+
+test('a v1 doc is not accepted for signing against the v2 pin (assertDocTrusted), but checks out against its own deployment', () => {
+  const doc = makeDoc(V1);
+  assert.throws(() => assertDocTrusted(doc, DEPLOYED), /not the trusted hash .*v1 deployment: history, verify only/);
+  assert.doesNotThrow(() => assertDocTrusted(doc, V1));
+  assert.notEqual(makeDoc(V1).account_id, makeDoc(DEPLOYED).account_id, 'the same terms derive a different address per deployment');
 });

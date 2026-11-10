@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { createInvoiceDoc, isValidNearAccountId } from '../src/invoice.ts';
 import { parseNear } from '../src/bytes.ts';
 
-const CODE_HASH = 'Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k';
+const CODE_HASH = '4bQ61AgHWWmYXp5c3fwj9NJxS79D9R3cGZAZxHyx9zEA';
 const terms = (merchant: string, tax_vault: string) => ({ invoice_id: 'INV-V-1', merchant, tax_vault, tax_bps: 800,
   amount: parseNear('1'), expires_at_ms: 1794700800000n, salt: 1n });
 

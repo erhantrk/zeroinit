@@ -5,12 +5,12 @@ import { join } from 'node:path';
 import { parseNear, formatNear, utf8 } from './bytes.ts';
 import { invoiceStateBytes } from './stateinit.ts';
 import { actFunctionCall } from './tx.ts';
-import { loadConfig, trustedCodeHash, type Config, type Signer } from './config.ts';
+import { loadConfig, trustedCodeHash, pinForVerification, deploymentLabel, fixesParkedFunds, type Config, type Signer } from './config.ts';
 import { checkNetwork, viewAccount, viewInvoice, setRecordInvoice, recordInvoiceDoc, rpcCall } from './rpc.ts';
 import { sendActions } from './send.ts';
 import { createInvoiceDoc, loadDoc, saveDoc, checkDoc, assertDocTrusted, assertAccountsUsable, stateInitAction, termsMatchOnchain, randomSalt, type InvoiceDoc } from './invoice.ts';
 import { runVectors } from './vectors.ts';
-import { replayFixture } from './replay.ts';
+import { replayFixture, fixturePin } from './replay.ts';
 import { parseTxStatus, type ParsedTx } from './outcome.ts';
 
 const GAS_50T = 50_000_000_000_000n;
@@ -49,6 +49,7 @@ function txLines(p: ParsedTx): string[] {
   const l = [`TX ${p.txHash}`, `RESULT ${p.success ? String(p.returnValue) : 'FAILED ' + JSON.stringify(p.failures)}`];
   for (const e of p.events) l.push(`EVENT ${e.event} ${JSON.stringify(e.data[0])}`);
   for (const t of p.transfers) l.push(`TRANSFER ${t.to} ${formatNear(t.yocto)}`);
+  for (const f of p.downstreamFailures) l.push(`TRANSFER_FAILED ${JSON.stringify(f)}`);
   l.push(`LINK https://testnet.nearblocks.io/txns/${p.txHash}`);
   return l;
 }
@@ -80,8 +81,9 @@ async function main(argv: string[]): Promise<number> {
   }
   if (cmd === 'replay') {
     if (!pos[0]) throw new UsageError('usage: zi replay <fixture.json>');
-    const r = replayFixture(pos[0], trustedCodeHash({ codeHashB58: process.env.ZI_CODE_HASH ?? null }));
-    out(json, r, r.map((c) => `${c.ok ? 'PASS' : 'FAIL'} ${c.name} ${c.id}${c.detail ? ' ' + c.detail : ''}`));
+    const pin = fixturePin(pos[0], trustedCodeHash({ codeHashB58: process.env.ZI_CODE_HASH ?? null }));
+    const r = replayFixture(pos[0], pin);
+    out(json, r, [`INFO deployment ${deploymentLabel(pin)} ${pin}`, ...r.map((c) => `${c.ok ? 'PASS' : 'FAIL'} ${c.name} ${c.id}${c.detail ? ' ' + c.detail : ''}`)]);
     return r.length > 0 && r.every((c) => c.ok) ? 0 : 1;
   }
 
@@ -116,9 +118,10 @@ async function main(argv: string[]): Promise<number> {
   setRecordInvoice(doc.invoice_id);
 
   if (cmd === 'verify') {
-    const trusted = trustedCodeHash(cfg);
+    const trusted = pinForVerification(trustedCodeHash(cfg), doc.code_hash);   // v1 history docs verify against the v1 hash (read-only); the rest against the trusted hash
     const c = checkDoc(doc, trusted);
     const lines = [`${c.codeHashTrusted ? 'PASS' : 'FAIL'} code-hash-trusted ${doc.code_hash}${c.codeHashTrusted ? '' : ` (trusted ${trusted})`}`,
+      `INFO deployment ${c.codeHashTrusted ? deploymentLabel(trusted) : 'none: the invoice uses a code hash that is not trusted'}`,
       `${c.idFromTerms ? 'PASS' : 'FAIL'} id-from-terms ${c.expectedId}`, `${c.rawFromTerms ? 'PASS' : 'FAIL'} raw-from-terms`,
       `${c.fieldsConsistent ? 'PASS' : 'FAIL'} doc-fields-from-terms`];
     let ok = c.codeHashTrusted && c.idFromTerms && c.rawFromTerms && c.fieldsConsistent;
@@ -153,7 +156,8 @@ async function main(argv: string[]): Promise<number> {
     const before = await statusLine(cfg, doc, cmd === 'pay' ? 'before: view_account' : 'transfer-path: view_account (uninitialized)');
     // contract v1 limitation (audit contract-3): pay() ignores funds already parked by a plain transfer, so paying again
     // would charge the payer twice. Settle parked funds with `zi sweep` instead; --allow-parked overrides on purpose.
-    if (cmd === 'pay' && before.obj.kind === 'UNINITIALIZED' && before.obj.amount > 0n && !v['allow-parked']) {
+    // The v2 contract fixes it (pay() settles the parked funds and refunds the deposit), so the guard stays for v1/unknown hashes only.
+    if (cmd === 'pay' && !fixesParkedFunds(trusted) && before.obj.kind === 'UNINITIALIZED' && before.obj.amount > 0n && !v['allow-parked']) {
       throw new UsageError(`invoice ${doc.invoice_id} already holds ${formatNear(before.obj.amount)} NEAR from a plain transfer: run \`zi sweep ${doc.invoice_id}\` instead of paying again (or pass --allow-parked)`);
     }
     const actions: Uint8Array[] = [];
@@ -165,11 +169,13 @@ async function main(argv: string[]): Promise<number> {
     out(json, { tx: p, after: after.obj }, [...txLines(p), after.line]);
     // pay() never panics on a bad payment: it refunds and returns REFUNDED_*. Only PAID is a payment.
     if (cmd === 'pay' && p.success && p.returnValue !== 'PAID') console.error(`NOT PAID: ${String(p.returnValue)} (the deposit was refunded)`);
-    return p.success && (cmd !== 'pay' || p.returnValue === 'PAID') ? 0 : 1;
+    // v2: a transfer to a missing account fails downstream; the contract records `transfer_failed` and keeps the tax owed. Never report that as a clean success.
+    if (p.success && p.downstreamFailures.length) console.error(`WARNING ${p.downstreamFailures.length} transfer(s) failed downstream (see TRANSFER_FAILED / EVENT transfer_failed); the funds bounced back to the invoice account`);
+    return p.success && p.downstreamFailures.length === 0 && (cmd !== 'pay' || p.returnValue === 'PAID') ? 0 : 1;
   }
   if (cmd === 'receipt') {
     await checkNetwork(cfg);
-    const trusted = trustedCodeHash(cfg);
+    const trusted = pinForVerification(trustedCodeHash(cfg), doc.code_hash);
     const s = await viewAccount(cfg, doc.account_id);
     if (s.kind !== 'INITIALIZED') throw new Error(`invoice account is ${s.kind}; nothing to receipt yet`);
     const inv = await viewInvoice(cfg, doc.account_id);
@@ -190,7 +196,7 @@ async function main(argv: string[]): Promise<number> {
       out(json, { ok: false, failed, checks }, [...lines, 'no receipt written']);
       return 1;
     }
-    const receipt = { format: 'zeroinit-receipt/1', invoice: doc, onchain: inv,
+    const receipt = { format: 'zeroinit-receipt/1', invoice: doc, deployment: deploymentLabel(trusted), onchain: inv,
       account: { amount: s.amount.toString(), storage_usage: s.storageUsage, global_contract_hash: s.globalContractHash },
       tx_hash: txHash, events, checks, generated_at_iso: new Date().toISOString() };
     const file = join(cfg.invoiceDir, `${doc.invoice_id}.receipt.json`);

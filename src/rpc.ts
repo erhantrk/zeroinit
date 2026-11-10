@@ -7,11 +7,24 @@ let currentInvoiceId: string | null = null;
 /** Tag subsequent recorded calls with this invoice id. */
 export function setRecordInvoice(id: string | null): void { currentInvoiceId = id; }
 
+/** 64 bytes in base58 (an ed25519 signature, or a secret key: indistinguishable by pattern, so every such value is treated as one). */
+const LONG_ED25519 = /^ed25519:[1-9A-HJ-NP-Za-km-z]{60,}$/;
+/**
+ * Replaces every 64-byte `ed25519:` string (block approvals, block/chunk/tx signatures: public chain data that replay never reads) by a
+ * marker, so a recorded fixture holds nothing that looks like a secret key to a secret scanner. Public keys (32 bytes) are kept.
+ */
+export function redactSignatures<T>(v: T): T {
+  if (typeof v === 'string') return (LONG_ED25519.test(v) ? 'ed25519:REDACTED-PUBLIC-SIGNATURE' : v) as T;
+  if (Array.isArray(v)) return v.map(redactSignatures) as T;
+  if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([k, x]) => [k, redactSignatures(x)])) as T;
+  return v;
+}
+
 function record(path: string, entry: Record<string, unknown>): void {
   const f = existsSync(path)
     ? JSON.parse(readFileSync(path, 'utf8'))
     : { format: 'zeroinit-fixture/1', recorded_at_iso: new Date().toISOString(), rpc_url: '', invoices: [], calls: [] };
-  f.calls.push({ seq: f.calls.length, invoice_id: currentInvoiceId, ...entry });
+  f.calls.push({ seq: f.calls.length, invoice_id: currentInvoiceId, ...redactSignatures(entry) });
   writeFileSync(path, JSON.stringify(f, null, 2) + '\n');
 }
 /** Add an invoice doc to the fixture file (dedup by invoice_id). */
