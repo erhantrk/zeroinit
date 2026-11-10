@@ -400,7 +400,8 @@ only (see "v1 → v2"). `zi pay` / `zi sweep` print the failed receipt as `TRANS
   the canonical scheme and adds the uninitialized state and batched creation. The CLI keeps `--scheme 0s` as a
   fallback, but every result in this README is `0u`.
 - **The payer pays for the first touch.** Gas plus the protocol's 0.007 NEAR account-creation charge: measured
-  **0.0073617847981195 NEAR** on a 0.1 NEAR invoice. Issuing costs nothing.
+  **0.0077197 NEAR** of tokens burnt on v2 (v1: 0.0073617847981195 NEAR, the extra is the two `on_transfer` callbacks) on a
+  0.1 NEAR invoice. Issuing costs nothing.
 - **Plain-transfer overpayments go to the merchant.** `sweep()` cannot know the payer, so everything parked
   above `amount` is forwarded to the merchant with the net amount. With `pay()` the excess is refunded to the payer.
 - **Merchant and tax vault must exist.** `zi invoice new` and the dashboard check that both exist on testnet
@@ -431,12 +432,16 @@ the same terms give a different address under v2 (the v2 invoices are new, `-V2`
 | **contract-2** (low) | A failed merchant/tax transfer (a valid id of a missing account) bounces to the invoice account while the record already says PAID; a bounced tax share later went to the merchant. | Merchant and tax transfers carry an `on_transfer` callback: a failure emits `transfer_failed`, the tax share is tracked as owed (`OWED_TAX`, outside the frozen state; view `get_owed_tax()`), and a later `sweep()` re-sends it to the tax vault only (`tax_resent`, `TAX_RESENT`). | `AUD2-V2` (tax vault `unregistered.sm1110-zi-taxvault.testnet`, a nonexistent subaccount that only our own tax-vault account could ever create): pay `ARgzUkMKTZE46DkHVrjjHMqEQUWNMRqJ4QvTT1JaRYeg` → `PAID` + `transfer_failed` (role tax, 0.008) and 0.008 back on the invoice; sweep `7z45ySFYduzwEDAQVneYZHHyjyV9gkGYHQqTe2szgRqj` → `TAX_RESENT` to the vault only, no `extra_swept` to the merchant. |
 
 The v1 behaviour above comes from the audit and the v1 code; v1 invoices were not re-run live (they stay as the recorded
-history). The `audit_contract_*` unit tests in `contract/src/lib.rs` pass on v2 (`cargo test`: 14 tests); five of them fail
-against the v1 code (checked with a v1 copy, see `docs/SPIKES.md`).
+history). The `audit_contract_*` unit tests in `contract/src/lib.rs` pass on v2 (`cargo test`: 14 tests). Each one replays an audit scenario step by step;
+the v1 behaviour they guard against is what the audit traced in the v1 code (`git show 98d571d:contract/src/lib.rs`)
+and is not re-run as a test here.
 
 What v2 does **not** fix (residual): `invoice_paid` is still emitted before the transfers run, so the record can say PAID
 before a transfer fails (`transfer_failed` supersedes it; atomicity is **not** claimed); extra funds that arrive while a
-tax transfer is still in flight (about a block) can be sent to the vault as the owed share; a merchant account that does
+tax transfer is still in flight (about a block) can be sent to the vault as the owed share; a payer's plain transfer that
+covers only part of `amount`, followed by a full `pay()`, is not refunded: the full pay settles the invoice and the
+parked part later reaches the merchant untaxed through `sweep()` (the CLI's `zi pay` refuses when funds are already
+parked, so use `zi sweep` there); a merchant account that does
 not exist still cannot receive its share, which stays parked on the invoice, so `zi invoice new` and the dashboard keep
 checking that both accounts exist. v2 costs a little more gas: the pay tx burns 0.0077197 NEAR in total against 0.0073621
 for v1 (both from the recorded demo runs, 15.5 vs 11.5 Tgas over all receipts), and storage after a normal `pay()` is

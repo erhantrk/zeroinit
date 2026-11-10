@@ -470,7 +470,8 @@ Claude sessions or reviewed by a human, which did not match the run record or th
 - size: 82,942 bytes
 - sha256 hex: `3562e978e6924a2c538e9906fc42d15a652947891f18f7816e3c7807d20f622f`
 - code hash (base58): `4bQ61AgHWWmYXp5c3fwj9NJxS79D9R3cGZAZxHyx9zEA`
-- Unit tests: 14 pass; the five `audit_contract_*` tests fail against v1 (checked with a v1 copy plus stubs).
+- Unit tests: 14 pass, including six `audit_contract_*` tests that replay the audit scenarios (the v1 behaviour they
+  guard against comes from the audit's trace of the v1 code; it is not re-run as a test).
 - Deployed as a global contract on 2026-11-10 ~13:20 Istanbul by the operator (Claude Opus 5.5, on Erhan's approval) from
   `sm1110-zi-deployer.testnet`: tx `DvNnUtvqMg5Q5e2Mn4fMx7GYBFNFhTo7z9wo64szAFKG` (a `DeployGlobalContract` action whose
   code hash is the sha256 above, checked read-only over RPC), burn 8.2949 NEAR for 82,942 bytes. v1 stays deployed as history.

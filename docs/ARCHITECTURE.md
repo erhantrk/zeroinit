@@ -91,7 +91,7 @@ v1 numbers were measured on testnet 2026-11-10 (protocol 88, code hash `Amg4WXKy
 | One-time global deploy burn | v1 **7.8526 NEAR** (78,519-byte wasm), v2 **8.2949 NEAR** (82,942-byte wasm); not per-invoice costs | v1 deploy tx `DSXd2Sjq59zRF2ZX9j3D8SMYd6GZ44XpsW1aJbKfpJ1h`; v2 deploy tx `DvNnUtvqMg5Q5e2Mn4fMx7GYBFNFhTo7z9wo64szAFKG` |
 
 Issuing an invoice costs nothing and sends no transaction. After a completed payment the account sits at 0 NEAR
-(352 B of storage, below the zero-balance limit), so there is no per-invoice storage to fund and nothing left
+(v2: 358 B of storage after `pay()`, 331 B after `sweep()`; v1: 352 B; all below the zero-balance limit), so there is no per-invoice storage to fund and nothing left
 behind for the merchant to reclaim.
 
 ## v1 → v2
