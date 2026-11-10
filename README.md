@@ -50,12 +50,12 @@ registry once).
    found 0 vulnerabilities
    ```
 
-2. `npm test` → 96 tests, all pass (byte vectors from nearcore 2.14 and the frozen example, encoder parity with
+2. `npm test` → 97 tests, all pass (byte vectors from nearcore 2.14 and the frozen example, encoder parity with
    near-api-js 7.4.0, outcome/replay/CLI tests, v1 and v2 fixtures, the three audit scenarios):
 
    ```
-   # tests 96
-   # pass 96
+   # tests 97
+   # pass 97
    # fail 0
    # skipped 0
    ```
