@@ -1,10 +1,11 @@
 // Build, sign, send a tx; then fetch EXPERIMENTAL_tx_status (has receipts with actions) and parse it.
 import type { Config, Signer } from './config.ts';
-import { rpcCall, accessKeyNonce, finalBlockHash } from './rpc.ts';
+import { rpcCall, accessKeyNonce, finalBlockHash, checkNetwork } from './rpc.ts';
 import { keyPairFromSecret, signTransaction } from './tx.ts';
 import { parseTxStatus, type ParsedTx } from './outcome.ts';
 
 export async function sendActions(cfg: Config, signer: Signer, receiverId: string, actions: Uint8Array[], labelPrefix: string): Promise<ParsedTx> {
+  await checkNetwork(cfg);   // every signing path asserts chain_id === 'testnet' before it touches a key
   const kp = keyPairFromSecret(signer.secret);
   const nonce = (await accessKeyNonce(cfg, signer.accountId, kp.publicKeyStr)) + 1n;
   const blockHash = await finalBlockHash(cfg);

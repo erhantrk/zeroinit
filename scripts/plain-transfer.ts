@@ -12,3 +12,4 @@ if (!cfg.payer) throw new Error('set ZI_PAYER_ACCOUNT and ZI_PAYER_KEY');
 const p = await sendActions(cfg, cfg.payer, receiver, [actTransfer(parseNear(amountNear))], 'transfer');
 console.log(`TX ${p.txHash}`);
 console.log(`RESULT ${p.success ? 'SUCCESS' : 'FAILED ' + JSON.stringify(p.failures)}`);
+process.exitCode = p.success ? 0 : 1;

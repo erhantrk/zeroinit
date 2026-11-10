@@ -1,6 +1,11 @@
 // Loads ZI_* env vars. Testnet-only guard (PLAN.md §14 rule 1).
 import { base58 } from '@scure/base';
 
+/** The frozen ZeroInit invoice contract, deployed on testnet as a global contract by code hash (sha256 of the committed wasm). */
+export const DEPLOYED_CODE_HASH = 'Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k';
+/** The code hash a payer trusts: ZI_CODE_HASH when set (own deployment), else the frozen deployed hash. Never the invoice file's own value. */
+export const trustedCodeHash = (cfg: { codeHashB58: string | null }): string => cfg.codeHashB58 ?? DEPLOYED_CODE_HASH;
+
 export interface Signer { accountId: string; secret: string }
 export interface Config {
   network: 'testnet';

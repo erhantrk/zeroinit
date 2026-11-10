@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { base64 } from '@scure/base';
 import { formatNear, toHex } from './bytes.ts';
-import { checkDoc, type InvoiceDoc } from './invoice.ts';
+import { checkDoc, rawFromTerms, type InvoiceDoc } from './invoice.ts';
 import { accountStateFromResponse, decodeViewResult } from './rpc.ts';
 import { parseTxStatus, type ParsedTx } from './outcome.ts';
 
@@ -59,7 +59,11 @@ function checkRefund(p: ParsedTx, result: any, doc: InvoiceDoc): { ok: boolean; 
     ` got reason=${String(data?.reason)} amount=${String(data?.amount)} payer=${String(data?.payer)} refunded=${backToPayer}` };
 }
 
-export function replayFixture(path: string): Check[] {
+/**
+ * Replays a recorded fixture. Every expected call must be present: a missing recorded call is a FAIL, not a skipped check.
+ * `trusted` (the pinned deployed code hash) additionally pins every doc's code_hash and the on-chain global_contract_hash.
+ */
+export function replayFixture(path: string, trusted?: string): Check[] {
   const f = JSON.parse(readFileSync(path, 'utf8'));
   if (f.format !== 'zeroinit-fixture/1') throw new Error('not a zeroinit-fixture/1 file');
   const checks: Check[] = [];
@@ -69,11 +73,23 @@ export function replayFixture(path: string): Check[] {
     const calls = (f.calls as any[])
       .filter((c) => c.invoice_id === id)
       .sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0));
-    const c = checkDoc(doc);
+    const c = checkDoc(doc, trusted);
+    if (trusted !== undefined) add(c.codeHashTrusted, 'code-hash-trusted', id, doc.code_hash);
     add(c.idFromTerms && c.rawFromTerms, 'id-from-terms', id, doc.account_id);
+    add(c.fieldsConsistent, 'doc-fields-from-terms', id);
+    const codeHash = trusted ?? doc.code_hash;
     let expectedStatus: string | null = null;
     let sawBefore = false;
     let sawTransferPath = false;
+    let parked: bigint | null = null;        // balance parked by the plain transfer, before the first sweep
+    let awaitParked: bigint | null = null;   // a reverted sweep must leave exactly this balance, still UNINITIALIZED
+    let firstTx = true;
+    let pending: { view: boolean; get: boolean } | null = null;   // "after" calls owed by the last successful tx
+    const flushPending = () => {
+      if (pending?.view) add(false, 'after-code-hash', id, 'no recorded after view_account');
+      if (pending?.get) add(false, 'after-terms-match', id, 'no recorded after get_invoice');
+      pending = null;
+    };
     for (const call of calls) {
       if (call.label === 'before: view_account') {
         // Only the FIRST "before" snapshot must be NONEXISTENT (a second pay on the same invoice sees it initialized).
@@ -87,22 +103,36 @@ export function replayFixture(path: string): Check[] {
         if (sawTransferPath) continue;
         sawTransferPath = true;
         const s = accountStateFromResponse(call.response);
+        if (s.kind === 'UNINITIALIZED') parked = s.amount;
         add(s.kind === 'UNINITIALIZED' && s.amount > 0n, 'transfer-path-uninitialized', id, s.kind === 'UNINITIALIZED' ? formatNear(s.amount) : s.kind);
       } else if (call.label === 'init: tx_status') {
+        flushPending();
         const p = parseTxStatus(call.response.result, doc.account_id);
         if (p.success) expectedStatus = 'OPEN';
       } else if (call.label === 'pay: tx_status' || call.label === 'sweep: tx_status') {
+        flushPending();
         const prefix = call.label.split(':')[0];
         const result = call.response?.result;
         if (!result) { add(false, `${prefix}-tx-success`, id, 'recorded call has no result'); continue; }
         const p = parseTxStatus(result, doc.account_id);
+        // The FIRST tx on an invoice must be the one that creates the account (a state init in that very tx), starting from the
+        // recorded pre-state: NONEXISTENT for pay, UNINITIALIZED (plain transfer parked funds) for sweep.
+        const isFirst = firstTx;
+        firstTx = false;
+        if (isFirst) {
+          if (prefix === 'pay' && !sawBefore) add(false, 'before-unknown-account', id, 'no recorded "before: view_account" call');
+          if (prefix === 'sweep' && !sawTransferPath) add(false, 'transfer-path-uninitialized', id, 'no recorded "transfer-path: view_account" call');
+        }
+        const stateInitOk = p.stateInitBase64 === null ? !isFirst : toHex(base64.decode(p.stateInitBase64)) === toHex(rawFromTerms(doc, codeHash));
+        if (isFirst) add(p.stateInitBase64 !== null && stateInitOk, `${prefix}-carries-state-init`, id, p.stateInitBase64 === null ? 'first tx has no UniversalStateInit' : '');
         if (!p.success && prefix === 'sweep' && JSON.stringify(p.failures).includes('UNDERPAID')) {
           // Expected failure: sweep with too little parked balance reverts the whole receipt; funds stay parked.
           add(true, 'sweep-underpaid-reverted', id, p.txHash);
+          awaitParked = parked ?? -1n;
           continue;
         }
-        const rawOk = p.stateInitBase64 === null || toHex(base64.decode(p.stateInitBase64)) === doc.raw_state_init_hex;
-        add(p.success && p.receiverId === doc.account_id && rawOk, `${prefix}-tx-success`, id, `${p.txHash} result=${String(p.returnValue)}`);
+        add(p.success && p.receiverId === doc.account_id && stateInitOk, `${prefix}-tx-success`, id, `${p.txHash} result=${String(p.returnValue)}`);
+        if (p.success) pending = { view: true, get: true };
         if (p.returnValue === 'PAID') {
           const amount = BigInt(doc.amount_yocto); const tax = amount * BigInt(doc.tax_bps) / 10000n;
           const sum = (to: string) => p.transfers.filter((x) => x.to === to).reduce((s, x) => s + x.yocto, 0n);
@@ -114,7 +144,17 @@ export function replayFixture(path: string): Check[] {
           add(r.ok, `refund-event`, id, r.detail);
         }
         expectedStatus = statusAfter(p.returnValue, expectedStatus);
+      } else if (call.label === 'after: view_account' || call.label === 'sweep-after: view_account') {
+        const s = accountStateFromResponse(call.response);
+        if (awaitParked !== null) {
+          add(s.kind === 'UNINITIALIZED' && s.amount === awaitParked, 'sweep-underpaid-funds-parked', id, s.kind === 'UNINITIALIZED' ? formatNear(s.amount) : s.kind);
+          awaitParked = null;
+          continue;
+        }
+        if (pending) pending.view = false;
+        add(s.kind === 'INITIALIZED' && s.globalContractHash === codeHash, 'after-code-hash', id, s.kind === 'INITIALIZED' ? String(s.globalContractHash) : s.kind);
       } else if (call.label === 'after: get_invoice' || call.label === 'sweep-after: get_invoice') {
+        if (pending) pending.get = false;
         const v = decodeViewResult(call.response);
         add(v.account_id === doc.account_id && v.invoice_id === id, `after-terms-match`, id);
         const expected = expectedStatus ?? 'UNKNOWN';
@@ -122,6 +162,8 @@ export function replayFixture(path: string): Check[] {
         add(ok, `after-status-${expected}`, id, ok ? '' : `expected ${expected}, got ${v.status}`);
       }
     }
+    flushPending();
+    if (awaitParked !== null) add(false, 'sweep-underpaid-funds-parked', id, 'no recorded sweep-after view_account');
   }
   return checks;
 }

@@ -17,11 +17,26 @@ export interface InvoiceTerms {
 
 export const STATE_KEY = utf8('STATE');
 
+const NEAR_ACCOUNT_ID = /^(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$/;
+
+/** A NEAR account id: 2-64 chars, lowercase alphanumerics with single - or _ separators, dot-separated parts. */
+export function isValidNearAccountId(id: string): boolean {
+  return id.length >= 2 && id.length <= 64 && NEAR_ACCOUNT_ID.test(id);
+}
+const U64_MAX = (1n << 64n) - 1n;
+
 /** Exact borsh of the contract's `Invoice` struct in its initial (OPEN, unpaid) state. 135 bytes for the example. */
 export function invoiceStateBytes(t: InvoiceTerms): Uint8Array {
   if (!/^[A-Za-z0-9_-]{1,32}$/.test(t.invoice_id)) throw new Error('invoice_id must match ^[A-Za-z0-9_-]{1,32}$');
   if (!Number.isInteger(t.tax_bps) || t.tax_bps < 0 || t.tax_bps > 10000) throw new Error('tax_bps 0..10000');
   if (t.amount <= 0n) throw new Error('amount must be > 0');
+  // near-account-id rejects bad ids when the contract loads STATE: every pay/sweep would panic and plain-transferred funds would be stuck.
+  for (const [name, value] of [['merchant', t.merchant], ['tax_vault', t.tax_vault]] as const) {
+    if (!isValidNearAccountId(value)) throw new Error(`${name} "${value}" is not a valid NEAR account id (2-64 chars, lowercase a-z 0-9 - _ and dots)`);
+  }
+  // u64 fields wrap silently on chain (an expiry before 1970 would never expire): reject out-of-range values.
+  if (t.expires_at_ms < 0n || t.expires_at_ms > U64_MAX) throw new Error(`expires_at_ms out of u64 range: ${t.expires_at_ms}`);
+  if (t.salt < 0n || t.salt > U64_MAX) throw new Error(`salt out of u64 range: ${t.salt}`);
   return concat(
     u8(1),                    // v
     str(t.invoice_id),

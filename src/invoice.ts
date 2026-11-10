@@ -2,8 +2,13 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { base58 } from '@scure/base';
-import { toHex, fromHex, formatNear } from './bytes.ts';
-import { invoiceStateBytes, invoiceStateInit, type InvoiceTerms, type CodeRef, type Scheme } from './stateinit.ts';
+import { toHex, formatNear } from './bytes.ts';
+import { invoiceStateBytes, invoiceStateInit, isValidNearAccountId, type InvoiceTerms, type CodeRef, type Scheme } from './stateinit.ts';
+import { actUniversalStateInit, actDeterministicStateInit } from './tx.ts';
+import type { Config } from './config.ts';
+import { checkNetwork, viewAccount } from './rpc.ts';
+
+export { isValidNearAccountId };
 
 export interface InvoiceDoc {
   format: 'zeroinit-invoice/1';
@@ -30,13 +35,6 @@ export function randomSalt(): bigint {
   return new DataView(b.buffer).getBigUint64(0, true);
 }
 
-const NEAR_ACCOUNT_ID = /^(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$/;
-
-/** A NEAR account id: 2-64 chars, lowercase alphanumerics with single - or _ separators, dot-separated parts. */
-export function isValidNearAccountId(id: string): boolean {
-  return id.length >= 2 && id.length <= 64 && NEAR_ACCOUNT_ID.test(id);
-}
-
 export function createInvoiceDoc(scheme: Scheme, codeHashB58: string, t: InvoiceTerms, now = new Date()): InvoiceDoc {
   // A bad id would make the contract STATE undeserializable: funds sent there would be locked forever.
   for (const [name, value] of [['merchant', t.merchant], ['tax_vault', t.tax_vault]] as const) {
@@ -58,12 +56,82 @@ export function termsFromDoc(d: InvoiceDoc): InvoiceTerms {
   return { invoice_id: d.invoice_id, merchant: d.merchant, tax_vault: d.tax_vault, tax_bps: d.tax_bps,
     amount: BigInt(d.amount_yocto), expires_at_ms: BigInt(d.expires_at_ms), salt: BigInt(d.salt) };
 }
-export const rawFromDoc = (d: InvoiceDoc): Uint8Array => fromHex(d.raw_state_init_hex);
 
-/** Recompute everything from the terms only. */
-export function checkDoc(d: InvoiceDoc): { idFromTerms: boolean; rawFromTerms: boolean; expectedId: string } {
-  const { raw, accountId } = invoiceStateInit(d.scheme, { codeHash: base58.decode(d.code_hash) }, termsFromDoc(d));
-  return { idFromTerms: accountId === d.account_id, rawFromTerms: toHex(raw) === d.raw_state_init_hex, expectedId: accountId };
+const DEC = /^(0|[1-9]\d*)$/;
+/** Strict canonical decimal -> bigint (BigInt() alone accepts " 1", "0x10", ""). */
+function parseDec(name: string, v: unknown): bigint {
+  if (typeof v !== 'string' || !DEC.test(v)) throw new Error(`${name} must be a canonical decimal string`);
+  return BigInt(v);
+}
+
+export interface DocChecks {
+  idFromTerms: boolean;      // account id re-derived from the terms (with the trusted code hash when given)
+  rawFromTerms: boolean;     // raw state init re-derived from the terms
+  codeHashTrusted: boolean;  // doc.code_hash equals the trusted (pinned) hash
+  fieldsConsistent: boolean; // format/network/scheme and the human-readable fields agree with the terms
+  expectedId: string;
+}
+
+/**
+ * Recompute everything from the terms only. With `trusted` (the pinned deployed hash) the id and raw state init are derived
+ * from THAT hash, so a doc built on another contract fails. Never throws: a malformed doc is all-false.
+ */
+export function checkDoc(d: InvoiceDoc, trusted?: string): DocChecks {
+  const codeHashTrusted = trusted === undefined || d.code_hash === trusted;
+  try {
+    if (typeof d.scheme !== 'string' || (d.scheme !== '0u' && d.scheme !== '0s')) throw new Error('bad scheme');
+    const t: InvoiceTerms = { invoice_id: d.invoice_id, merchant: d.merchant, tax_vault: d.tax_vault, tax_bps: d.tax_bps,
+      amount: parseDec('amount_yocto', d.amount_yocto), expires_at_ms: parseDec('expires_at_ms', d.expires_at_ms), salt: parseDec('salt', d.salt) };
+    const { raw, accountId } = invoiceStateInit(d.scheme, { codeHash: base58.decode(trusted ?? d.code_hash) }, t);
+    const fieldsConsistent = d.format === 'zeroinit-invoice/1' && d.network === 'testnet'
+      && d.amount_near === formatNear(t.amount)
+      && d.expires_at_iso === new Date(Number(t.expires_at_ms)).toISOString()
+      && d.state_hex === toHex(invoiceStateBytes(t));
+    return { idFromTerms: accountId === d.account_id, rawFromTerms: toHex(raw) === d.raw_state_init_hex, codeHashTrusted, fieldsConsistent, expectedId: accountId };
+  } catch (e) {
+    return { idFromTerms: false, rawFromTerms: false, codeHashTrusted, fieldsConsistent: false, expectedId: `(invalid invoice: ${e instanceof Error ? e.message : String(e)})` };
+  }
+}
+
+/** Refuse to sign anything for a doc that is not exactly the invoice its terms + the pinned code hash derive. */
+export function assertDocTrusted(d: InvoiceDoc, trusted: string): void {
+  const c = checkDoc(d, trusted);
+  const bad = [!c.codeHashTrusted && `code_hash ${d.code_hash} is not the trusted hash ${trusted}`, !c.idFromTerms && `account_id does not match the terms (expected ${c.expectedId})`,
+    !c.rawFromTerms && 'raw_state_init_hex does not match the terms', !c.fieldsConsistent && 'display fields (amount_near/expires_at_iso/state_hex/format/network) do not match the terms'].filter(Boolean);
+  if (bad.length) throw new Error(`refusing invoice ${d.invoice_id}: ${bad.join('; ')}`);
+}
+
+/** The state-init raw bytes to send: always re-derived from the terms and the pinned code hash, never the file's raw hex. */
+export function rawFromTerms(d: InvoiceDoc, trusted: string): Uint8Array {
+  return invoiceStateInit(d.scheme, { codeHash: base58.decode(trusted) }, termsFromDoc(d)).raw;
+}
+
+/** The state-init action for the doc, built from the terms (see rawFromTerms). Call assertDocTrusted first. */
+export function stateInitAction(d: InvoiceDoc, trusted: string): Uint8Array {
+  const raw = rawFromTerms(d, trusted);
+  return d.scheme === '0u' ? actUniversalStateInit(raw, 0n) : actDeterministicStateInit(raw, 0n);
+}
+
+/** Every term field of the on-chain get_invoice() view equals the doc's. */
+export function termsMatchOnchain(d: InvoiceDoc, inv: any): boolean {
+  return inv.invoice_id === d.invoice_id && inv.merchant === d.merchant && inv.tax_vault === d.tax_vault && inv.tax_bps === d.tax_bps
+    && inv.amount === d.amount_yocto && inv.expires_at_ms === d.expires_at_ms && inv.salt === d.salt;
+}
+
+const TESTNET_ID = /^(?:.+\.testnet|[0-9a-f]{64}|0[us][0-9a-z]+)$/;
+/**
+ * Issuance guard: merchant and tax_vault must be testnet accounts that exist (implicit 64-hex accounts need no account until funded),
+ * otherwise the split transfer fails after the invoice is PAID and the funds are stranded under immutable terms.
+ */
+export async function assertAccountsUsable(cfg: Config, t: { merchant: string; tax_vault: string }): Promise<void> {
+  for (const [name, id] of [['merchant', t.merchant], ['tax_vault', t.tax_vault]] as const) {
+    if (!TESTNET_ID.test(id)) throw new Error(`${name} "${id}" is not a testnet account (.testnet, 64-hex implicit or 0u/0s)`);
+  }
+  await checkNetwork(cfg);
+  for (const [name, id] of [['merchant', t.merchant], ['tax_vault', t.tax_vault]] as const) {
+    if (/^[0-9a-f]{64}$/.test(id)) continue;
+    if ((await viewAccount(cfg, id, `issue: view_account ${name}`)).kind === 'NONEXISTENT') throw new Error(`${name} "${id}" does not exist on testnet (typo?); pass --offline to skip this check`);
+  }
 }
 
 export function saveDoc(dir: string, d: InvoiceDoc): string {

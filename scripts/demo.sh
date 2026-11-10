@@ -27,4 +27,5 @@ npm run -s zi -- sweep "INV-$S-B"
 pause "Shot 5: anyone can verify; underpay is refunded"
 npm run -s zi -- verify "INV-$S-A"
 npm run -s zi -- invoice new --id "INV-$S-C" --merchant "$M" --tax-vault "$V" --tax-bps 800 --amount 1 --expires-in 2h
-npm run -s zi -- pay "INV-$S-C" --amount 0.5
+# An underpayment is refunded by the contract: `zi pay` exits 1 (not PAID), which is the expected demo outcome.
+npm run -s zi -- pay "INV-$S-C" --amount 0.5 || echo "(expected: REFUNDED_UNDERPAID, exit 1)"

@@ -68,7 +68,7 @@ registry once).
    PASS example-0s
    ```
 
-4. `npm run zi -- replay fixtures/demo-run.json` → 20 lines, all `PASS`, exit 0; among them:
+4. `npm run zi -- replay fixtures/demo-run.json` → all `PASS`, exit 0; among them:
 
    ```
    PASS before-unknown-account INV-1111-A
@@ -80,7 +80,7 @@ registry once).
    PASS sweep-tx-success INV-1111-B 5P2rkpkVQLgBf5poR84kgFrFxgcGf6osEHAzBLHrvKaa result=PAID
    ```
 
-5. `npm run zi -- replay fixtures/refund-cases.json` → 33 lines, all `PASS`, exit 0; among them:
+5. `npm run zi -- replay fixtures/refund-cases.json` → all `PASS`, exit 0; among them:
 
    ```
    PASS refund-event REF-UNDER REFUNDED_UNDERPAID
@@ -104,12 +104,15 @@ The invoices under `invoices/demo/` were paid on testnet (protocol 88). These co
 from a clean clone with no `.env`. The default endpoint is `https://rpc.testnet.near.org`; if it rate-limits, set
 `ZI_RPC_URL=https://test.rpc.fastnear.com`.
 
-1. `npm run zi -- verify INV-1111-A` → the address, the state-init bytes and the code hash are recomputed from
-   the terms alone, then compared with the chain:
+1. `npm run zi -- verify INV-1111-A` → the address and the state-init bytes are recomputed from the terms and the
+   pinned deployed code hash (`ZI_CODE_HASH`, default `Amg4WXKy…GW6k`, never the invoice file's own `code_hash`),
+   then compared with the chain. Any `FAIL` makes the command exit 1:
 
    ```
+   PASS code-hash-trusted Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k
    PASS id-from-terms 0u4kwsbdsf5s5dfzp6wjaeq5ces9sajpv8hwmsp52a9e5bz30ave60
    PASS raw-from-terms
+   PASS doc-fields-from-terms
    PASS code-hash-onchain Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k
    PASS terms-onchain
    PASS no-access-keys
@@ -211,7 +214,7 @@ creation uses near-cli-rs. The steps below assume you are in the repo root.
 
    ```bash
    npm run zi -- verify INV-RUN-1
-   # PASS id-from-terms 0u… / PASS raw-from-terms / PASS code-hash-onchain Amg4WXKy… / PASS terms-onchain /
+   # PASS code-hash-trusted / PASS id-from-terms 0u… / PASS raw-from-terms / PASS doc-fields-from-terms / PASS code-hash-onchain Amg4WXKy… / PASS terms-onchain /
    # PASS no-access-keys / INFO status=PAID
 
    npm run zi -- invoice new --id INV-RUN-2 --merchant example-zi-merchant.testnet \
@@ -324,8 +327,8 @@ the merchant later (EXTRA_SWEPT).
 
 | Claim | Verify with | Expected |
 |---|---|---|
-| Issuing an invoice needs no transaction | `npm run zi -- invoice new --id TEST-1 --merchant example-zi-merchant.testnet --tax-vault example-zi-taxvault.testnet --tax-bps 800 --amount 0.1 --expires-in 2h --code-hash Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k` (works offline; `--code-hash` supplies the deployed code hash, so no `.env` is needed) | `INVOICE`/`ACCOUNT`/`PAY`/`FILE` lines; no RPC call |
-| The address commits to the terms and code | `npm run zi -- verify INV-1111-A --offline` | `PASS id-from-terms 0u4kwsbd…ave60`, `PASS raw-from-terms` |
+| Issuing an invoice needs no transaction | `npm run zi -- invoice new --id TEST-1 --merchant example-zi-merchant.testnet --tax-vault example-zi-taxvault.testnet --tax-bps 800 --amount 0.1 --expires-in 2h --offline` (the deployed code hash is built in, so no `.env` is needed; without `--offline` it also checks over RPC that merchant and tax vault exist on testnet) | `INVOICE`/`ACCOUNT`/`PAY`/`FILE` lines; no RPC call |
+| The address commits to the terms and code | `npm run zi -- verify INV-1111-A --offline` | `PASS code-hash-trusted`, `PASS id-from-terms 0u4kwsbd…ave60`, `PASS raw-from-terms` |
 | One tx creates + pays + splits | `npm run zi -- replay fixtures/demo-run.json` (or the nearblocks link in the previous section) | `PASS pay-tx-success INV-1111-A BdzRBcFf… result=PAID`, `PASS split-merchant INV-1111-A 0.92`, `PASS split-vault INV-1111-A 0.08` |
 | Plain transfers are safe before init | `npm run zi -- replay fixtures/demo-run.json` | `PASS transfer-path-uninitialized INV-1111-B 1`, `PASS sweep-tx-success INV-1111-B 5P2rkpk… result=PAID` |
 | Nobody holds keys to invoice accounts | `npm run zi -- verify INV-1111-A` (RPC `view_access_key_list`) | `PASS no-access-keys` |
@@ -335,7 +338,13 @@ the merchant later (EXTRA_SWEPT).
 ## Limits (honest)
 
 - **NEAR only.** FT / stablecoin invoices (NEP-141 `ft_transfer_call`) are not implemented.
-- **Testnet only.** `src/config.ts` refuses a non-testnet network or a mainnet RPC URL; mainnet was not tested.
+- **Testnet only.** `src/config.ts` refuses a non-testnet network or a mainnet RPC URL, and every signing path (the CLI,
+  the dashboard server, `scripts/plain-transfer.ts`) asserts RPC `chain_id == testnet` before it uses a key; mainnet was not tested.
+- **Exit codes.** `zi verify`, `zi receipt` and `zi replay` exit 1 on any failed check. `zi pay` exits 1 unless the result is
+  `PAID` (a `REFUNDED_*` result means the deposit came back); the dashboard answers 409 with `paid:false` in that case.
+- **Contract limits that stay.** The frozen contract cannot reject a bad merchant/tax-vault at pay time: `zi invoice new` and the
+  dashboard therefore check that both exist on testnet (`--offline` skips the check), but a hand-made invoice with a missing
+  merchant would still be marked PAID with the split stranded.
 - **`0s` exists too.** Deterministic accounts (NEP-616, live since protocol 82) can do a similar flow; `0u` is
   the canonical scheme and adds the uninitialized state and batched creation. The CLI keeps `--scheme 0s` as a
   fallback, but every result in this README is `0u`.

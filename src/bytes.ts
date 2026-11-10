@@ -11,7 +11,11 @@ export function concat(...parts: Uint8Array[]): Uint8Array {
 export const u8 = (n: number): Uint8Array => Uint8Array.of(n & 0xff);
 export function u16(n: number): Uint8Array { const b = new Uint8Array(2); new DataView(b.buffer).setUint16(0, n, true); return b; }
 export function u32(n: number): Uint8Array { const b = new Uint8Array(4); new DataView(b.buffer).setUint32(0, n, true); return b; }
-export function u64(n: bigint | number): Uint8Array { const b = new Uint8Array(8); new DataView(b.buffer).setBigUint64(0, BigInt(n), true); return b; }
+export function u64(n: bigint | number): Uint8Array {
+  const v = BigInt(n);
+  if (v < 0n || v >= 1n << 64n) throw new Error(`u64 out of range: ${v}`);   // setBigUint64 would silently wrap modulo 2^64
+  const b = new Uint8Array(8); new DataView(b.buffer).setBigUint64(0, v, true); return b;
+}
 export function u128(n: bigint): Uint8Array {
   if (n < 0n || n >= 1n << 128n) throw new Error(`u128 out of range: ${n}`);
   const b = new Uint8Array(16); let x = n;

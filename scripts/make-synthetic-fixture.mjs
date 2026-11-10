@@ -18,5 +18,7 @@ const f = { format:'zeroinit-fixture/1', synthetic:true, recorded_at_iso:'SYNTHE
  {seq:0,invoice_id:'INV-0001',label:'before: view_account',method:'query',params:{request_type:'view_account',finality:'final',account_id:doc.account_id},
   response:{jsonrpc:'2.0',id:'zi',error:{name:'HANDLER_ERROR',cause:{name:'UNKNOWN_ACCOUNT',info:{requested_account_id:doc.account_id}},code:-32000,message:'Server error'}}},
  {seq:1,invoice_id:'INV-0001',label:'pay: tx_status',method:'EXPERIMENTAL_tx_status',params:{tx_hash:'SYNTHETIC',sender_account_id:'zi-payer.testnet',wait_until:'FINAL'},response:{jsonrpc:'2.0',id:'zi',result:txs}},
- {seq:2,invoice_id:'INV-0001',label:'after: get_invoice',method:'query',params:{request_type:'call_function'},response:{jsonrpc:'2.0',id:'zi',result:{result:[...Buffer.from(JSON.stringify(inv))],logs:[],block_height:1,block_hash:'x'}}}]};
+ {seq:2,invoice_id:'INV-0001',label:'after: view_account',method:'query',params:{request_type:'view_account',finality:'final',account_id:doc.account_id},
+  response:{jsonrpc:'2.0',id:'zi',result:{amount:'0',locked:'0',code_hash:'11111111111111111111111111111111',storage_usage:300,storage_paid_at:0,global_contract_hash:doc.code_hash,block_height:1,block_hash:'x'}}},
+ {seq:3,invoice_id:'INV-0001',label:'after: get_invoice',method:'query',params:{request_type:'call_function'},response:{jsonrpc:'2.0',id:'zi',result:{result:[...Buffer.from(JSON.stringify(inv))],logs:[],block_height:1,block_hash:'x'}}}]};
 writeFileSync('fixtures/synthetic-demo.json', JSON.stringify(f,null,2)+'\n');

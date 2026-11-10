@@ -49,11 +49,17 @@ function unwrap(json: any, what: string): any {
   return json.result;
 }
 
+const networkChecked = new WeakMap<Config, { protocol: number; version: string }>();
+/** Asserts the RPC is testnet (PLAN §14 rule 1). Cached per Config object so signing paths can call it unconditionally. */
 export async function checkNetwork(cfg: Config): Promise<{ protocol: number; version: string }> {
+  const cached = networkChecked.get(cfg);
+  if (cached) return cached;
   const r = unwrap(await rpcCall(cfg, 'status', []), 'status');
   if (r.chain_id !== 'testnet') throw new Error(`RPC chain_id is ${r.chain_id}, expected testnet`);
   if (r.protocol_version < 88) throw new Error(`protocol ${r.protocol_version} < 88: universal accounts unavailable`);
-  return { protocol: r.protocol_version, version: r.version.version };
+  const info = { protocol: r.protocol_version, version: r.version.version };
+  networkChecked.set(cfg, info);
+  return info;
 }
 
 export type AccountState =
