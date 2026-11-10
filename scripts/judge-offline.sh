@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
-npm ci
+npm ci --include=dev
 npm test
 npm run -s zi -- vectors
 npm run -s zi -- replay fixtures/demo-run.json

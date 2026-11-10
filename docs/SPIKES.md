@@ -400,3 +400,60 @@ invoice ids return 400 instead of 502, and RPC/tx failures stay 502 (INTERFACES 
 The pay/sweep endpoints wait for `EXPERIMENTAL_tx_status` FINAL, so the badge updates when the response lands
 (measured 15.1 s for pay, 15.6 s for sweep in this run), not the ~5 s in the task sketch; the transaction itself was
 final well before that and the UI refresh is 3 s.
+
+## T19 buffer pass (day-3 review)
+
+Supersedes commit `ea3f9d4` ("T19: buffer pass, no failures found"). T19 has no dependencies, so the scheduler
+started it on day 0, before T06–T18 had produced anything: there were no fixtures, README, demo script or
+dashboard to break, so "no failures found" was vacuous. The real buffer work is in the `fix: day0 review`,
+`fix: day1 review`, `fix: day2 review` and this `fix: day3 review` commits. This section is the actual buffer
+pass, run on the finished tree 2026-11-10 03:18 Istanbul (2026-11-10 00:18 UTC).
+
+| Command | Exit | Result |
+|---|---|---|
+| `npm test` | 0 | `# tests 26` / `# pass 26` / `# fail 0` / `# skipped 0` |
+| `npm run zi -- vectors` | 0 | 8 `PASS` lines (`crockford-kat-1` … `example-0s`) |
+| `npm run zi -- replay fixtures/demo-run.json` | 0 | 20 `PASS` lines, no `FAIL` |
+| `npm run zi -- replay fixtures/refund-cases.json` | 0 | 33 `PASS` lines, no `FAIL` |
+| `bash scripts/judge-offline.sh` | 0 | 81 `PASS` lines, last line `JUDGE-OFFLINE: ALL PASS` |
+| `npm run zi -- verify INV-1111-A` (live, read-only) | 0 | 5 `PASS` + `INFO status=PAID` |
+| `npm run zi -- status INV-1111-B` (live, read-only) | 0 | `STATE INITIALIZED status=PAID paid_by=null balance=0 storage=328` |
+
+Live check output:
+
+```text
+PASS id-from-terms 0u4kwsbdsf5s5dfzp6wjaeq5ces9sajpv8hwmsp52a9e5bz30ave60
+PASS raw-from-terms
+PASS code-hash-onchain Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k
+PASS terms-onchain
+PASS no-access-keys
+INFO status=PAID
+STATE INITIALIZED status=PAID paid_by=null balance=0 storage=328
+```
+
+### Failure found and fixed
+
+`scripts/judge-offline.sh` (T16) used a bare `npm ci`. With `NODE_ENV=production` in the environment npm omits
+devDependencies, so only 3 packages were installed and `npm test` failed in `test/vectors.test.ts`:
+
+```text
+# Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'near-api-js' imported from .../test/vectors.test.ts
+not ok 8 - test/vectors.test.ts
+# tests 21
+# pass 20
+# fail 1
+```
+
+Fix: `npm ci --include=dev` in `scripts/judge-offline.sh`. Re-run in the same `NODE_ENV=production` shell:
+`added 68 packages, and audited 69 packages`, `# tests 26` / `# pass 26` / `# fail 0` / `# skipped 0`,
+`JUDGE-OFFLINE: ALL PASS`, exit 0.
+
+### T17 fix (same review)
+
+The README "AI use disclosure" now states what actually ran (operator run record): the plan, byte-level
+reference code and tests were drafted with Claude (Anthropic); the implementation was written by DeepSeek v4.1
+Flash (`deepseek/deepseek-v4.1-flash`, max effort) in Command Code agent sessions, orchestrated by Conductor
+(a Claude Code based orchestrator); daily review by Claude Sonnet 5.5, fixes by DeepSeek, final review by
+Claude Opus 5.5; the T04/T05 testnet accounts, funding and global deploy were done by Claude Opus 5.5 acting as
+operator. Human: Erhan. It no longer claims the implementation was written in
+Claude sessions or reviewed by a human, which did not match the run record or the git author (Erhan Türker).

@@ -357,9 +357,13 @@ from nearcore (MIT/Apache-2.0), cited inline.
 
 ## AI use disclosure
 
-Plan, byte-level reference code and tests were drafted with Claude (Anthropic). The implementation was written
-in Command Code agent sessions (Claude) from that plan, then re-run and reviewed. Every protocol claim
-is checked by a test or an on-chain transaction listed above.
+The plan, its byte-level reference code and tests were drafted with Claude (Anthropic). The implementation was
+written by DeepSeek v4.1 Flash (`deepseek/deepseek-v4.1-flash`, max effort) running in Command Code agent
+sessions, orchestrated by Conductor (a Claude Code based orchestrator). Each day's tasks were reviewed by
+Claude Sonnet 5.5 (read-only reviewer) and the fixes were written by DeepSeek; the final review was done by
+Claude Opus 5.5. Testnet accounts, funding and the global contract deploy (T04/T05) were done by Claude Opus
+5.5 acting as operator. Human: Erhan. Every protocol claim is checked by a
+test or an on-chain transaction listed above.
 
 ## Libraries
 
