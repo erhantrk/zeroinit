@@ -400,6 +400,30 @@ transfer has succeeded or failed.
   refuses to pay when a balance is already parked (it tells you to run `zi sweep`; `--allow-parked` overrides). v2 fix: in `pay()`, if status is OPEN and the free balance minus the
   deposit already covers `amount`, settle the parked funds as `sweep()` does and refund the deposit in full.
 
+## Contract v2 (fixes contract-1/2/3; built, not yet deployed)
+
+`contract/src/lib.rs` now fixes the three issues above. v1 stays deployed as history; v2 is a new global contract
+(new hash, to be deployed by the operator; `ZI_CODE_HASH`, `src/config.ts` and the fixtures still point at v1).
+Borsh state layout, method names, args, error strings and the existing events are unchanged. Additions only:
+
+- **contract-1:** `sweep()` treats `EXPIRED` with `paid_amount == 0` like `OPEN`: funds `>= amount` settle 92/8
+  (`PAID`, `late: true`). Less than `amount` on an expired, never-paid invoice is released pro rata (`tax_bps` to the
+  vault, rest to the merchant, event `extra_swept` with extra `tax_amount`/`tax_to` fields). The merchant never
+  receives a tax share of funds that arrived before a successful payment.
+- **contract-3:** `pay()` on an `OPEN`, unexpired invoice whose free balance minus the attached deposit already
+  covers `amount` settles the parked funds like `sweep()` (`via: "transfer"`, `paid_by: null`) and refunds the whole
+  deposit (`payment_refunded`, new `reason: "already_funded"`). Returns `PAID`.
+- **contract-2:** merchant and tax transfers carry an `on_transfer` callback (`#[private]`, borsh args, 10 TGas
+  each). The tax share is recorded as *owed* in a separate storage key `OWED_TAX` (outside the frozen state, so
+  the account id derivation is unchanged; ~70 bytes, still under the ZBA limit) when it is sent and cleared by
+  the success callback. A failed transfer emits `transfer_failed` (new event; it supersedes the optimistic
+  `invoice_paid` amounts) and leaves the tax owed. A later `sweep()` re-sends up to the owed amount to the tax vault
+  only (event `tax_resent`, returns `TAX_RESENT` if nothing else is left) and anything beyond that to the merchant
+  (`EXTRA_SWEPT`). New view `get_owed_tax()`. Residual: `invoice_paid` is still emitted before the transfers run
+  (it cannot know the outcome), extra funds that arrive while a tax transfer is still in flight (about a block) can
+  be sent to the vault as the owed share, and a merchant account that does not exist still cannot receive its share
+  (it stays parked on the invoice; the CLI check at issue time remains the mitigation).
+
 ## Pre-hackathon code
 
 There is no code from before the hackathon window. The repository's first commit (`38fc3f0`, 2026-11-10) is the

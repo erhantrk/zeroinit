@@ -457,3 +457,12 @@ Flash (`deepseek/deepseek-v4.1-flash`, max effort) in Command Code agent session
 Claude Opus 5.5; the T04/T05 testnet accounts, funding and global deploy were done by Claude Opus 5.5 acting as
 operator. Human: Erhan. It no longer claims the implementation was written in
 Claude sessions or reviewed by a human, which did not match the run record or the git author (Erhan Türker).
+
+## Contract v2 build (audit contract-1/2/3)
+
+- wasm: `contract/res/zeroinit_invoice.wasm` (v2; v1 is in git history, deployed hash `Amg4WXKy…GW6k`)
+- size: 82,942 bytes
+- sha256 hex: `3562e978e6924a2c538e9906fc42d15a652947891f18f7816e3c7807d20f622f`
+- code hash (base58): `4bQ61AgHWWmYXp5c3fwj9NJxS79D9R3cGZAZxHyx9zEA`
+- Not deployed; `ZI_CODE_HASH`, `src/config.ts` and the fixtures are unchanged. Unit tests: 14 pass; the five
+  `audit_contract_*` tests fail against v1 (checked with a v1 copy plus stubs).
