@@ -281,7 +281,10 @@ creation uses near-cli-rs. The steps below assume you are in the repo root.
    ```
 
    Open it, create an invoice (no transaction), pay, or send a plain transfer and sweep. The server signs with
-   the payer/sweeper keys from `.env` and binds `127.0.0.1` only.
+   the payer/sweeper keys from `.env` and binds `127.0.0.1` only. Statuses load when the page opens, after each
+   action, and when you click **Refresh statuses** (no polling, to stay under public RPC rate limits).
+
+   ![ZeroInit dashboard: INV-SHOT-1 paid on testnet](docs/img/dashboard-pay.png)
 
 ## How it works
 

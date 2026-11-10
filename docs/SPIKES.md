@@ -366,8 +366,8 @@ npm run zi -- status INV-WEB-2
 
 Images — **HTML renders, not live screenshots** (both show the green `PAID` badge):
 
-- `docs/img/dashboard-pay-html-render.png` — INV-WEB-1 `PAID` after the one-tx pay; log shows the real `PAID` event,
-  transfers 0.92 / 0.08 and tx hash.
+- `docs/img/dashboard-pay-html-render.png` — INV-WEB-1 `PAID` after the one-tx pay (removed 2026-11-10, replaced by the
+  real screenshot `docs/img/dashboard-pay.png`, see below).
 - `docs/img/dashboard-sweep-html-render.png` — INV-WEB-1 and INV-WEB-2 both `PAID`; log shows the sweep tx with
   `via:"transfer"`, `paid_by=null`, and the same 0.92 / 0.08 split.
 
@@ -378,9 +378,12 @@ hashes, transfers) captured at the two moments above, rendered with ImageMagick.
 from the live run. `docs/img/README.md` says the same. Do not present them as screen captures in `README.md`, the video
 or the X post.
 
-- [ ] live dashboard check + real screenshots (T19 buffer): run `node src/cli.ts serve --port 8787` in a real browser,
-  follow the T15 click path, and overwrite `docs/img/dashboard-pay-html-render.png` /
-  `docs/img/dashboard-sweep-html-render.png` with real captures.
+- [x] Live dashboard check + real screenshots (2026-11-10, contract v2, Chrome): INV-SHOT-1 (0.1 NEAR) paid from the
+  dashboard's **Pay** button; `zi status INV-SHOT-1` → `status=PAID paid_by=sm1110-zi-payer.testnet`, tax 0.008 NEAR.
+  Captures: `docs/img/dashboard-pay.png`, `docs/img/dashboard-invoices.png`. The sweep image is still the HTML render.
+  Found and fixed during the check: the page polled every invoice's status every 3 s (overlapping requests, badges
+  flashing back to `LOADING`, public RPCs answering 429). It now loads statuses on open, after each action and on a
+  **Refresh statuses** click, keeps the last known badge while refreshing, and never runs two refreshes at once.
 
 ### Plan corrections (day-2 review)
 
