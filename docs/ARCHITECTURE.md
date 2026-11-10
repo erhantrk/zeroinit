@@ -91,3 +91,27 @@ output and tx hashes are in `docs/SPIKES.md` → S-E.
 Issuing an invoice costs nothing and sends no transaction. After a completed payment the account sits at 0 NEAR
 (352 B of storage, below the zero-balance limit), so there is no per-invoice storage to fund and nothing left
 behind for the merchant to reclaim.
+
+## Known limitations (contract v1, frozen)
+
+The contract is deployed by code hash (`Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k`) and all fixtures depend on
+it, so these audit findings are documented, not fixed; a fix is a v2 (new wasm, new hash). `pay()` and `sweep()`
+write the record and emit `invoice_paid` in the same receipt that schedules detached transfers (no callback), so
+the design does **not** give atomicity between the record and the money movement.
+
+1. **contract-1 (medium): tax skipped after EXPIRED.** Funds parked by a plain transfer before expiry, then anyone
+   sends `pay()` with a 0 deposit after `expires_at_ms`: the invoice becomes `EXPIRED` (paid_amount 0), and a later
+   `sweep()` (non-OPEN branch) sends the whole balance to the merchant as `EXTRA_SWEPT`. The tax vault gets 0
+   instead of `tax_bps`. Sweeping before expiry splits correctly. v2: apply the split in `sweep()` to funds that
+   arrive while `paid_amount == 0` even after `EXPIRED`, and always route `tax_bps` of extra-swept funds to the vault.
+2. **contract-2 (low): failed transfer after PAID.** If the merchant or tax vault is a valid id of a non-existent
+   account, its detached transfer fails and bounces to the invoice account while the record already says PAID.
+   A bounced tax share is later forwarded to the merchant by `sweep()`; a missing merchant leaves the funds stuck
+   until someone registers that name. The CLI/dashboard check both accounts exist when issuing (hand-made
+   invoices bypass this). v2: `then()` callbacks recording failed transfers, retrying a failed tax share to the
+   vault only (`pending_tax`).
+3. **contract-3 (low): `pay()` ignores parked funds.** A payer who already sent the amount by plain transfer and
+   then runs `pay` is charged twice: the second amount is split 92/8, the first stays parked and goes to the
+   merchant untaxed via `sweep()` with no refund path (payer unknown). Check `zi status` before paying. v2: in
+   `pay()`, if OPEN and the free balance minus the deposit already covers `amount`, settle the parked funds like
+   `sweep()` and refund the deposit.

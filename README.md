@@ -45,12 +45,12 @@ registry once).
    found 0 vulnerabilities
    ```
 
-2. `npm test` → 26 tests, all pass (byte vectors from nearcore 2.14 and the frozen example, encoder parity with
+2. `npm test` → 63 tests, all pass (byte vectors from nearcore 2.14 and the frozen example, encoder parity with
    near-api-js 7.4.0, outcome/replay/CLI tests):
 
    ```
-   # tests 26
-   # pass 26
+   # tests 63
+   # pass 63
    # fail 0
    # skipped 0
    ```
@@ -170,7 +170,7 @@ creation uses near-cli-rs. The steps below assume you are in the repo root.
      as-global-hash "$P"-zi-deployer.testnet network-config testnet sign-with-legacy-keychain send
    ```
 
-3. `cp .env.example .env` and fill it in. Set `ZI_CODE_HASH=Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k`,
+3. `cp .env.example .env` and fill it in (uncomment the account and key lines; `ZI_CODE_HASH` is prefilled). Set `ZI_CODE_HASH=Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k`,
    `ZI_PAYER_ACCOUNT=example-zi-payer.testnet`, `ZI_SWEEPER_ACCOUNT=example-zi-merchant.testnet`,
    `ZI_TAXVAULT_ACCOUNT=example-zi-taxvault.testnet`, and for `ZI_PAYER_KEY` / `ZI_SWEEPER_KEY` paste the
    `private_key` values from `~/.near-credentials/testnet/example-zi-payer.testnet.json` and
@@ -352,9 +352,8 @@ the merchant later (EXTRA_SWEPT).
   **0.0073617847981195 NEAR** on a 0.1 NEAR invoice. Issuing costs nothing.
 - **Plain-transfer overpayments go to the merchant.** `sweep()` cannot know the payer, so everything parked
   above `amount` is forwarded to the merchant with the net amount. With `pay()` the excess is refunded to the payer.
-- **Merchant and tax vault must exist.** Issuing only checks that both are syntactically valid NEAR account ids
-  (a malformed id is rejected). It does not check that the accounts exist: if one does not, its transfer bounces
-  back to the invoice account and stays there until `sweep` can forward it, so create both accounts first.
+- **Merchant and tax vault must exist.** `zi invoice new` and the dashboard check that both exist on testnet
+  (`--offline` skips the check). The contract cannot: see contract-2 under "Known limitations (contract v1, frozen)".
 - **No checksum.** A mistyped `0u…` address is still a valid address for different bytes; funds sent to a wrong
   id are lost, like a mistyped implicit address. The invoice file (or its QR code) is the source of truth.
 - **Wallet support is untested.** We tested exchange-style `Transfer`s built by near-cli-rs / our CLI. Which
@@ -364,21 +363,70 @@ the merchant later (EXTRA_SWEPT).
 - **Out of scope for now:** mainnet, NEAR Intents, wallet-selector integration, a bulk-issuance UI, a `0s`/`0u`
   dual UI, a reproducible-build Docker pipeline, and any indexer.
 
-## Pre-hackathon code disclosure
+## Known limitations (contract v1, frozen)
 
-New repository, first commit 2026-11-10. No code before the 2026-10-19 cutoff. Diff of all hackathon work:
-`<REPO_URL>/compare/38fc3f0a1763d43d57fa3a702ec9d3ff3f17b332...hackathon-submission`. Test vectors are copied
-from nearcore (MIT/Apache-2.0), cited inline.
+The contract is deployed as a global contract by code hash `Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k` and every
+recorded fixture depends on that hash, so these three issues from our final audit are **documented, not fixed**. A
+fix means a new wasm, a new hash and new fixtures (a v2). The CLI and dashboard reduce but do not remove them.
+Atomicity is **not** claimed: `pay()` and `sweep()` update the record and emit `invoice_paid` in the same receipt as
+they schedule the transfers, and the transfers are detached (no callback), so the record can say PAID before a
+transfer has succeeded or failed.
+
+- **contract-1 (medium): tax can be skipped on a transfer-paid invoice.** Scenario: a payer's exchange sends the
+  amount as a plain transfer before expiry (funds parked, nobody has swept). After `expires_at_ms` anyone (for
+  example the merchant) sends the PAY shape with a 0 deposit. `pay()` refunds 0 and sets status `EXPIRED`. A later
+  `sweep()` sees a non-OPEN invoice and forwards the whole balance to the merchant as `EXTRA_SWEPT`, with no tax
+  share. Impact: the tax vault gets 0 instead of `tax_bps`, and the record shows `EXPIRED`, `paid_amount 0`,
+  `tax_amount 0` although the merchant was paid. Sweeping before expiry splits correctly (92/8, `late` set as
+  needed), so a tax authority or payer-side watcher should sweep transfer-paid invoices before `expires_at_ms`.
+  v2 fix: in `sweep()` apply the split to any funds that arrive while `paid_amount == 0`, even after `EXPIRED`
+  (or never set `EXPIRED` from a zero or underpaid deposit), and always route `tax_bps` of extra-swept funds to
+  the vault.
+- **contract-2 (low): a failed transfer after PAID leaves a false PAID record.** Scenario: the merchant or tax vault
+  is a syntactically valid account id that does not exist. Its detached transfer fails and the funds bounce back to
+  the invoice account, but the record and event already say PAID with the full split. For a missing tax vault a
+  later `sweep()` forwards the bounced tax share to the merchant (`EXTRA_SWEPT`); for a missing merchant the funds
+  stay stuck, and whoever registers that name later receives them on the next sweep. Mitigation in v1: `zi invoice
+  new` and the dashboard refuse to issue an invoice when either account does not exist (a hand-made invoice
+  bypasses this). v2 fix: `then()` callbacks that record failed transfers and retry a failed tax share to the vault
+  only (for example a `pending_tax` field).
+- **contract-3 (low): `pay()` ignores funds already parked.** Scenario: the payer first sends the amount as a plain
+  transfer (nothing visibly happens), then runs `zi pay`. `pay()` looks only at the attached deposit, settles a
+  second amount (92/8, PAID), and the first amount stays parked until `sweep()` sends it to the merchant as
+  `EXTRA_SWEPT`, with no tax share and no refund because the payer is unknown. Impact: the payer is charged twice,
+  the vault gets 0.08 instead of 0.16 on a 1 NEAR invoice. Mitigation in v1: check `zi status` before paying and
+  `zi sweep` instead if a balance is parked. v2 fix: in `pay()`, if status is OPEN and the free balance minus the
+  deposit already covers `amount`, settle the parked funds as `sweep()` does and refund the deposit in full.
+
+## Pre-hackathon code
+
+There is no code from before the hackathon window. The repository's first commit (`38fc3f0`, 2026-11-10) is the
+frozen plan, and it contains `docs/plan/reference/`: a reference implementation (the TypeScript sources, tests and
+the contract) that was **drafted with Claude during the planning phase of this hackathon (2026-11-08/09)**, not
+before it. Task T02 (`9c4faf7`, "scaffold the repo from reference/") copied it verbatim into `src/` and
+`contract/`. The deployed contract is that reference contract, and `src/bytes.ts`, `config.ts`, `outcome.ts`,
+`rpc.ts`, `send.ts`, `stateinit.ts`, `tx.ts` and `vectors.ts` are unchanged from it. Anyone reading a diff that
+starts after `38fc3f0` therefore does not see that code; to see the whole history use
+`git log --reverse` (or the diff from the first commit, inclusive). What was added after the reference:
+the scaffold and toolchain, the live testnet spikes and their fixtures (`docs/SPIKES.md`, `fixtures/`), the replay and
+dashboard server extensions (`src/replay.ts`, `src/server.ts`, `web/`), the scripts (`scripts/`), the extra tests,
+the docs and the review fixes (including the audit fixes: pinned code hash, issuance validation, exit codes).
+Test vectors are copied from nearcore (MIT/Apache-2.0), cited inline. A compare link
+(`<REPO_URL>/compare/...hackathon-submission`) is added to this section once the repo is public and the tag exists:
+see `docs/SUBMISSION.md`.
 
 ## AI use disclosure
 
-The plan, its byte-level reference code and tests were drafted with Claude (Anthropic). The implementation was
-written by DeepSeek v4.1 Flash (`deepseek/deepseek-v4.1-flash`, max effort) running in Command Code agent
-sessions, orchestrated by Conductor (a Claude Code based orchestrator). Each day's tasks were reviewed by
-Claude Sonnet 5.5 (read-only reviewer) and the fixes were written by DeepSeek; the final review was done by
-Claude Opus 5.5. Testnet accounts, funding and the global contract deploy (T04/T05) were done by Claude Opus
-5.5 acting as operator. Human: Erhan. Every protocol claim is checked by a
-test or an on-chain transaction listed above.
+- **Claude (Anthropic), planning phase.** The plan and the reference implementation (most of `src/*.ts` and
+  `contract/src/lib.rs`, copied verbatim in T02) were written by Claude.
+- **DeepSeek v4.1 Flash** (`deepseek/deepseek-v4.1-flash`, max effort), running in Command Code agent sessions
+  orchestrated by Conductor (a Claude Code based orchestrator): the scaffold, the live testnet spikes, the
+  fixtures, the scripts, the dashboard/server additions, the docs and the per-day review fixes.
+- **Claude Sonnet 5.5:** the daily code reviews, the last fix after the final review (`ee4ac44`, co-authored by
+  Claude Sonnet) and the audit fixes.
+- **Claude Opus 5.5:** the final review, the audit, and the operator role (testnet accounts, funding and the global
+  contract deploy, T04/T05).
+- **Human:** Erhan. Every protocol claim is checked by a test or an on-chain transaction listed above.
 
 ## Libraries
 
