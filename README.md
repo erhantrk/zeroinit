@@ -239,8 +239,8 @@ only read RPC; they work from a clean clone with no `.env`. The default endpoint
 
 4. Contract integrity: `shasum -a 256 contract/res/zeroinit_invoice.wasm` → `1b1dcc7515f2b9d6bada0540ed20833dd3050d074e155fb8d489ac2afe01e278` (163,771 bytes). That digest
    is the base58 code hash `2prMzXHZVWdeHfmdqqxzb5ahLy2pWBWZjuE25EDJDaYX`; `zi verify` checks that the invoice account's on-chain `global_contract_hash` equals it. This is
-   the exact wasm installed by the v3.1 global deploy tx `52dRw7RcBom9EbUJ6hCExDF5esWjsHPh5e1sUa87XyvB` (the operator's deploy, built from commit `49ec835`; the deploy burn of about
-   **16.38 NEAR** is the operator's figure, not measured by this run). The previous v3 wasm (digest `0724781d…0b1f`, 161,213 bytes, hash `Ut7EQhLD…reWa`) was installed by
+   the exact wasm installed by the v3.1 global deploy tx `52dRw7RcBom9EbUJ6hCExDF5esWjsHPh5e1sUa87XyvB` (the operator's deploy, built from commit `49ec835`; deploy burn about
+   **16.3784 NEAR**: deployer balance 17.8774031 → 1.4989866 NEAR across that tx, gas included). The previous v3 wasm (digest `0724781d…0b1f`, 161,213 bytes, hash `Ut7EQhLD…reWa`) was installed by
    `43D4EifRGJJBtWUVhFPXPFsZqooPwz1czD8LwRz6sjYT` (burn about 16.1226 NEAR: balance 27 → 10.8774031 NEAR, gas included); it is history now.
    History: `shasum -a 256 contract-v2/res/zeroinit_invoice.wasm` → `3562e978e6924a2c538e9906fc42d15a652947891f18f7816e3c7807d20f622f` (82,942 bytes, hash `4bQ61AgH…yx9zEA`),
    deployed by `DvNnUtvqMg5Q5e2Mn4fMx7GYBFNFhTo7z9wo64szAFKG` (signer `sm1110-zi-deployer.testnet`, burn 8.2949 NEAR). The v1 wasm (digest `912ae75e…c3c9`, hash `Amg4WXKy…GW6k`)
@@ -262,8 +262,8 @@ cargo near build reproducible-wasm
 shasum -a 256 target/near/zeroinit_invoice.wasm   # expect 3562e978…f622f, same as contract-v2/res/zeroinit_invoice.wasm
 ```
 
-`contract/` (v3, the deployed one) is a plain local build, not a reproducible one: `npm run contract:build` produced
-161,213 bytes / `0724781d…0b1f`. Do not quote it as reproducible until a reproducible build has been compared.
+`contract/` (v3.1, the deployed one) is a plain local build, not a reproducible one: `npm run contract:build` produced
+163,771 bytes / `1b1dcc75…e278` (base58 `2prMzXHZ…DaYX`). Do not quote it as reproducible until a reproducible build has been compared.
 
 The build settings live in `[package.metadata.near.reproducible_build]` in both `contract/Cargo.toml` and
 `contract-v2/Cargo.toml`. Their `image_digest` is still `UNSET`: the digest of the build image has not been recorded
@@ -274,7 +274,8 @@ the digest can be written. The operator should do both after a run with Docker: 
 
 ## Run it yourself on testnet
 
-This walkthrough runs on the **deployed v3** contract (NEAR, then tUSDC). The recorded runs in `fixtures/v3/` were made with the project's own CLI and the operator's
+This walkthrough was recorded on **v3** (`fixtures/v3/`, NEAR then tUSDC); the same commands run on the current **v3.1** deployment,
+whose re-recorded runs are in `fixtures/v31/`. The recorded runs in `fixtures/v3/` were made with the project's own CLI and the operator's
 accounts, exactly the commands below; the account-creation commands in step 1 are the near-cli-rs form the operator used for the earlier accounts and are not part of the
 recorded v3 runs.
 
