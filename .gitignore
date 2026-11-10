@@ -6,6 +6,7 @@ invoices/*.json
 invoices/*.receipt.json
 !invoices/examples/
 !invoices/v2/
+!invoices/v3/
 !invoices/demo/
 *.log
 .DS_Store

@@ -73,10 +73,22 @@ test('the token split and the recipients are checked against the invoice_paid ev
   }).includes('ft-split-merchant INV-V3-TOK'));
 });
 
-test('a rejected token payment must return the whole amount with a reason', () => {
+test('a rejected token payment must use nothing and get the whole amount back (the token returns the USED amount, 0)', () => {
+  assert.deepEqual(failed(replayFixture(FIXTURE, DEPLOYED)).filter((x) => x.includes('INV-V3-REJECT')), []);
+  // the final value claims the whole amount was used although payment_rejected says it was returned
   assert.ok(mutated((fx) => {
     const r = callOf(fx, 'INV-V3-REJECT', 'pay: tx_status').response.result;
-    r.status.SuccessValue = Buffer.from(JSON.stringify('0')).toString('base64');
+    r.status.SuccessValue = Buffer.from(JSON.stringify('500000')).toString('base64');
+  }).includes('ft-rejected-underpaid INV-V3-REJECT'));
+  // no refund event from the token: nothing proves the amount went back
+  assert.ok(mutated((fx) => {
+    const r = callOf(fx, 'INV-V3-REJECT', 'pay: tx_status').response.result;
+    for (const ro of r.receipts_outcome) ro.outcome.logs = ro.outcome.logs.filter((l: string) => !l.includes('"memo":"refund"'));
+  }).includes('ft-rejected-underpaid INV-V3-REJECT'));
+  // the refund goes to somebody else than the sender
+  assert.ok(mutated((fx) => {
+    const r = callOf(fx, 'INV-V3-REJECT', 'pay: tx_status').response.result;
+    for (const ro of r.receipts_outcome) ro.outcome.logs = ro.outcome.logs.map((l: string) => (l.includes('"memo":"refund"') ? l.replace('"new_owner_id":"payer.testnet"', '"new_owner_id":"thief.testnet"') : l));
   }).includes('ft-rejected-underpaid INV-V3-REJECT'));
 });
 

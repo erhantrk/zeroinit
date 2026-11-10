@@ -3,14 +3,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { V1_CODE_HASH, V2_CODE_HASH, V3_CODE_HASH, DEPLOYED_CODE_HASH, KNOWN_DEPLOYMENTS, deploymentOf, deploymentLabel,
-  trustedCodeHash, pinForVerification, fixesParkedFunds, fixesFinding, allowedTokens, tokenBySymbol, loadConfig } from '../src/config.ts';
+  trustedCodeHash, pinForVerification, fixesParkedFunds, fixesFinding, allowedTokens, tokenBySymbol, loadConfig, DEFAULT_TUSDC_ACCOUNT } from '../src/config.ts';
 import { FOREIGN } from './helpers.ts';
 
 test('v3 is the current deployment; v2 and v1 are historical', () => {
   assert.equal(DEPLOYED_CODE_HASH, V3_CODE_HASH);
   assert.equal(trustedCodeHash({ codeHashB58: null }), V3_CODE_HASH);
   assert.deepEqual(KNOWN_DEPLOYMENTS.map((d) => [d.version, d.historical]), [['v3', false], ['v2', true], ['v1', true]]);
-  assert.match(deploymentLabel(V3_CODE_HASH), /^v3 \(v-next, not deployed yet/);
+  assert.match(deploymentLabel(V3_CODE_HASH), /^v3 \(current, deployed on testnet/);
   assert.match(deploymentLabel(V2_CODE_HASH), /^v2 \(history/);
   assert.match(deploymentLabel(V1_CODE_HASH), /^v1 \(history/);
   assert.match(deploymentLabel(FOREIGN), /^custom/);
@@ -36,17 +36,21 @@ test('findings: v3 fixes the parked-funds rule and the new ones; v1 fixes none',
   }
 });
 
-test('the token allow-list is empty until ZI_TUSDC_ACCOUNT is set, then it is one pinned tUSDC entry', () => {
-  assert.deepEqual(allowedTokens({}), []);
+test('the token allow-list defaults to the deployed testnet tUSDC; ZI_TUSDC_ACCOUNT overrides it, an empty value switches it off', () => {
+  assert.equal(DEFAULT_TUSDC_ACCOUNT, 'sm1110-tusdc.testnet');
+  assert.deepEqual(allowedTokens({}), [{ symbol: 'tUSDC', decimals: 6, accountId: 'sm1110-tusdc.testnet' }]);
   assert.deepEqual(allowedTokens({ ZI_TUSDC_ACCOUNT: '' }), []);
   assert.deepEqual(allowedTokens({ ZI_TUSDC_ACCOUNT: 'tusdc.testnet' }), [{ symbol: 'tUSDC', decimals: 6, accountId: 'tusdc.testnet' }]);
-  assert.equal(tokenBySymbol(allowedTokens({}), 'tUSDC'), null, 'an unknown symbol is refused');
+  assert.equal(tokenBySymbol(allowedTokens({ ZI_TUSDC_ACCOUNT: '' }), 'tUSDC'), null, 'with the allow-list off every symbol is refused');
+  assert.equal(tokenBySymbol(allowedTokens({}), 'USDC'), null, 'an unknown symbol is refused');
   assert.deepEqual(tokenBySymbol(allowedTokens({ ZI_TUSDC_ACCOUNT: 'tusdc.testnet' }), 'tUSDC'), { symbol: 'tUSDC', decimals: 6, accountId: 'tusdc.testnet' });
   assert.equal(tokenBySymbol(allowedTokens({ ZI_TUSDC_ACCOUNT: 'tusdc.testnet' }), 'USDC'), null);
 });
 
-test('loadConfig refuses a non-testnet token account and keeps the empty allow-list explicit', () => {
-  assert.deepEqual(loadConfig({}).allowedTokens, []);
+test('loadConfig: default tUSDC and RPC, a non-testnet token account is refused, an empty ZI_TUSDC_ACCOUNT keeps the allow-list empty', () => {
+  assert.deepEqual(loadConfig({}).allowedTokens, [{ symbol: 'tUSDC', decimals: 6, accountId: 'sm1110-tusdc.testnet' }]);
+  assert.equal(loadConfig({}).rpcUrl, 'https://rpc.testnet.fastnear.com');
+  assert.deepEqual(loadConfig({ ZI_TUSDC_ACCOUNT: '' }).allowedTokens, []);
   assert.deepEqual(loadConfig({ ZI_TUSDC_ACCOUNT: 'tusdc.testnet' }).allowedTokens, [{ symbol: 'tUSDC', decimals: 6, accountId: 'tusdc.testnet' }]);
   assert.throws(() => loadConfig({ ZI_TUSDC_ACCOUNT: 'tusdc.near' }), /not a testnet account/);
 });

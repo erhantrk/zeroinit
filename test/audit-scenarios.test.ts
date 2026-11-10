@@ -104,6 +104,26 @@ test('contract-2: a failed tax transfer is recorded (transfer_failed), stays owe
   assert.equal(sweep.p.events.some((e) => e.event === 'extra_swept'), false);
 });
 
+// Appended to the same fixture later (2026-11-10): the one account that was missing, unregistered.sm1110-zi-taxvault.testnet, was created
+// by its parent (scripts/create-v2-unregistered-vault.ts, tx FWBnYH6K5J2YzB7aLUNrzT8DNjRTeoqeJvuPaPFhot6x) and AUD2-V2 was swept again
+// (tx HECqnmtEyo7nK7stnh9VoxPHLsmTJyJY3qX3ATUtpife): this time the owed tax really arrived.
+test('contract-2 (re-sweep): once the vault account exists, the second sweep delivers the owed tax and nothing fails downstream', () => {
+  const id = 'AUD2-V2'; const d = doc(id); const tax = parseNear('0.1') * 800n / 10000n;
+  assert.equal(calls(id, 'sweep: tx_status').length, 2, 'the first sweep (vault missing, failed again) and the re-sweep');
+  const first = tx(id, 'sweep: tx_status', 0);
+  assert.equal(first.p.downstreamFailures.length, 1, 'the first sweep failed again: the account did not exist');
+  const second = tx(id, 'sweep: tx_status', 1);
+  assert.equal(second.p.success, true);
+  assert.equal(second.p.returnValue, 'TAX_RESENT');
+  assert.equal(second.p.downstreamFailures.length, 0, 'the transfer to the now existing vault succeeded');
+  assert.equal(second.p.events.some((e) => e.event === 'transfer_failed'), false);
+  assert.deepEqual(second.p.transfers.map((t) => [t.to, t.yocto]), [[d.tax_vault, tax]], 'exactly the owed tax, to the vault only');
+  assert.equal(ev(second.p, 'tax_resent').to, d.tax_vault);
+  const last = calls(id, 'sweep-after: view_account')[1];
+  const end = accountStateFromResponse(last.response);
+  assert.equal(end.kind === 'INITIALIZED' && end.amount, 0n, 'nothing is left on the invoice account: the tax is delivered');
+});
+
 function mutated(mutate: (fx: any) => void): string[] {
   const fx = load(); mutate(fx);
   const p = join(tempDir(), 'f.json'); writeFileSync(p, JSON.stringify(fx));

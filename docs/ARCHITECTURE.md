@@ -1,14 +1,11 @@
 # ZeroInit — Architecture
 
 One immutable contract, one derivation function, and three transaction shapes. Everything below runs on NEAR
-testnet at protocol 88; `docs/SPIKES.md` (sections S-A…S-E, and "Contract v2") records the live transactions that prove it.
-The **deployed** contract is **v2** (code hash `4bQ61AgHWWmYXp5c3fwj9NJxS79D9R3cGZAZxHyx9zEA`); v1 (`Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k`) stays on testnet as recorded history, see "v1 → v2" at the end.
-
-**v-next, not deployed yet:** contract **v3** (NEP-141 invoices, `SETTLING`, an owed ledger and a payout lock) is built
-in this repo, unit-tested and has a wasm (code hash `Ut7EQhLDrvYVarHb6ZaXk6m7o9kQqYPCpyqiamvreWa`, 161,213 bytes).
-It is **not** a global contract on testnet, its `sm1110-zi3-*` accounts and the tUSDC registration do not exist, and no
-live v3 transaction was recorded. The v3 appendix at the end describes the design; `docs/STABLECOIN.md` is the interface
-spec and its "Build notes" list what is built versus measured.
+testnet at protocol 88; `docs/SPIKES.md` (sections S-A…S-E, "Contract v2 live" and "Contract v3 live") records the live transactions that prove it.
+The **current** contract is **v3** (code hash `Ut7EQhLDrvYVarHb6ZaXk6m7o9kQqYPCpyqiamvreWa`, deployed as a global contract by tx `43D4EifRGJJBtWUVhFPXPFsZqooPwz1czD8LwRz6sjYT`):
+it adds NEP-141 invoices (tUSDC, a testnet mock), a `SETTLING` status, an owed ledger and a payout lock. v2 (`4bQ61AgHWWmYXp5c3fwj9NJxS79D9R3cGZAZxHyx9zEA`) and v1
+(`Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k`) stay on testnet as recorded history, see "v1 → v2" and "v3". The sections up to "v1 → v2" describe the account model, which is
+the same in all three; where a number or a transaction differs, the v3 row or the v3 section says so. `docs/STABLECOIN.md` is the v3 interface spec.
 
 ## Diagram
 
@@ -65,7 +62,7 @@ Facts this relies on (all verified in source / official tests; Day-0 spikes re-p
   so no key exists that could ever sign for it. `zi verify` asks RPC `view_access_key_list` and prints
   `PASS no-access-keys` only when the list is empty.
 - **The code is fixed by hash.** The invoice account is a global-contract account: `view_account.global_contract_hash`
-  must equal the deployed code hash (v2 `4bQ61AgHWWmYXp5c3fwj9NJxS79D9R3cGZAZxHyx9zEA`, checked by `PASS code-hash-onchain`; v1 history invoices are checked against the v1 hash and labelled by `zi verify`).
+  must equal the deployed code hash (v3 `Ut7EQhLDrvYVarHb6ZaXk6m7o9kQqYPCpyqiamvreWa`, checked by `PASS code-hash-onchain`; v1/v2 history invoices are checked against their own hash and labelled by `zi verify`).
   A state init can only install code whose hash is already baked into the address, and repeating it on an initialized
   account is a no-op that refunds the deposit (INTERFACES §1, fact 3).
 - **The terms are in the address.** The id is `0u` + crockford-base32(SHA3-256(borsh
@@ -78,8 +75,8 @@ Facts this relies on (all verified in source / official tests; Day-0 spikes re-p
 
 | Name | signer | receiver | actions |
 |---|---|---|---|
-| PAY | payer | invoice `0u` id | `[UniversalStateInit{raw, deposit:0}, FunctionCall{"pay", "{}", 50 Tgas, deposit = amount}]` |
-| SWEEP | sweeper (anyone) | invoice `0u` id | `[UniversalStateInit{raw, deposit:0}, FunctionCall{"sweep", "{}", 50 Tgas, 0}]` |
+| PAY | payer | invoice `0u` id | `[UniversalStateInit{raw, deposit:0}, FunctionCall{"pay", "{}", 100 Tgas (v1/v2: 50), deposit = amount}]` |
+| SWEEP | sweeper (anyone) | invoice `0u` id | `[UniversalStateInit{raw, deposit:0}, FunctionCall{"sweep", "{}", 100 Tgas (v1/v2: 50), 0}]` |
 | (external) PLAIN TRANSFER | any wallet | invoice `0u` id | `[Transfer{amount}]`, sent by the payer's own wallet, not by us |
 
 ## Costs measured
@@ -96,8 +93,19 @@ v1 numbers were measured on testnet 2026-11-10 (protocol 88, code hash `Amg4WXKy
 | Tokens burnt by one `pay` tx that creates the account (all receipts summed) | v1 **0.0073621 NEAR**, v2 **0.0077197 NEAR** (15.5 vs 11.5 Tgas: the two `on_transfer` callbacks) | `INV-1111-A` and `INV-1111-V2-A` in the fixtures. v1 payer cost on a 0.1 NEAR invoice (balance diff): 0.0073617847981195 NEAR, pay tx `AaVJr8jgAZ2jwG4j4xR5pYvFnDPbfFADvBWpNrDuHY3M`. The protocol's 0.007 NEAR account-creation charge is included; when a plain transfer created the account first (`AUD3-V2`) the pay tx itself burnt 0.0015 NEAR |
 | One-time global deploy burn | v1 **7.8526 NEAR** (78,519-byte wasm), v2 **8.2949 NEAR** (82,942-byte wasm); not per-invoice costs | v1 deploy tx `DSXd2Sjq59zRF2ZX9j3D8SMYd6GZ44XpsW1aJbKfpJ1h`; v2 deploy tx `DvNnUtvqMg5Q5e2Mn4fMx7GYBFNFhTo7z9wo64szAFKG` |
 
+**v3 rows** (measured on testnet 2026-11-10, `docs/SPIKES.md` → "Contract v3 live" → "Measured"; single runs, tokens burnt summed over all receipts, deposits not included):
+
+| What | Measured |
+|---|---|
+| `storage_usage` after a NEAR `pay()` / after a plain transfer + `sweep` | **421 B** (0.1 NEAR invoice; 426 B for a 1 NEAR one) / **393 B**; 426 to 429 B while a merchant share is owed; 457 B after `refund_payer` |
+| `storage_usage` of a token invoice | 417 B initialized, 416 to 422 B after a plain-transfer sweep, 445 B after a paid `ft_transfer_call`, 472 B after `refund_payer` (largest seen; the limit is 770 B) |
+| Tokens burnt, NEAR `pay` that creates the account | **0.0075600 NEAR** (13.70 Tgas) (v2 0.0077197) |
+| Tokens burnt, token init `[UniversalStateInit, fund]` / settling `ft_transfer_call` / token sweep with state init | 0.0072530 NEAR (9.96 Tgas) / 0.0011780 NEAR (13.13 Tgas) / 0.0083450 NEAR (21.99 Tgas) |
+| NEP-145 registration of one account (token side) | 0.00125 NEAR deposit, kept by the token, plus 0.000182 NEAR burnt |
+| One-time global deploy burn, v3 (161,213-byte wasm) | **about 16.1226 NEAR** (operator's balance 27 → 10.8774031 NEAR, gas included); deploy tx `43D4EifRGJJBtWUVhFPXPFsZqooPwz1czD8LwRz6sjYT` |
+
 Issuing an invoice costs nothing and sends no transaction. After a completed payment the account sits at 0 NEAR
-(v2: 358 B of storage after `pay()`, 331 B after `sweep()`; v1: 352 B; all below the zero-balance limit), so there is no per-invoice storage to fund and nothing left
+(v3: 421 B after `pay()`, 393 B after `sweep()`; v2: 358 B / 331 B; v1: 352 B; all below the zero-balance limit), so there is no per-invoice storage to fund and nothing left
 behind for the merchant to reclaim.
 
 ## v1 → v2
@@ -107,22 +115,22 @@ code hash, same borsh state layout, same methods and events plus additions). `pa
 and emit `invoice_paid` in the same receipt that schedules the transfers, so atomicity between the record and the money
 movement is **not** claimed; v2 adds callbacks that record what failed.
 
-| Finding | v1 behaviour | v2 fix | Live evidence (`fixtures/audit-scenarios.json`) |
+| Finding | v1 behaviour | v2 fix | Live evidence (`fixtures/v2/audit-scenarios.json`) |
 |---|---|---|---|
 | contract-1 (medium): tax skipped after EXPIRED | funds parked by a plain transfer, a 0-deposit `pay()` after expiry sets `EXPIRED`, and `sweep()` sends everything to the merchant: the tax vault gets 0 | `sweep()` treats `EXPIRED` with `paid_amount == 0` like `OPEN` (92/8, `late: true`; pro rata if short) | `AUD1-V2`: zero pay `678rsqwk…`, sweep `8WQr2GUm…` → vault gets 0.008 |
 | contract-3 (low): `pay()` ignores parked funds | transfer then pay charges twice, the first amount reaches the merchant untaxed | `pay()` settles parked funds like `sweep()` and refunds the whole deposit (`already_funded`) | `AUD3-V2`: pay `3YPLdAp5…` → deposit refunded, one split |
-| contract-2 (low): failed transfer after PAID | the record says PAID, the bounced funds go to the merchant on the next sweep | `on_transfer` callbacks emit `transfer_failed`, the tax stays owed (`OWED_TAX`, `get_owed_tax()`), `sweep()` re-sends it to the vault, never to the merchant (`tax_resent`; the live `AUD2-V2` retry bounced again because that vault does not exist) | `AUD2-V2`: pay `ARgzUkMK…`, sweep `7z45ySFY…` → `TAX_RESENT` |
+| contract-2 (low): failed transfer after PAID | the record says PAID, the bounced funds go to the merchant on the next sweep | `on_transfer` callbacks emit `transfer_failed`, the tax stays owed (`OWED_TAX`, `get_owed_tax()`), `sweep()` re-sends it to the vault, never to the merchant (`tax_resent`; the live `AUD2-V2` retry bounced again because that vault does not exist) | `AUD2-V2`: pay `ARgzUkMK…`, sweep `7z45ySFY…` → `TAX_RESENT`. The first retry bounced (the vault did not exist); after the vault account was created (`FWBnYH6K…`) a second sweep `HECqnmty…` delivered the 0.008 NEAR |
 
 Residual: `invoice_paid` precedes the transfers; extra funds arriving while a tax transfer is in flight can be sent to the
 vault as the owed share; a nonexistent merchant still cannot receive its share, so the CLI and the dashboard check both
 accounts exist at issue time. Full tx hashes and the README table are in `README.md` → "v1 → v2".
 
-Client side (`src/config.ts`): a known-deployments list holds v3 (the trusted build, labelled "v-next, not deployed yet"), v2 (deployed, historical for the client) and v1 (historical).
+Client side (`src/config.ts`): a known-deployments list holds v3 (the trusted build, labelled "current, deployed on testnet"), v2 (deployed, historical for the client) and v1 (historical).
 `zi verify`, `zi receipt` and `zi replay` accept a v1 invoice or fixture against the v1 hash to replay the recorded history
 and say which deployment it uses; `zi pay`, `zi sweep`, `zi init`, `zi invoice new` and the dashboard use only the trusted
-hash (v2 or the `ZI_CODE_HASH` pin). Foreign hashes are never accepted.
+hash (v3 or the `ZI_CODE_HASH` pin). Foreign hashes are never accepted.
 
-## v3 (v-next, not deployed yet)
+## v3 (current, deployed on testnet)
 
 Contract v3 keeps the v2 account model — one global code hash, one `0u` id derived from code + terms, no init method,
 no access keys — and changes what an invoice can hold and how a payment settles. The full interface is
@@ -150,7 +158,8 @@ token (`predecessor == token`). Plain path (exchange): register the `0u` id on t
 (the tokens sit on the token contract), then anyone sends `[UniversalStateInit, fund(1000 yocto), sweep]` to the
 invoice; `sweep` reads `ft_balance_of(self)` in a callback and settles. One-step path: `[UniversalStateInit, fund]`
 first, then `ft_transfer_call` with the strict msg `{"action":"pay","invoice_id":"…"}`; `ft_on_transfer` returns the
-unused amount (the token refunds the excess) and records `payment_rejected <reason>` when it refuses. The client
+unused amount (the token refunds the excess) and records `payment_rejected <reason>` when it refuses. The `ft_transfer_call` transaction itself ends with the amount **used**
+(NEP-141), `"1000000"` for a settled 1 tUSDC, `"0"` for a rejected payment; the token's own `ft_transfer` event with `memo: "refund"` shows what came back. The client
 allow-list (`ZI_TUSDC_ACCOUNT`) pins the token contract and its 6 decimals; the contract cannot hold a list because its
 code is global and ownerless.
 
@@ -163,7 +172,11 @@ code is global and ownerless.
 | SWEEP (token) | anyone | invoice `0u…` | `[UniversalStateInit?, fund?, FunctionCall sweep, {}, 200 Tgas]` |
 | REFUND PAYER | anyone | invoice `0u…` | `[FunctionCall refund_payer, {}, 100/200 Tgas]` |
 
-Gas values are starting constants from the design, **not measured**; the deploy burn is unmeasured (`contract/`'s wasm
-is 161,213 bytes, built but not deployed). Client side (`src/config.ts`): v3 is the trusted build (labelled
-"v-next, not deployed yet"), v2 and v1 are historical; `pinForVerification` accepts a historical document only against
-its own hash, and pay/sweep/init refuse a historical or foreign document.
+Gas: the client attaches 100 Tgas for NEAR `pay`/`sweep`/`refund_payer`, 200 Tgas for token `ft_transfer_call`, token `sweep` and token `refund_payer`; the runs burnt 2 to 22 Tgas
+per transaction (numbers above). Deploy: about 16.1226 NEAR measured by the operator, `contract/`'s wasm is 161,213 bytes (a local, non-reproducible build). Client side
+(`src/config.ts`): v3 is the trusted build (labelled "current, deployed on testnet"), v2 and v1 are historical; `pinForVerification` accepts a historical document only against
+its own hash, and pay/sweep/init refuse a historical or foreign document. tUSDC (`sm1110-tusdc.testnet`) is a testnet mock token; the allow-list default is in `src/config.ts`.
+On mainnet it would be a real issuer's NEP-141 contract; that was not tested.
+
+**What the live runs changed in the design** (details in `docs/SPIKES.md`): the final value of `ft_transfer_call` is the amount used, not the unused amount; an invoice that expired
+untouched is still `OPEN` until some call sets `EXPIRED`, and only then does `sweep` release a plain underpay pro rata; everything else behaved as specified.

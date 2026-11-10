@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # LIVE v3 runs L2-L5 (docs/STABLECOIN.md §11.4): the three v2 residuals and the new tax rule.
-# NOT RUN YET: v3 is built but not deployed; the sm1110-zi3-* accounts do not exist yet.
+# Run against the deployed v3 with the operator's sm1110-zi3-* accounts (see docs/SPIKES.md "Contract v3 live").
 #   L2  a merchant that does not exist yet (late.sm1110-zi3-merchant.testnet is NOT created): pay => SETTLING,
 #       transfer_failed, no invoice_paid, PAYOUT_PENDING
-#   L3  the parent creates late.…: sweep => the merchant is paid, invoice_paid retried: true, status PAID
+#   L3  (not run: it needs a created account) the parent creates late.…: sweep => the merchant is paid, invoice_paid retried: true, status PAID
 #   L4  short grace, merchant never created: refund_payer before the window (NOT_YET, recorded) and after it => REFUNDED
 #   L5  plain 0.05, pay 0.1, sweep: the vault gets 0.012 in total, the merchant 0.138
-# Records fixtures/v3-fixes.json.
+# Records fixtures/v3/fixes.json.
 # Usage: scripts/record-v3-fixes.sh [SUFFIX]      default suffix V3
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -16,8 +16,8 @@ M="${ZI_SWEEPER_ACCOUNT:?set ZI_SWEEPER_ACCOUNT}"
 V="${ZI_TAXVAULT_ACCOUNT:?set ZI_TAXVAULT_ACCOUNT}"
 LATE="${LATE_MERCHANT:-late.sm1110-zi3-merchant.testnet}"     # must NOT exist during L2; the parent creates it for L3
 NEVER="${NEVER_MERCHANT:-never.sm1110-zi3-merchant.testnet}"  # must NEVER exist: L4 needs a merchant that stays missing
-export ZI_RECORD=fixtures/v3-fixes.json
-zi() { npm run -s zi -- "$@"; }
+export ZI_RECORD=fixtures/v3/fixes.json
+zi() { node src/cli.ts "$@"; }
 acct() { node -e "console.log(JSON.parse(require('fs').readFileSync('invoices/$1.json','utf8')).account_id)"; }
 
 echo "== v3 L2: a merchant that does not exist yet (--offline: the issuance check would refuse it)"
@@ -25,11 +25,8 @@ zi invoice new --id "LATE-$S" --merchant "$LATE" --tax-vault "$V" --tax-bps 800 
 zi pay "LATE-$S" || echo "(expected: PAYOUT_PENDING, exit 1, status SETTLING, transfer_failed, no invoice_paid)"
 zi status "LATE-$S"
 
-echo "== v3 L3: the parent creates the merchant, then sweep re-sends the share to it only"
-# A sub-account is created by its parent (the faucet service only makes top-level names). Not run: check the near-cli-rs syntax first.
-near account create-account fund-myself "$LATE" '0.1 NEAR' autogenerate-new-keypair save-to-legacy-keychain sign-as "${LATE#*.}" network-config testnet sign-with-legacy-keychain send
-zi sweep "LATE-$S"
-zi status "LATE-$S"
+echo "== v3 L3: NOT RUN. The parent account would have to create late.sm1110-zi3-merchant.testnet, and this run is not allowed to create accounts."
+echo "   The same 'retry delivers the owed share' is recorded for NEAR on v2 (AUD2-V2 re-sweep) and for tokens on v3 (L13, an unregistered merchant that is registered later)."
 
 echo "== v3 L4: short grace, merchant never created, refund_payer"
 zi invoice new --id "REFUND-$S" --merchant "$NEVER" --tax-vault "$V" --tax-bps 800 --amount 0.1 --expires-in 1m --grace 60000ms --offline
@@ -46,4 +43,4 @@ zi pay "TAX-$S"
 zi sweep "TAX-$S"
 zi status "TAX-$S"
 
-echo "replay: npm run zi -- replay fixtures/v3-fixes.json"
+echo "replay: npm run zi -- replay fixtures/v3/fixes.json"

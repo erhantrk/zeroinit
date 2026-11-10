@@ -1,5 +1,5 @@
 // SYNTHETIC v3 fixture for the replay-v3 unit tests. It is not a recording: no v3 contract is deployed,
-// so no live v3 run exists. The receipt JSON is shaped like EXPERIMENTAL_tx_status. Never present it as real.
+// so no live v3 run exists (the real recordings are fixtures/v3/). The receipt JSON is shaped like EXPERIMENTAL_tx_status. Never present it as real.
 // Run: node scripts/make-synthetic-v3-fixture.mjs
 import { writeFileSync } from 'node:fs';
 import { createInvoiceDoc } from '../src/invoice.ts';
@@ -37,6 +37,7 @@ const onSettled = () => ({ FunctionCall: { method_name: 'on_settled', args: b64(
 const receipt = (id, pred, recv, a) => ({ receipt_id: id, predecessor_id: pred, receiver_id: recv, receipt: action(a) });
 const outcome = (id, exec, { ok = true, logs = [] } = {}) => ({ id, outcome: { executor_id: exec, logs, status: ok ? { SuccessValue: '' } : { Failure: { ActionError: { index: 0, kind: { AccountDoesNotExist: { account_id: exec } } } } } } });
 const event = (name, data) => 'EVENT_JSON:' + JSON.stringify({ standard: 'zeroinit', version: '3.0.0', event: name, data: [data] });
+const nep141 = (from, to, amount, memo) => 'EVENT_JSON:' + JSON.stringify({ standard: 'nep141', version: '1.0.0', event: 'ft_transfer', data: [{ old_owner_id: from, new_owner_id: to, amount: String(amount), ...(memo ? { memo } : {}) }] });
 const invoiceView = (d, over = {}) => ({
   v: 3, account_id: d.account_id, invoice_id: d.invoice_id, merchant: d.merchant, tax_vault: d.tax_vault, tax_bps: d.tax_bps,
   amount: d.amount_raw, expires_at_ms: d.expires_at_ms, salt: d.salt, grace_ms: d.payout_grace_ms, token: TOKEN,
@@ -86,7 +87,7 @@ const call = (invoice_id, label, response) => calls.push({ seq: seq++, invoice_i
   call(d.invoice_id, 'before: view_account', unknown());
   call(d.invoice_id, 'init: tx_status', reply(result(d, PAYER, d.account_id, [stateInitAction(d), fundAction], null, [], [])));
   const failed = event('transfer_failed', { invoice_id: d.invoice_id, account_id: d.account_id, role: 'merchant', to: MERCHANT, amount: '920000', token: TOKEN });
-  call(d.invoice_id, 'pay: tx_status', reply(result(d, PAYER, TOKEN, [ftCallAction(d, 1_000_000)], '0',
+  call(d.invoice_id, 'pay: tx_status', reply(result(d, PAYER, TOKEN, [ftCallAction(d, 1_000_000)], '1000000',
     [receipt('p1', d.account_id, TOKEN, ftTransfer(MERCHANT, 920000)),
      receipt('p2', d.account_id, TOKEN, ftTransfer(VAULT, 80000)),
      receipt('p3', d.account_id, d.account_id, onSettled())],
@@ -104,15 +105,16 @@ const call = (invoice_id, label, response) => calls.push({ seq: seq++, invoice_i
   call(d.invoice_id, 'sweep-after: get_invoice', view(invoiceView(d, { status: 'PAID', paid_by: PAYER, paid_amount: '1000000', tax_amount: '80000' })));
 }
 
-// INV-V3-REJECT: an underpaid ft_transfer_call is returned whole (payment_rejected underpaid, status stays OPEN).
+// INV-V3-REJECT: an underpaid ft_transfer_call is returned whole (payment_rejected underpaid, status stays OPEN). Like the real token,
+// the final value is the USED amount (0) and the refund is proven by the token's own ft_transfer event with memo "refund".
 {
   const d = byId['INV-V3-REJECT'];
   call(d.invoice_id, 'before: view_account', unknown());
   call(d.invoice_id, 'init: tx_status', reply(result(d, PAYER, d.account_id, [stateInitAction(d), fundAction], null, [], [])));
   const rejected = event('payment_rejected', { invoice_id: d.invoice_id, account_id: d.account_id, sender: PAYER, amount: '500000', reason: 'underpaid', predecessor: TOKEN, token: TOKEN });
-  call(d.invoice_id, 'pay: tx_status', reply(result(d, PAYER, TOKEN, [ftCallAction(d, 500_000)], '500000',
+  call(d.invoice_id, 'pay: tx_status', reply(result(d, PAYER, TOKEN, [ftCallAction(d, 500_000)], '0',
     [receipt('x1', d.account_id, d.account_id, onSettled())],
-    [outcome('x1', d.account_id, { logs: [rejected] })])));
+    [outcome('x1', d.account_id, { logs: [nep141(PAYER, d.account_id, 500_000), rejected, nep141(d.account_id, PAYER, 500_000, 'refund')] })])));
   call(d.invoice_id, 'after: view_account', unknown());
   call(d.invoice_id, 'after: get_invoice', view(invoiceView(d, { status: 'OPEN' })));
 }
@@ -133,7 +135,7 @@ const call = (invoice_id, label, response) => calls.push({ seq: seq++, invoice_i
 }
 
 const fixture = { format: 'zeroinit-fixture/1', synthetic: true,
-  note: 'SYNTHETIC v3 fixture for the replay-v3 unit tests. Not a recording; v3 is not deployed.',
+  note: 'SYNTHETIC v3 fixture for the replay-v3 unit tests. Not a recording: the real v3 recordings are in fixtures/v3/.',
   recorded_at_iso: now.toISOString(), rpc_url: 'synthetic', invoices: docs, calls };
 writeFileSync('fixtures/v3-synthetic-token.json', JSON.stringify(fixture, null, 2) + '\n');
 console.log(`wrote fixtures/v3-synthetic-token.json (${calls.length} calls, ${docs.length} invoices)`);

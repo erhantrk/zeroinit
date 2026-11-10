@@ -6,7 +6,7 @@ import * as N from 'near-api-js';
 import { fromHex, toHex, concat, utf8, parseNear } from '../src/bytes.ts';
 import { encodeUniversalAccountId, universalStateInitBytes, deterministicStateInitBytes, deriveUniversalAccountId,
   deriveDeterministicAccountId, invoiceStateBytes, invoiceStateInit } from '../src/stateinit.ts';
-import { actTransfer, actFunctionCall, actUniversalStateInit, encodeTransactionV0, signTransaction, keyPairFromSecret } from '../src/tx.ts';
+import { actCreateAccount, actAddFullAccessKey, actTransfer, actFunctionCall, actUniversalStateInit, encodeTransactionV0, signTransaction, keyPairFromSecret } from '../src/tx.ts';
 
 test('crockford KATs (nearcore universal_account_id.rs)', () => {
   assert.equal(encodeUniversalAccountId(new Uint8Array(32)), '0u0000000000000000000000000000000000000000000000000000');
@@ -50,6 +50,17 @@ test('tx encoder parity with near-api-js 7.4.0 (Transfer + FunctionCall)', () =>
   const t = N.createTransaction('payer.testnet', nk.getPublicKey(), recv, 5n,
     [N.actions.transfer(10n ** 24n), N.actions.functionCall('pay', {}, 30n * 10n ** 12n, 1n)], BLOCK);
   assert.equal(toHex(mine), toHex(N.encodeTransaction(t)));
+});
+
+test('tx encoder parity with near-api-js 7.4.0 (CreateAccount + Transfer + AddKey FullAccess), the sub-account creation path', () => {
+  const kp = keyPairFromSecret(SECRET);
+  const mine = encodeTransactionV0({ signerId: 'vault.testnet', publicKey: kp.publicKey, nonce: 9n, receiverId: 'child.vault.testnet', blockHash: BLOCK,
+    actions: [actCreateAccount(), actTransfer(10n ** 23n), actAddFullAccessKey(kp.publicKey)] });
+  const nk = N.KeyPair.fromString(SECRET as any);
+  const t = N.createTransaction('vault.testnet', nk.getPublicKey(), 'child.vault.testnet', 9n,
+    [N.actions.createAccount(), N.actions.transfer(10n ** 23n), N.actions.addFullAccessKey(nk.getPublicKey())], BLOCK);
+  assert.equal(toHex(mine), toHex(N.encodeTransaction(t)));
+  assert.throws(() => actAddFullAccessKey(new Uint8Array(31)), /32 bytes/);
 });
 
 test('signed pay tx vector [UniversalStateInit, FunctionCall pay 1 NEAR] (INTERFACES.md §4.4)', () => {

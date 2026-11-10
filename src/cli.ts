@@ -60,7 +60,7 @@ function need(s: Signer | null, who: string): Signer {
 }
 
 function txLines(p: ParsedTx, decimals = 24, unit = 'NEAR'): string[] {
-  const l = [`TX ${p.txHash}`, `RESULT ${p.success ? String(p.returnValue) : 'FAILED ' + JSON.stringify(p.failures)}`];
+  const l = [`TX ${p.txHash}`, `RESULT ${p.success ? (typeof p.returnValue === 'object' && p.returnValue !== null ? JSON.stringify(p.returnValue) : String(p.returnValue)) : 'FAILED ' + JSON.stringify(p.failures)}`];
   for (const e of p.events) l.push(`EVENT ${e.event} ${JSON.stringify(e.data[0])}`);
   for (const t of p.transfers) l.push(`TRANSFER ${t.to} ${formatNear(t.yocto)}`);
   for (const t of p.ftTransfers) l.push(`FT_TRANSFER ${t.to} ${formatUnits(t.amount, decimals)} ${unit} (${t.token})`);
@@ -361,8 +361,12 @@ async function main(argv: string[]): Promise<number> {
     const p = await sendActions(cfg, signer, doc.account_id, actions, cmd === 'init' ? 'init' : cmd);
     const after = await statusLine(cfg, doc, cmd === 'sweep' ? 'sweep-after: view_account' : 'after: view_account');
     out(json, { tx: p, after: after.obj }, [...txLines(p, dec, unit), after.line]);
-    if (cmd === 'pay' && p.success && p.returnValue !== 'PAID') console.error(`NOT PAID: ${String(p.returnValue)} (the deposit was refunded)`);
-    if (cmd === 'pay' && ['PAYOUT_PENDING', 'REFUND_FAILED', 'SETTLING'].includes(String(p.returnValue))) {
+    const incomplete = ['PAYOUT_PENDING', 'REFUND_FAILED', 'SETTLING'].includes(String(p.returnValue));
+    // PAYOUT_PENDING means the payment was ACCEPTED and a payout failed: the money is not back with the payer (REFUND_FAILED: a refund could not be sent).
+    if (cmd === 'pay' && p.success && p.returnValue !== 'PAID') {
+      console.error(incomplete ? `NOT PAID (yet): ${String(p.returnValue)}` : `NOT PAID: ${String(p.returnValue)} (the deposit was refunded)`);
+    }
+    if (cmd === 'pay' && incomplete) {
       console.error(`WARNING the settlement is not complete: ${String(p.returnValue)}; fix the recipient, then run \`zi sweep ${doc.invoice_id}\``);
     }
     if (cmd === 'sweep' && entry && p.success) {

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # LIVE v3 failure runs L11-L13, L19 (docs/STABLECOIN.md §11.4).
-# NOT RUN YET: v3 is built but not deployed. Requires a second mock token (sm1110-zi3-fake.testnet, same test-usdc
-# source) and an account that exists on NEAR but is not registered on tUSDC (sm1110-zi3-unreg.testnet).
-# Records fixtures/v3-failures.json.
+# Requires a second mock token (ZI_FAKE_TOKEN_ACCOUNT, same test-usdc source) and an account that exists on NEAR but is not
+# registered on tUSDC (ZI_UNREG_ACCOUNT).
+# Records fixtures/v3/failures.json.
 # Usage: scripts/record-v3-failures.sh [SUFFIX]      default suffix V3
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -13,8 +13,8 @@ V="${ZI_TAXVAULT_ACCOUNT:?set ZI_TAXVAULT_ACCOUNT}"
 : "${ZI_TUSDC_ACCOUNT:?set ZI_TUSDC_ACCOUNT}"
 FAKE="${ZI_FAKE_TOKEN_ACCOUNT:?set ZI_FAKE_TOKEN_ACCOUNT (a second test-usdc instance)}"
 UNREG="${ZI_UNREG_ACCOUNT:?set ZI_UNREG_ACCOUNT (exists on NEAR, not registered on tUSDC)}"
-export ZI_RECORD=fixtures/v3-failures.json
-zi() { npm run -s zi -- "$@"; }
+export ZI_RECORD=fixtures/v3/failures.json
+zi() { node src/cli.ts "$@"; }
 acct() { node -e "console.log(JSON.parse(require('fs').readFileSync('invoices/$1.json','utf8')).account_id)"; }
 
 echo "== v3 L13: an unregistered receiver records the failed share and a later sweep delivers it"
@@ -25,19 +25,21 @@ zi token register "$UNREG"            # once registered, the retry can deliver
 zi sweep "UNREG-$S"
 
 echo "== v3 L11: the wrong token is returned (payment_rejected wrong_token)"
-# The fake token is not on the client allow-list, so this step uses a hand-built ft_transfer_call via plain-ft-transfer
-# against the fake token; the invoice names tUSDC, so ft_on_transfer rejects it.
+# The fake token is not on the client allow-list, so the call is built by scripts/live-call.ts; the invoice names tUSDC, so ft_on_transfer
+# sees predecessor != token and returns the amount.
 zi invoice new --id "WRONGTOK-$S" --merchant "$M" --tax-vault "$V" --tax-bps 800 --amount 1 --expires-in 2h --token tUSDC
 zi init "WRONGTOK-$S"
-echo "  now send a plain ft_transfer_call on $FAKE to $(acct "WRONGTOK-$S") with msg '{\"action\":\"pay\"}' (near-cli-rs or the mock token UI)"
-echo "  expected: the whole amount returned, payment_rejected wrong_token"
+node scripts/live-call.ts ft-call "$FAKE" "WRONGTOK-$S" 1 pay 200 wrong-token
 
-echo "== v3 L12: a wrong msg is returned"
-echo "  ft_transfer_call on $ZI_TUSDC_ACCOUNT with msg '' and '{\"action\":\"x\"}' to a fresh token invoice"
-echo "  expected: the whole amount returned, payment_rejected bad_msg"
+echo "== v3 L12: a wrong msg is returned (empty, then an unknown action) on a fresh token invoice"
+zi invoice new --id "BADMSG-$S" --merchant "$M" --tax-vault "$V" --tax-bps 800 --amount 1 --expires-in 2h --token tUSDC
+zi init "BADMSG-$S"
+node scripts/live-call.ts ft-call "$ZI_TUSDC_ACCOUNT" "BADMSG-$S" 1 empty 200 bad-msg-empty
+node scripts/live-call.ts ft-call "$ZI_TUSDC_ACCOUNT" "BADMSG-$S" 1 bad 200 bad-msg-action
 
-echo "== v3 L19: 40 Tgas ft_transfer_call is returned whole"
-echo "  build the same ft_transfer_call with 40 Tgas (near-cli-rs --gas 40) and send it"
-echo "  expected: payment_rejected low_gas, the amount back"
+echo "== v3 L19: ft_transfer_call with little gas (${LOWGAS:-40} Tgas); record what the chain says"
+zi invoice new --id "LOWGAS-$S" --merchant "$M" --tax-vault "$V" --tax-bps 800 --amount 1 --expires-in 2h --token tUSDC
+zi init "LOWGAS-$S"
+node scripts/live-call.ts ft-call "$ZI_TUSDC_ACCOUNT" "LOWGAS-$S" 1 pay "${LOWGAS:-40}" low-gas || echo "(see the output: the chain decides)"
 
-echo "replay: npm run zi -- replay fixtures/v3-failures.json"
+echo "replay: npm run zi -- replay fixtures/v3/failures.json"

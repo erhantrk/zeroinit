@@ -1,16 +1,12 @@
 # ZeroInit contract v3: stablecoin (NEP-141) support and the v2 residual fixes
 
-Status: **built and unit-tested, not deployed.** (This header replaces "design only"; the original design text below is
-kept as the interface spec, and "Build notes" at the end lists every deviation and what was actually run.) The contract,
-the client, the dashboard and the tests are in this repo. The wasm was built with `npm run contract:build`:
-161,213 bytes, sha256 `0724781dd2c9f4f1b8bb30abbff0602578a7ad649fc5a450d4656ffde4740b1f`, code hash
-`Ut7EQhLDrvYVarHb6ZaXk6m7o9kQqYPCpyqiamvreWa`. **That hash is not deployed on testnet**, the `sm1110-zi3-*` accounts
-and the tUSDC registration/mint do not exist, and no live v3 run (S-F1…S-F6, L1…L19) has been made. The deployed
-contract is still v2 (`4bQ61AgH…yx9zEA`), so `README.md` keeps describing v2 and marks every v3 statement
-"v-next, not deployed yet". The numbers
-marked "derived" were computed from earlier v2 measurements; everything marked "to measure" has to be measured live before
-it is written into the README. `docs/plan/` is the locked original plan and is not touched. `README.md` and the other docs
-keep describing v2 until v3 is built and recorded (section 13 lists what to change then).
+Status: **deployed on testnet and run live (2026-11-10).** The contract, the client, the dashboard and the tests are in this repo. The wasm was built with
+`npm run contract:build`: 161,213 bytes, sha256 `0724781dd2c9f4f1b8bb30abbff0602578a7ad649fc5a450d4656ffde4740b1f`, code hash
+`Ut7EQhLDrvYVarHb6ZaXk6m7o9kQqYPCpyqiamvreWa`. The operator deployed it as a global contract (tx `43D4EifRGJJBtWUVhFPXPFsZqooPwz1czD8LwRz6sjYT`, measured burn about
+16.1226 NEAR) and created the `sm1110-zi3-*` accounts and the tUSDC mock `sm1110-tusdc.testnet`. The live runs are recorded in `docs/SPIKES.md` ("Contract v3 live")
+and replay offline from `fixtures/v3/`. **Read the rest of this file as the interface spec plus history:** the design text and the "Build notes" below were written
+before the deploy and still say "not deployed" and "to measure"; the section "Live results" at the end says what the runs showed, which numbers are now measured, and the
+one design statement that was wrong (the final value of `ft_transfer_call`). v2 (`4bQ61AgH…yx9zEA`) is recorded history. `docs/plan/` is the locked original plan and is not touched.
 
 What was actually run for this design (2026-11-10, read-only):
 
@@ -434,7 +430,7 @@ until the operator provides the id the default is empty and `--token` is refused
 `storage_deposit`, `ft_transfer`, `ft_transfer_call`, `fund`. Same recording hooks (`ZI_RECORD`) so fixtures keep working.
 
 **Outcome parsing (`src/outcome.ts`).** `ParsedTx` gains `ftTransfers` (FunctionCall `ft_transfer` actions in receipts whose predecessor is the invoice: token, to, amount, decoded from the args) and `nep141Events`
-(logs with `standard: "nep141"`). A failed `ft_transfer` receipt runs on the token account, so it already lands in `downstreamFailures`. For a `ft_transfer_call` transaction the final value is the unused amount (a JSON string), not `PAID`: the client decides the outcome from the events
+(logs with `standard: "nep141"`). A failed `ft_transfer` receipt runs on the token account, so it already lands in `downstreamFailures`. For a `ft_transfer_call` transaction the final value is the amount **used** (a JSON string, `"0"` when everything came back; NEP-141's `ft_resolve_transfer`; this section first said "unused", which the live runs disproved), not `PAID`: the client decides the outcome from the events
 (`invoice_paid`, `payment_rejected`, `transfer_failed`).
 
 **CLI (`src/cli.ts`).**
@@ -641,7 +637,7 @@ the test count and the offline output (only after running them), the cost lines,
 ## 15. AI use for this round
 
 - **Claude Sonnet 5.5** wrote this design (reading the code and docs, the vector computation and the read-only checks listed at the top).
-- Plan for the build, not done yet: **DeepSeek V4.1 Flash** builds the contract, client and tests from this file; **Claude Sonnet 5.5** designs, reviews and fixes; **Claude Opus 5.5** does the final review and the operator deploys (accounts, tUSDC registration and mint, the global deploy, the live runs). The README disclosure is updated with what actually happened when each step is done.
+- Plan for the build (carried out; see "Live results" at the end): **DeepSeek V4.1 Flash** builds the contract, client and tests from this file; **Claude Sonnet 5.5** designs, reviews and fixes; **Claude Opus 5.5** does the final review and the operator deploys (accounts, tUSDC registration and mint, the global deploy, the live runs). The README disclosure is updated with what actually happened when each step is done.
 
 ## Build notes (2026-11-10, this round)
 
@@ -783,3 +779,30 @@ Read and left as it is (noted, not fixed):
 - Not tested live: everything in "Not done, explicitly" above. The `ft_on_transfer` detached batch and the callback gas (20 Tgas)
   are the first things to check in the spikes.
 - The slot wrapper `$CONDUCTOR_BIN slot run` failed here with `spawn EPERM`, so `cargo` and `node --test` were run directly.
+
+## Live results (2026-11-10, Claude Sonnet 5.5 with the operator's accounts)
+
+Everything below was run on testnet; the transactions are listed in `docs/SPIKES.md` "Contract v3 live" and the recordings are `fixtures/v3/*.json` (replayed by
+`test/live-v3.test.ts`). What the runs showed against this spec:
+
+- **Worked as designed:** NEAR pay, plain transfer + sweep, underpay, expiry, double pay (L1); `SETTLING` + no `invoice_paid` when a payout fails (L2); `refund_payer`
+  refused before the window (`NOT_YET`) and paying only the payer after it (L4, L14); a parked part is taxed (L5); the token plain path with a `0u` id that NEAR does not know
+  (S-F1), the one-transaction `[UniversalStateInit, fund, sweep]` (S-F3), `ft_transfer_call` after `zi init` (L7), overpay returned by the token (L8), underpay/expired/wrong
+  token/bad msg/low gas all returned whole with the specified `payment_rejected` reason (L9, L10, L11, L12, L19), double claims (L15), NEAR on a token invoice (L16), an
+  unregistered receiver that is retried to success after its registration (L13), and the payout lock (one run of two simultaneous sweeps: one paid, one `PAYOUT_IN_FLIGHT`).
+- **S-F2:** `ft_transfer_call` to a never-initialized `0u` id fails on NEAR (`AccountDoesNotExist`) and the token refunds everything. Safe, as hoped.
+- **Wrong in this spec:** §10 said the final value of a `ft_transfer_call` transaction is the *unused* amount. It is the amount *used* (NEP-141): `"1000000"` for a settled
+  payment, `"0"` for a rejected one. The proof of what came back is the token's own `ft_transfer` event with `memo: "refund"`; the replay checks that.
+- **Behaviour to know:** an invoice that expired while untouched is still `OPEN`. A plain underpay is not released by `sweep` after the expiry time (it returns `UNDERPAID`)
+  until some call sets `EXPIRED` (a late `ft_transfer_call` or `pay`, which is returned); after that `sweep` releases the parked amount pro rata, taxed (L9b: 0.46 / 0.04).
+- **Measured (replacing §3's and §9's estimates):** a normal invoice is 417 to 445 B of storage (421 B for a NEAR `pay`), the largest seen was 472 B after `refund_payer`
+  (limit 770 B, design bound 696 B); gas burnt per transaction is 2 to 22 Tgas (a token sweep with 200 Tgas attached burnt 21.99 Tgas, a token `ft_transfer_call` that settles
+  13.13 Tgas); the NEAR `pay` that creates the account burnt 0.00756 NEAR; the global deploy burned about 16.1226 NEAR (the §2 guess was 9 to 11). The 1,000-yocto float is
+  enough (998 to 999 yocto left after every settlement). The 40 Tgas test (L19) ended in `low_gas`, not in a failed receipt.
+- **Not run:** L3 (it needs an account created; not allowed in this round), S-F4, a reproducible wasm build, any browser test of the dashboard, mainnet.
+- **tUSDC is a testnet mock** (`sm1110-tusdc.testnet`, the `test-usdc` source; owner-only mint; no issuer, no value). The contract does not know it: each invoice names one token
+  and the client allow-list (`DEFAULT_TUSDC_ACCOUNT` in `src/config.ts`, `ZI_TUSDC_ACCOUNT` overrides it, an empty value turns token invoices off) pins symbol, decimals and
+  account. On mainnet the allow-list would name a real issuer's NEP-141 contract (for example a USDC or USDT contract that the issuer runs on NEAR) with its real decimals,
+  after `ft_metadata` is checked against it; that was not tested and mainnet is out of scope for this project.
+- **AI use for this round:** DeepSeek V4.1 Flash built the contract, client and tests; Claude Sonnet 5.5 designed this spec, reviewed and fixed the build, and ran and
+  recorded the live runs; the operator work (accounts, tUSDC, registrations, the global deploy) was done by Claude Opus 5.5, whose final review had not happened when this was written.

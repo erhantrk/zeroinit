@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # LIVE v3 run L1 (docs/STABLECOIN.md §11.4): NEAR parity on the v3 deployment.
-# NOT RUN YET: v3 (Ut7EQhLDrvYVarHb6ZaXk6m7o9kQqYPCpyqiamvreWa) is built but not deployed, and the
-# sm1110-zi3-* accounts do not exist yet. Run this only after the operator deploys v3 and sets up .env.
-# Records fixtures/v3-near.json: pay, plain transfer + sweep by the sweeper, underpay, expired, double pay.
+# Run against the deployed v3 (Ut7EQhLDrvYVarHb6ZaXk6m7o9kQqYPCpyqiamvreWa) with the operator's sm1110-zi3-* accounts from .env.
+# Records fixtures/v3/near.json: pay, plain transfer + sweep by the sweeper, underpay, expired, double pay.
 # Usage: scripts/record-v3-near.sh [SUFFIX]      default suffix V3; invoice ids must be new each run
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -10,8 +9,8 @@ set -a; source .env; set +a
 S="${1:-V3}"
 M="${ZI_SWEEPER_ACCOUNT:?set ZI_SWEEPER_ACCOUNT}"
 V="${ZI_TAXVAULT_ACCOUNT:?set ZI_TAXVAULT_ACCOUNT}"
-export ZI_RECORD=fixtures/v3-near.json
-zi() { npm run -s zi -- "$@"; }
+export ZI_RECORD=fixtures/v3/near.json
+zi() { node src/cli.ts "$@"; }
 new() { local id="$1" exp="$2"; shift 2 || shift $#; zi invoice new --id "$id" --merchant "$M" --tax-vault "$V" --tax-bps 800 --amount 0.1 --expires-in "$exp" "$@"; }
 acct() { node -e "console.log(JSON.parse(require('fs').readFileSync('invoices/$1.json','utf8')).account_id)"; }
 
@@ -42,4 +41,4 @@ new "INV-${S}-E" 2h
 zi pay "INV-${S}-E"
 zi pay "INV-${S}-E" || echo "(expected: REFUNDED_NOT_OPEN, exit 1)"
 
-echo "replay: npm run zi -- replay fixtures/v3-near.json"
+echo "replay: npm run zi -- replay fixtures/v3/near.json"

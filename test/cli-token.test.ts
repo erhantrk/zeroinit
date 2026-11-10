@@ -165,10 +165,13 @@ test('sweep token exit codes: UNDERPAID, NOTHING_TO_SWEEP, NEEDS_YOCTO, BALANCE_
 
 test('token register: storage_deposit with the bounds minimum and registration_only', async () => {
   const doc = makeTokenDoc();
-  const { rpc, env, sent } = await setup(doc, { txResult: txResult(doc, '') });
+  // the real token answers storage_deposit with a StorageBalance object: it must not print as "[object Object]"
+  const { rpc, env, sent } = await setup(doc, { txResult: txResult(doc, '{"total":"1250000000000000000000","available":"0"}') });
   try {
     const r = await runCli(['token', 'register', doc.account_id], env);
     assert.equal(r.code, 0, r.stdout + r.stderr);
+    assert.doesNotMatch(r.stdout, /\[object Object\]/);
+    assert.match(r.stdout, /RESULT \{"total":"1250000000000000000000","available":"0"\}/);
     const txs = sent();
     assert.equal(txs.length, 1);
     assert.equal(txs[0].receiver, TOKEN);
@@ -237,6 +240,11 @@ test('pay NEAR v3: 100 Tgas, PAID is 0 and PAYOUT_PENDING is 1', async () => {
     try {
       const r = await runCli(['pay', doc.invoice_id], env);
       assert.equal(r.code, code, `${value}: ${r.stdout}${r.stderr}`);
+      // PAYOUT_PENDING is an accepted payment with a failed payout, never "the deposit was refunded".
+      if (value === 'PAYOUT_PENDING') {
+        assert.doesNotMatch(r.stderr, /deposit was refunded/);
+        assert.match(r.stderr, /NOT PAID \(yet\): PAYOUT_PENDING/);
+      }
       const txs = sent();
       const pay = txs[txs.length - 1].actions.find((a) => a.method === 'pay');
       assert.equal(pay?.gas, 100_000_000_000_000n);
@@ -249,9 +257,13 @@ test('invoice new --token: display units, the allow-list, and the online registr
   const dir = tempDir();
   const args = (id: string, extra: string[] = []) => ['invoice', 'new', '--id', id, '--merchant', 'zi-merchant.testnet', '--tax-vault', 'zi-taxvault.testnet',
     '--tax-bps', '800', '--amount', '1.5', '--expires-in', '2h', '--token', 'tUSDC', ...extra];
-  const noAllow = await runCli(args('INV-TOK-1', ['--offline']), { ZI_INVOICE_DIR: dir });
+  const noAllow = await runCli(args('INV-TOK-1', ['--offline']), { ZI_INVOICE_DIR: dir, ZI_TUSDC_ACCOUNT: '' });
   assert.equal(noAllow.code, 2, noAllow.stderr);
   assert.match(noAllow.stderr, /allow-list is empty/);
+  // No ZI_TUSDC_ACCOUNT at all: the client defaults to the deployed testnet tUSDC mock.
+  const dflt = await runCli(args('INV-TOK-0', ['--offline']), { ZI_INVOICE_DIR: dir });
+  assert.equal(dflt.code, 0, dflt.stderr);
+  assert.equal(JSON.parse(readFileSync(join(dir, 'INV-TOK-0.json'), 'utf8')).asset.contract, 'sm1110-tusdc.testnet');
   const offline = await runCli(args('INV-TOK-1', ['--offline']), { ZI_INVOICE_DIR: dir, ZI_TUSDC_ACCOUNT: TOKEN });
   assert.equal(offline.code, 0, offline.stderr);
   const doc = JSON.parse(readFileSync(join(dir, 'INV-TOK-1.json'), 'utf8'));

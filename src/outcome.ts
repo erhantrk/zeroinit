@@ -9,7 +9,7 @@ export interface ParsedTx {
   downstreamFailures: unknown[];   // a receipt run on ANOTHER account failed (e.g. a transfer to a missing account); the contract records it
   logs: string[];
   events: ZiEvent[];
-  returnValue: unknown;            // decoded JSON return value, e.g. "PAID"; for ft_transfer_call the unused amount
+  returnValue: unknown;            // decoded JSON return value, e.g. "PAID"; for ft_transfer_call the amount USED (NEP-141: sent minus what the token refunded; "0" when everything came back)
   transfers: Array<{ to: string; yocto: bigint }>;   // Transfer actions sent BY the invoice account
   ftTransfers: FtTransfer[];       // ft_transfer calls sent BY the invoice account (the token contract is the receiver)
   nep141Events: Array<Record<string, unknown>>;      // the token's own EVENT_JSON (standard "nep141")

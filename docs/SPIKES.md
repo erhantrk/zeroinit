@@ -2,17 +2,14 @@
 
 Live testnet results and build numbers. Every tx hash recorded here is real unless marked synthetic.
 
-**Deployed contract: v2** (code hash `4bQ61AgHWWmYXp5c3fwj9NJxS79D9R3cGZAZxHyx9zEA`, deploy tx `DvNnUtvqMg5Q5e2Mn4fMx7GYBFNFhTo7z9wo64szAFKG`), see the last two
-sections ("Contract v2 build", "Contract v2 live"). Everything above them is the **v1** log (code hash
-`Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k`), kept as recorded history.
-
-**v3 (v-next) was not run:** the contract and client are built and unit-tested, but v3
-(`Ut7EQhLDrvYVarHb6ZaXk6m7o9kQqYPCpyqiamvreWa`) is not deployed, the `sm1110-zi3-*` accounts and tUSDC do not exist,
-and S-F1…S-F6 / L1…L19 have **no result**. Do not read any section below as a v3 measurement.
+**Current contract: v3** (code hash `Ut7EQhLDrvYVarHb6ZaXk6m7o9kQqYPCpyqiamvreWa`, global deploy tx `43D4EifRGJJBtWUVhFPXPFsZqooPwz1czD8LwRz6sjYT`), see the last
+section ("Contract v3 live"). v2 (`4bQ61AgHWWmYXp5c3fwj9NJxS79D9R3cGZAZxHyx9zEA`, deploy tx `DvNnUtvqMg5Q5e2Mn4fMx7GYBFNFhTo7z9wo64szAFKG`) is recorded
+history (sections "Contract v2 build", "Contract v2 live"). Everything above those is the **v1** log (code hash
+`Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k`), kept as recorded history too.
 
 **Paths:** the text is a record of the paths used on the day. The v2 contract now lives in `contract-v2/` (wasm
 `contract-v2/res/`), the v2 recordings in `fixtures/v2/` and `invoices/v2/`, and the v1 recordings in `fixtures/v1/`
-and `invoices/v1/`. `contract/` and `fixtures/v3-synthetic-token.json` are the v3 (not deployed) files.
+and `invoices/v1/`. `contract/` is the v3 contract (deployed), `fixtures/v3/` and `invoices/v3/` are its live recordings, and `fixtures/v3-synthetic-token.json` is a **synthetic** parser fixture (not a recording).
 
 ## T03 build
 
@@ -549,15 +546,124 @@ check replay catches tampering.
 | `node src/cli.ts vectors` (= `npm run zi -- vectors`) | 0 | 8 `PASS` lines |
 | `bash scripts/judge-offline.sh` (npm shimmed) | 0 | 309 `PASS`, 0 `FAIL`, `JUDGE-OFFLINE: ALL PASS` |
 
-## Contract v3 (v-next, not deployed) — 2026-11-10
+## Contract v3 live (2026-11-10)
 
-No live result. Built and unit-tested only:
+Contract v3 (NEP-141 invoices, `SETTLING`, owed ledger, payout lock) is deployed as a global contract on testnet and was run live by the
+builder (Claude Sonnet 5.5) with the operator's accounts (Claude Opus 5.5 made the accounts, the tUSDC mock, the registrations and the global
+deploy). All hashes below are real testnet transactions; each run is a fixture that replays offline (`npm run zi -- replay fixtures/v3/<name>.json`).
+RPC: `https://rpc.testnet.fastnear.com`. The recordings keep the account ids and tx hashes; the 64-byte signatures are redacted.
 
-- wasm: `contract/res/zeroinit_invoice.wasm` (local `npm run contract:build`, not reproducible)
-- size: 161,213 bytes; sha256 `0724781dd2c9f4f1b8bb30abbff0602578a7ad649fc5a450d4656ffde4740b1f`
-- code hash (base58): `Ut7EQhLDrvYVarHb6ZaXk6m7o9kQqYPCpyqiamvreWa` — **not deployed**, no deploy tx, burn unmeasured
-- `npm run contract:test`: 64 pass; `npm test`: 141 pass (offline); the wasm was rebuilt after the review fixes (see `docs/STABLECOIN.md` "Review round")
-- `fixtures/v3-synthetic-token.json` is **synthetic** (marked) and exercises the replay rules; it is not a recording.
+### Build and deploy (operator)
 
-Spikes S-F1…S-F6 and runs L1…L19 remain open (accounts, tUSDC registration/mint, second mock token, deploy). The
-design's gas/storage numbers are estimates until those run.
+- wasm: `contract/res/zeroinit_invoice.wasm`, 161,213 bytes (local `npm run contract:build`, **not** a reproducible build), sha256
+  `0724781dd2c9f4f1b8bb30abbff0602578a7ad649fc5a450d4656ffde4740b1f`, code hash (base58) `Ut7EQhLDrvYVarHb6ZaXk6m7o9kQqYPCpyqiamvreWa`.
+- The operator re-checked the wasm hash and the 8 test vectors (`PASS`) before the deploy.
+- Global deploy: tx `43D4EifRGJJBtWUVhFPXPFsZqooPwz1czD8LwRz6sjYT`, signer `sm1110-zi3-deployer.testnet`; the printed hash equals the code hash above.
+- **Deploy cost, measured by the operator:** the deployer went from 27 to 10.8774031 NEAR, so the deploy burned about **16.1226 NEAR** including gas
+  (v2: 8.2949 NEAR for 82,942 bytes; v1: 7.8526 NEAR for 78,519 bytes). Both ratios are about 0.0001 NEAR per wasm byte.
+- Accounts (created by the operator through the faucet): `sm1110-zi3-deployer`, `-merchant`, `-taxvault`, `-payer`, `-sweeper`, `-unreg`, `-unreg2` (all `.testnet`).
+  The faucet refused a ninth account, so the second mock token is `fake.sm1110-zi3-taxvault.testnet` (create tx `fLRNLJNAUcWKvEDrvuN3XeHpfqscR6NQpxEePcNbAWQ`,
+  deploy + init `E9kXmcQPtBa3epH4tzwUENLh2K3yCEGwb3YmghKzW9Uj`).
+- tUSDC: **`sm1110-tusdc.testnet`**, a mock NEP-141 (the `test-usdc` source, 6 decimals, owner = itself, deploy + init tx `2b3hMb4qHXo3XFan4y4gCG3zow5MEaQCzvg1eYrJgBDJ`,
+  wasm sha256 `66d6fc0a…570c1`). It is a testnet mock: anyone who owns it can mint, it has no value and no issuer. The merchant, tax vault, payer and sweeper
+  were registered on it and the payer got 100 tUSDC (minted by the owner). `sm1110-zi3-unreg` and `sm1110-zi3-unreg2` were left unregistered on purpose.
+
+### The runs (what each proved; fixtures under `fixtures/v3/`)
+
+Merchant = `sm1110-zi3-sweeper.testnet`, tax vault `sm1110-zi3-taxvault.testnet`, payer `sm1110-zi3-payer.testnet`, 800 bps. NEAR amounts 0.1 (1 in the demo).
+
+| Run | Invoice | Transactions | Result |
+|---|---|---|---|
+| L1 pay | `INV-V3-A` | pay `H97h3dn4nDmzG4Fxx6XPwesAHNJkhhwCHtANJLJ4aUFQ` | `PAID`, 0.092 / 0.008, `invoice_paid` from `on_settled` |
+| L1 plain + sweep | `INV-V3-B` | plain transfer `5yvsgk9TrQ3fUBnpoNhVa9R3kNW6j7rxxVrytzUrdFg4`, sweep `44788A1MCryaRWekWTJYcKx2iguYVegdNzVHTfyihJmZ` | `PAID`, `paid_by` null |
+| L1 underpay | `INV-V3-C` | pay 0.05 `39LpcVHhi7xCqFJfo2Z3uKvGD1icxtWt7dm3uAgJkpi7` | `REFUNDED_UNDERPAID`, status stays `OPEN` |
+| L1 expired | `INV-V3-D` | pay `FuVnkSmpJ1KPW5RQKSZFLvXmRvhjZaxMXsrfo3P4HMC3` | `REFUNDED_EXPIRED`, status `EXPIRED` |
+| L1 double pay | `INV-V3-E` | pay `93Lz8Pcwo2dtMvMPv6b9heVFgSWTJQHJBaENT5rqMyAR`, again `5Rs6jKxDCKs7pCQt6TnUiSf9FHWZyjJhvS51WayouiRQ` | `PAID`, then `REFUNDED_NOT_OPEN` |
+| L2 (fix 1) | `LATE-V3` (merchant `late.sm1110-zi3-merchant.testnet`, does not exist) | pay `Gp1zyoBYjd2T9NKUU8z68hQqCanFt7Agv3TWzjuTMXJ1` | `PAYOUT_PENDING`, `transfer_failed` (merchant), **no `invoice_paid`**, status `SETTLING`, 0.092 stays on the invoice |
+| L3 | | | **not run**: it needs the parent to create `late.…`, and this run was not allowed to create accounts. The retry that delivers an owed share is shown instead by L13 (tokens, v3) and by the AUD2-V2 re-sweep (NEAR, v2) |
+| L4 (fix 2) | `REFUND-V3` (merchant never created, `grace_ms` 60 s) | pay `5evLS6TvWR6jp7DDZnRDZJ2UUzJFyPQapWuFzkEiGmZW`; `refund_payer` too early `B7CN44eobZwpc4wZbcnAGiYioQxQB3XxnKRvT6KM4Hi6` (`NOT_YET: refundable after …`); after the window `EKXYxx7RnigUuLxT5AGvvmhLoDcz6diPnKw8nniZ338a` | `REFUNDED`: 0.092 back to the payer (`owed_reclaimed`); the vault kept its 0.008 |
+| L5 (fix 3) | `TAX-V3` | plain 0.05 `C1brBZRjwjAyA2QiYMJcQsogo7vUMBjL3rWRm6eHde1B`, pay 0.1 `99naQTxXfGb5a6RaeveXGFk37QRsU3p4a2UsVBgcGv1a`, sweep `EMaHjcPppRp2M49Vqtc6J15HT4YVzqAbwjKfe7j6yKoJ` | pay 0.092 / 0.008, then the parked 0.05 is split 0.046 / 0.004 (`extra_swept`): the vault got 0.012 in total, nothing untaxed |
+| L6 token plain path (S-F1, S-F3) | `TOK-V3-A` | register id `36oEwerP6xArKcMPo52CsDZtxhwdUjLesdCWGMVyxwks`, plain `ft_transfer` 1 tUSDC `85mQgYa15Ki8pr3P3zLhWrp5j5Wa7mU2cpNSSq82LWKo`, sweep (state init + fund + sweep in one tx) `EXpJhWoheyu3UaBDwQpvFvETSYsD5YPwe4QftE5rqZFX` | before the sweep `view_account` says `UNKNOWN_ACCOUNT` and `ft_balance_of` says 1; after it `PAID`, 0.92 / 0.08 tUSDC |
+| L7 token one step | `TOK-V3-B` | init (state init + fund) `HQda1HhasWmRjX5VpC2SWNe1jvEvBJWNY69RHQmm69u1`, `ft_transfer_call` `Gx21RYXAVDcXHuah8JAPktaTpMY23unjYeaYRQo47nJQ` | `invoice_paid` via `pay`, payer recorded; the call's final value is `"1000000"` (the amount **used**) |
+| L8 token overpay | `TOK-V3-C` | `ft_transfer_call` 1.5 `6coHo3fsLmoKz64ubapYSFDG4ryXmAvWGiwK4ygkaX37` | only 1 tUSDC used (0.92 / 0.08), the token refunds 0.5 (`memo: "refund"`), `excess_refunded` 500000 |
+| L9 token underpay | `TOK-V3-D`, `TOK-V3-E` | `ft_transfer_call` 0.5 `FLzCdzxdZZQF6y4fHYvXuDJhAY4u1Z9tJ81F9SM3Vzse`; plain 0.5 `3whyBZSGqpyBrfajHsBcA73pUvCj9yGnDfvrqxUXmtR4` + sweep `GxbdzbvA4XzFdukMSPJDQNqcqDr9BJveicpGCp18AjFJ` | call: `payment_rejected underpaid`, all returned, status `OPEN`; plain: sweep returns `UNDERPAID`, the 0.5 stays parked |
+| L9b token expiry release | `TOK-V3-I` (1 min) | plain 0.5 `5K91H9TW1dSjH8oWpPuqQRsx2Afy9JYCxiudH2wfYcFh`; sweep after the expiry time `EbHah5PmdLaFsYhJcUNCmWinMv5ZtAs5rJRjuA7ZdgdA`; late call `AJHD9sM16Lm9mdkRDYBUA6gg78tpb1wSV2wCbXKMbynJ`; sweep `HYxZbJ3AbL91AqsH6DgHdWam2qHzNFJ6vABjfhTdLLR1` | the first sweep still returns `UNDERPAID`: an expired invoice stays `OPEN` until some call touches it. The late `ft_transfer_call` is returned (`expired`) and sets `EXPIRED`; the next sweep releases the parked 0.5 pro rata, 0.46 / 0.04 (taxed) |
+| L10 token expiry | `TOK-V3-F` | `ft_transfer_call` after 1 min `BQ8jLUqRjmyqWN2MSWS78w9LBjYFn6ZV1W3xtSVshY2a` | `payment_rejected expired`, all returned, status `EXPIRED` |
+| L11 wrong token | `WRONGTOK-V3` | `ft_transfer_call` on `fake.sm1110-zi3-taxvault.testnet` `6tH3P22zdNKu4QnR34TKcdQbUMcyAe5CQNrK3xtvdQ1L` | `payment_rejected wrong_token` (predecessor is the fake token), all 1 returned, status `OPEN` |
+| L12 wrong msg | `BADMSG-V3` | msg `""` `2KFRX9GcyRnCse8K7kiELnE5BeRaGFRFkdYasdKkU1Wg`; msg `{"action":"x"}` `Ez838LK1aVaiKhAecZ6szndw18DsGseqFe2XRQBnafzk` | both `payment_rejected bad_msg`, all returned |
+| L13 unregistered receiver | `UNREG-V3` (merchant `sm1110-zi3-unreg.testnet`, not on tUSDC) | pay `E7wFzkiECvP6XcJwZoNU2Am1jj4iyF9Nepb8mYyqCZbB`; register the merchant `46K58Bbgwa5VLchuaTw2VxT7xwgcVbUNZCTWuEkzidSL`; sweep `8bPrFWhhxmQxnDUTdYGGaicZ2VLU7kBfzgTH3F1ae5T7` | the vault got 0.08, the merchant's `ft_transfer` failed: `transfer_failed`, `owed_merchant` 0.92, `SETTLING`, no `invoice_paid`; after the registration the sweep re-sends exactly 0.92 to the merchant (`owed_resent`), `invoice_paid` with `retried: true`, `PAID` |
+| L14 token `refund_payer` | `TOK-V3-G` (merchant `sm1110-zi3-unreg2.testnet`, never registered) | pay `9KeHMfgvw6yr2Ngr4jfkzokvvKaMZJFYzLwarDGY9NLS`, `refund_payer` after the window `5bPgAQZchjH9roa6DogoL8kKNy3QVUrdMWquSJutYnWJ` | `SETTLING` with 0.92 owed, then `REFUNDED`: 0.92 tUSDC back to the payer (`owed_reclaimed`) |
+| L15 double claim | `TOK-V3-A`, `TOK-V3-B` | second sweep `CWqG2WxQJsQf1zkJFAf5aEC8tWCmcNrFbFHyj93m81Mm`; second `ft_transfer_call` `EHWSKgoZxk2i4Vy1isDPKUPsbFvdhwkqXafiHaWNBw35` | `NOTHING_TO_SWEEP`; `payment_rejected not_open`, all returned |
+| L15b two sweeps at once (**not a fixture**) | `CONC-V3` | plain 1 tUSDC `6BBCrPSkdTjvBCpTvzgrrnfUYNmWXBhzbqJ35TRqYGwe`; sweep with the sweeper key `Hkxwhtkut33JTXKPrDbKYfSMpF3E4xvQy8VWij2RVsNY`; sweep with the payer key `D8rvD86fHsf9oQPR68oPZKPxKJA9iAKQX3zw6iZ6mPVz` | one sweep paid (`PAID`, 0.92 / 0.08); the other panicked `PAYOUT_IN_FLIGHT` and rolled back. One run, one outcome: this shows the lock held once, not that it always does |
+| L16 wrong asset | `TOK-V3-H` | `pay()` with 0.1 NEAR on a token invoice `FeWSRyx71BHK4cDJnoyjqnmfNE82NK8Zq9DEm2QJi2PQ` | `REFUNDED_WRONG_ASSET`, the 0.1 NEAR came back, status `OPEN` |
+| L17 verify | all 26 invoices in `invoices/v3/` | `zi verify <id>` (online) | 26 of 26: `PASS code-hash-onchain`, `PASS terms-onchain`, `PASS no-access-keys` (and `token-metadata-onchain tUSDC 6` for token invoices); `NOINIT-V3` is still `NONEXISTENT` |
+| L19 low gas | `LOWGAS-V3` | `ft_transfer_call` with 40 Tgas `3FEFmEbxpWUbxG44tCAAQh5zTe4EyqGcQDhgvEKr59EA` | `payment_rejected low_gas`, all returned (40 Tgas was enough for the token to call `ft_on_transfer`, not for the accept path) |
+| S-F2 | `NOINIT-V3` | register the id on tUSDC `4DzU2nm5PD2pEmmtWxbLqPJizjJzwxPi67GqTTVK1J5c`, `ft_transfer_call` to the never-initialized id `fcfCcFYTGGq97EMp32QzSrhhgbvLsD3rhLTYRDjhErb` | the receipt on the nonexistent account fails (`AccountDoesNotExist`), the token refunds the whole 1 tUSDC (`memo: "refund"`), the id is still `UNKNOWN_ACCOUNT` |
+| Demo (NEAR) | `INV-1111-V3-A/B/C` (1 NEAR) | pay `HojCvzGPTbCzFEpvZfg3rPWr3JbaGqk46or2odUDbj3C`; plain `DGt26eXhPeR9bWRzU6wtwEDmS4fo7M5EjKmRHMYZKuLg` + sweep `DTzcu4hxzfW958KpwRz61Liq2tRM1bxfDNGNxLEuRNqh`; underpay `5rNEKX4aMNy6WvonQkjqNpFizeQXzBgdCNfgo6s2VcoR` | 0.92 / 0.08 twice, one refund; `fixtures/v3/demo-run.json` |
+| Demo (tUSDC) | `TOK-1111-V3-A` (1 tUSDC) | register `EjiUt5KwjeTKQDvo8xPuRE3yMLdp3BeosXLpqQ9DUgiW`, plain `ft_transfer` `4yuzzb42a7m2F9mZAVQAHRiYZ162i4xwSEBuErr98Pau`, sweep `D6UbC33jBrPSxnZ241KpkUEM5d35KBPhTd67oPM8VSau` | paid by a plain transfer, swept by anyone, 0.92 / 0.08 tUSDC; `fixtures/v3/token-demo-run.json` |
+
+Spikes: **S-F1** yes (`storage_deposit` and `ft_transfer` to a never-seen `0u` id work, NEAR still says `UNKNOWN_ACCOUNT`); **S-F2** yes (the call fails and the token
+returns everything); **S-F3** yes (`[UniversalStateInit, fund, sweep]` works in one transaction, `TOK-V3-A`); **S-F4** (is the state-init `deposit` credited) was **not
+run**, nothing relies on it; **S-F5/S-F6** are the measurements below.
+
+### Contract-2 evidence on v2 (the vault now exists)
+
+`unregistered.sm1110-zi-taxvault.testnet` was created as a sub-account of `sm1110-zi-taxvault.testnet`, signed with that account's own key (the only account this
+round created): tx `FWBnYH6K5J2YzB7aLUNrzT8DNjRTeoqeJvuPaPFhot6x` (`CreateAccount`, 0.1 NEAR, the parent's public key as full access key; `scripts/create-v2-unregistered-vault.ts`).
+Then `AUD2-V2` was swept again, signed by the v2 sweeper: tx `HECqnmtEyo7nK7stnh9VoxPHLsmTJyJY3qX3ATUtpife`, result `TAX_RESENT`, `tax_resent` 0.008 to the vault, no failed
+receipt, the invoice account went from 0.008 to 0 NEAR, and the vault holds 0.108 NEAR (0.1 funding + 0.008 tax). The call is appended to `fixtures/v2/audit-scenarios.json`
+(the original first sweep, which bounced again, is still there), and `test/audit-scenarios.test.ts` pins both.
+
+### Measured (replaces the design estimates)
+
+Tokens burnt are the sums over all receipts of the transaction (`gas_burnt`, `tokens_burnt`); deposits are not included.
+
+| What | Measured |
+|---|---|
+| NEAR `pay` creating the account (`INV-V3-A`) | 13.70 Tgas, 0.0075600 NEAR burnt (v2: 0.0077197) |
+| NEAR `sweep` after a plain transfer (`INV-V3-B`, the account already existed) | 13.67 Tgas, 0.0012770 NEAR |
+| refund of an underpay (`INV-V3-C`) | 12.82 Tgas, 0.0074950 NEAR (it also created the account) |
+| NEAR `pay` with a failed merchant payout (`LATE-V3`) | 21.03 Tgas, 0.0075510 NEAR |
+| `refund_payer` (NEAR / token) | 4.70 / 6.36 Tgas, 0.000402 / 0.000568 NEAR |
+| token init: `[UniversalStateInit, fund]` (`TOK-V3-B`) | 9.96 Tgas, 0.0072530 NEAR (includes the account creation charge) |
+| token `ft_transfer_call` that settles (`TOK-V3-B`) | 13.13 Tgas, 0.0011780 NEAR, with 200 Tgas attached |
+| token `ft_transfer_call` that is rejected (`TOK-V3-D`) | 6.92 Tgas, 0.000625 NEAR |
+| token `ft_transfer_call` with a failed payout (`TOK-V3-G`) | 20.22 Tgas, 0.0011460 NEAR |
+| token sweep: state init + fund + sweep (`TOK-V3-A`) | 21.99 Tgas, 0.0083450 NEAR, with 200 Tgas attached |
+| token sweep that re-sends an owed share (`UNREG-V3`) | 10.32 Tgas, 0.000920 NEAR |
+| NEP-145 registration of one account | 0.00125 NEAR deposit (kept by the token) + 2.04 Tgas, 0.000182 NEAR |
+| `storage_usage`, NEAR invoice | 421 B after `pay` (0.1 NEAR), 426 B (1 NEAR), 393 B after plain transfer + sweep, 426 to 429 B with an owed merchant share, 457 B after `refund_payer` |
+| `storage_usage`, token invoice | 417 B initialized and open, 416 to 422 B after a plain-transfer sweep, 445 B after a paid `ft_transfer_call`, 443 to 444 B with an owed share, 472 B after `refund_payer` (the largest seen) |
+
+All of these are below the 770 B zero-balance limit; the design's worst-case bound is 696 B. The 1,000-yocto float is enough: after every settlement the invoice
+account still held 998 to 999 yocto. These are single measurements from one run each, not an average.
+
+### Findings of the live runs (each fixed, with a test that fails without the fix)
+
+1. **`ft_transfer_call` returns the amount used, not the unused amount.** The design (and the first replay rule) said the final value of the transaction is the unused
+   amount. The token (NEP-141 `ft_resolve_transfer`) returns what the receiver used: `"1000000"` for a settled 1 tUSDC payment, `"0"` for every rejected one. The replay
+   rule `ft-rejected-<reason>` and the synthetic fixture were wrong for real recordings; the rule now proves the refund from the token's own `ft_transfer` events with
+   `memo: "refund"` (`ft-call-accounting`, `ft-rejected-*`, `ft-excess-refunded`).
+2. **The NEAR replay rules did not exist for v3.** `ft-split-*` ran on NEAR invoices (summing zero token payouts), a second pay on an initialized invoice failed
+   `before-unknown-account`, and a `transfer-path` snapshot after the first transaction failed. Now: `split-merchant` / `split-vault` for NEAR, `split-matches-terms`
+   (tax = floor(amount x bps / 10000) from the invoice's own terms) for both assets, only the first snapshot is checked, and setup transactions (init, registration)
+   no longer expect "after" snapshots. A malformed `invoice_paid` event is a `FAIL`, not a crash.
+3. **`zi pay` said "the deposit was refunded" after `PAYOUT_PENDING`.** The payment was accepted and a payout failed; it now says `NOT PAID (yet): PAYOUT_PENDING`.
+4. **`zi token register` printed `RESULT [object Object]`** (the token answers `storage_deposit` with an object); it now prints the JSON.
+
+### Not run
+
+L3 (needs an account to be created), S-F4, a reproducible wasm build, a browser walk-through of the dashboard (no browsers here), the wallet-side checks, and anything on mainnet.
+
+### Verification run (this round, 2026-11-10)
+
+| Command | Result |
+|---|---|
+| `node --test test/*.test.ts` (= `npm test`) | `# tests 155` / `# pass 155` / `# fail 0` |
+| `cd contract && cargo test --offline` | 64 passed, 0 failed |
+| `cd contract-v2 && cargo test --offline` | 14 passed, 0 failed |
+| `node src/cli.ts vectors` | 8 `PASS` |
+| `scripts/judge-offline.sh` with `npm run -s zi --` mapped to `node src/cli.ts` (npm printed no CLI output in the sandbox) | 0 `FAIL`, `JUDGE-OFFLINE: ALL PASS` |
+| `zi verify <id>` (online) on the 26 invoices of `invoices/v3/` | 26 of 26 pass |
+
+The slot wrapper (`$CONDUCTOR_BIN slot run`) exited 255 without output here, so `npm test` and `cargo test` were run directly.

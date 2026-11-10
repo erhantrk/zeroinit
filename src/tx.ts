@@ -7,8 +7,14 @@ import { base58, base64 } from '@scure/base';
 import { concat, u8, u32, u64, u128, str, bytesVec } from './bytes.ts';
 
 // Action enum discriminants (nearcore core/primitives/src/action/mod.rs @ 2.14.0-rc.5)
-export const ACTION = { FunctionCall: 2, Transfer: 3, DeterministicStateInit: 11, UniversalStateInit: 15 } as const;
+export const ACTION = { CreateAccount: 0, FunctionCall: 2, Transfer: 3, AddKey: 5, DeterministicStateInit: 11, UniversalStateInit: 15 } as const;
 
+export const actCreateAccount = () => u8(ACTION.CreateAccount);
+/** AddKey with a FullAccess key: public_key (ed25519 = 0 + 32 bytes), AccessKey { nonce 0, permission FullAccess = 1 }. */
+export const actAddFullAccessKey = (publicKey: Uint8Array) => {
+  if (publicKey.length !== 32) throw new Error('ed25519 public key must be 32 bytes');
+  return concat(u8(ACTION.AddKey), u8(0), publicKey, u64(0n), u8(1));
+};
 export const actTransfer = (deposit: bigint) => concat(u8(ACTION.Transfer), u128(deposit));
 export const actFunctionCall = (method: string, args: Uint8Array, gas: bigint, deposit: bigint) =>
   concat(u8(ACTION.FunctionCall), str(method), bytesVec(args), u64(gas), u128(deposit));

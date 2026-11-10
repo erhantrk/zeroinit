@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # LIVE v3 token runs L6-L10, L14, L16 (docs/STABLECOIN.md §11.4).
-# NOT RUN YET: v3 is built but not deployed; the tUSDC account id is not known yet and the sm1110-zi3-* accounts
-# do not exist. Requires ZI_TUSDC_ACCOUNT (6 decimals) and registered merchant/vault/payer/sweeper accounts.
-# Records fixtures/v3-tokens.json.
+# Run against the deployed v3 and the testnet tUSDC mock (the client default sm1110-tusdc.testnet; ZI_TUSDC_ACCOUNT overrides).
+# Requires registered merchant/vault/payer/sweeper accounts on tUSDC.
+# Records fixtures/v3/tokens.json.
 # Usage: scripts/record-v3-tokens.sh [SUFFIX]      default suffix V3
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -11,8 +11,8 @@ S="${1:-V3}"
 M="${ZI_SWEEPER_ACCOUNT:?set ZI_SWEEPER_ACCOUNT}"
 V="${ZI_TAXVAULT_ACCOUNT:?set ZI_TAXVAULT_ACCOUNT}"
 : "${ZI_TUSDC_ACCOUNT:?set ZI_TUSDC_ACCOUNT (see docs/STABLECOIN.md §2)}"
-export ZI_RECORD=fixtures/v3-tokens.json
-zi() { npm run -s zi -- "$@"; }
+export ZI_RECORD=fixtures/v3/tokens.json
+zi() { node src/cli.ts "$@"; }
 acct() { node -e "console.log(JSON.parse(require('fs').readFileSync('invoices/$1.json','utf8')).account_id)"; }
 newtok() { local id="$1" amount="$2" exp="${3:-2h}"; shift 3 || shift $#; zi invoice new --id "$id" --merchant "$M" --tax-vault "$V" --tax-bps 800 --amount "$amount" --expires-in "$exp" --token tUSDC "$@"; }
 
@@ -24,10 +24,16 @@ zi status "TOK-$S-A"
 zi sweep "TOK-$S-A"
 zi verify "TOK-$S-A"
 
+echo "== v3 L15: a second sweep finds nothing (double claim)"
+zi sweep "TOK-$S-A" || echo "(expected: NOTHING_TO_SWEEP, exit 1)"
+
 echo "== v3 L7: one-step path (init, then ft_transfer_call)"
 newtok "TOK-$S-B" 1
 zi init "TOK-$S-B"
 zi pay "TOK-$S-B"
+
+echo "== v3 L15: a second ft_transfer_call on a PAID invoice is returned (payment_rejected not_open)"
+zi pay "TOK-$S-B" || echo "(expected: payment_rejected not_open, exit 1)"
 
 echo "== v3 L8: overpay via ft_transfer_call: only the price is used, the excess comes back"
 newtok "TOK-$S-C" 1
@@ -57,7 +63,8 @@ sleep 240
 zi refund-payer "TOK-$S-G"
 
 echo "== v3 L16: NEAR attached to a token invoice is refunded (REFUNDED_WRONG_ASSET)"
-echo "  call pay() with a NEAR deposit on $(acct "TOK-$S-B") by hand (near-cli-rs: call <account> pay '{}' --deposit 0.1 --gas 100)"
-echo "  expected: REFUNDED_WRONG_ASSET, the deposit back, status unchanged"
+newtok "TOK-$S-H" 1
+zi init "TOK-$S-H"
+node scripts/live-call.ts near-on-token "TOK-$S-H"
 
-echo "replay: npm run zi -- replay fixtures/v3-tokens.json"
+echo "replay: npm run zi -- replay fixtures/v3/tokens.json"

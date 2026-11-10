@@ -196,7 +196,7 @@ test('verify says which deployment an invoice uses: v3 current (v-next), v2 and 
   const dir = tempDir(); writeDoc(dir, v2); writeDoc(dir, v1);
   const a = await runCli(['verify', v2.invoice_id, '--offline'], { ZI_INVOICE_DIR: dir });
   assert.equal(a.code, 0, a.stdout);
-  assert.match(a.stdout, /INFO deployment v3 \(v-next, not deployed yet/);
+  assert.match(a.stdout, /INFO deployment v3 \(current, deployed on testnet/);
   const b = await runCli(['verify', v1.invoice_id, '--offline'], { ZI_INVOICE_DIR: dir });
   assert.equal(b.code, 0, b.stdout);
   assert.match(b.stdout, /PASS code-hash-trusted /);

@@ -1,7 +1,7 @@
 {
   "format": "zeroinit-fixture/1",
   "synthetic": true,
-  "note": "SYNTHETIC v3 fixture for the replay-v3 unit tests. Not a recording; v3 is not deployed.",
+  "note": "SYNTHETIC v3 fixture for the replay-v3 unit tests. Not a recording: the real v3 recordings are in fixtures/v3/.",
   "recorded_at_iso": "2026-11-10T00:00:00.000Z",
   "rpc_url": "synthetic",
   "invoices": [
@@ -918,7 +918,7 @@
         "id": "zi",
         "result": {
           "status": {
-            "SuccessValue": "IjAi"
+            "SuccessValue": "IjEwMDAwMDAi"
           },
           "transaction": {
             "hash": "SyntheticTxHash1111111111111111111111111111111",
@@ -2266,7 +2266,7 @@
         "id": "zi",
         "result": {
           "status": {
-            "SuccessValue": "IjUwMDAwMCI="
+            "SuccessValue": "IjAi"
           },
           "transaction": {
             "hash": "SyntheticTxHash1111111111111111111111111111111",
@@ -2310,7 +2310,9 @@
               "outcome": {
                 "executor_id": "0u6grgn46f1hgfmmg0fm735dewry587c3pwh9bdtp0rep7pk769fjg",
                 "logs": [
-                  "EVENT_JSON:{\"standard\":\"zeroinit\",\"version\":\"3.0.0\",\"event\":\"payment_rejected\",\"data\":[{\"invoice_id\":\"INV-V3-REJECT\",\"account_id\":\"0u6grgn46f1hgfmmg0fm735dewry587c3pwh9bdtp0rep7pk769fjg\",\"sender\":\"payer.testnet\",\"amount\":\"500000\",\"reason\":\"underpaid\",\"predecessor\":\"tusdc.example.testnet\",\"token\":\"tusdc.example.testnet\"}]}"
+                  "EVENT_JSON:{\"standard\":\"nep141\",\"version\":\"1.0.0\",\"event\":\"ft_transfer\",\"data\":[{\"old_owner_id\":\"payer.testnet\",\"new_owner_id\":\"0u6grgn46f1hgfmmg0fm735dewry587c3pwh9bdtp0rep7pk769fjg\",\"amount\":\"500000\"}]}",
+                  "EVENT_JSON:{\"standard\":\"zeroinit\",\"version\":\"3.0.0\",\"event\":\"payment_rejected\",\"data\":[{\"invoice_id\":\"INV-V3-REJECT\",\"account_id\":\"0u6grgn46f1hgfmmg0fm735dewry587c3pwh9bdtp0rep7pk769fjg\",\"sender\":\"payer.testnet\",\"amount\":\"500000\",\"reason\":\"underpaid\",\"predecessor\":\"tusdc.example.testnet\",\"token\":\"tusdc.example.testnet\"}]}",
+                  "EVENT_JSON:{\"standard\":\"nep141\",\"version\":\"1.0.0\",\"event\":\"ft_transfer\",\"data\":[{\"old_owner_id\":\"0u6grgn46f1hgfmmg0fm735dewry587c3pwh9bdtp0rep7pk769fjg\",\"new_owner_id\":\"payer.testnet\",\"amount\":\"500000\",\"memo\":\"refund\"}]}"
                 ],
                 "status": {
                   "SuccessValue": ""

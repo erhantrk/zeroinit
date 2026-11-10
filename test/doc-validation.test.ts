@@ -2,11 +2,13 @@
 // Run: node --test test/doc-validation.test.ts
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { u64 } from '../src/bytes.ts';
 import { invoiceStateBytes } from '../src/stateinit.ts';
-import { checkDoc, assertDocTrusted, rawFromTerms, createInvoiceDoc, isV3Doc, docAmountRaw, docToken, docGraceMs } from '../src/invoice.ts';
+import { checkDoc, assertDocTrusted, rawFromTerms, createInvoiceDoc, isV3Doc, docAmountRaw, docToken, docGraceMs, loadDoc } from '../src/invoice.ts';
 import { DEPLOYED_CODE_HASH } from '../src/config.ts';
-import { DEPLOYED, V1, V2, FOREIGN, terms, makeDoc, makeTokenDoc } from './helpers.ts';
+import { DEPLOYED, V1, V2, FOREIGN, terms, makeDoc, makeTokenDoc, tempDir } from './helpers.ts';
 
 const TOKEN_ENTRY = { symbol: 'tUSDC', decimals: 6, accountId: 'tusdc.example.testnet' };
 
@@ -129,4 +131,16 @@ test('a v1 document is not accepted for signing against the current pin, but che
   assert.doesNotThrow(() => assertDocTrusted(doc, V1));
   assert.notEqual(makeDoc(V1).account_id, makeDoc(V2).account_id, 'the same terms derive a different address per deployment');
   assert.equal(DEPLOYED_CODE_HASH, DEPLOYED);
+});
+
+test('loadDoc finds a recorded v3 invoice in invoices/v3/ (and the top-level file wins)', () => {
+  const dir = tempDir();
+  mkdirSync(join(dir, 'v3'));
+  const doc = makeDoc(DEPLOYED, { invoice_id: 'REC-V3-1' });
+  writeFileSync(join(dir, 'v3', 'REC-V3-1.json'), JSON.stringify(doc));
+  assert.equal(loadDoc(dir, 'REC-V3-1').account_id, doc.account_id);
+  const top = makeDoc(DEPLOYED, { invoice_id: 'REC-V3-1', salt: 99n });
+  writeFileSync(join(dir, 'REC-V3-1.json'), JSON.stringify(top));
+  assert.equal(loadDoc(dir, 'REC-V3-1').account_id, top.account_id);
+  assert.throws(() => loadDoc(dir, 'NOPE'), /invoices?|not found/);
 });
