@@ -329,3 +329,28 @@ test('pay token: an unregistered merchant (ft_transfer fails on the token) is a 
     assert.match(r.stderr, /payout\(s\) failed/);
   } finally { await rpc.close(); }
 });
+
+// audit claims-3: ft_on_transfer cannot see tokens parked by a plain ft_transfer, so a one-step payment on top would be charged twice.
+test('pay token refuses when tokens are already parked (no transaction sent); --allow-parked and --plain go through', async () => {
+  const doc = makeTokenDoc();
+  const chain: Chain = { storageBalance: { total: MIN, available: '0' }, ftBalance: '1500000', invoice: onchainInvoice(doc, { status: 'OPEN' }), txResult: txResult(doc, '0', [paidEvent(doc)]) };
+  const a = await setup(doc, chain);
+  try {
+    const r = await runCli(['pay', doc.invoice_id], a.env);
+    assert.equal(r.code, 2, r.stdout + r.stderr);
+    assert.match(r.stdout + r.stderr, /already holds 1\.5 \w+ from a plain transfer: run `zi sweep /);
+    assert.equal(a.sent().length, 0, 'nothing may be signed');
+  } finally { await a.rpc.close(); }
+  const b = await setup(doc, chain);
+  try {
+    const r = await runCli(['pay', doc.invoice_id, '--allow-parked'], b.env);
+    assert.equal(r.code, 0, r.stdout + r.stderr);
+    assert.equal(b.sent().at(-1)?.actions[0].method, 'ft_transfer_call');
+  } finally { await b.rpc.close(); }
+  const c = await setup(doc, { ...chain, txResult: txResult(doc, '') });
+  try {
+    const r = await runCli(['pay', doc.invoice_id, '--plain'], c.env);
+    assert.equal(r.code, 0, r.stdout + r.stderr);
+    assert.equal(c.sent().at(-1)?.actions[0].method, 'ft_transfer');
+  } finally { await c.rpc.close(); }
+});

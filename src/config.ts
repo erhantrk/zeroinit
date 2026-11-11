@@ -71,6 +71,8 @@ export interface Signer { accountId: string; secret: string }
 export interface Config {
   network: 'testnet';
   rpcUrl: string;
+  /** Archival endpoint for transaction lookups (`zi receipt --tx`): the default RPC prunes transactions after about 1.5 days. null = none. */
+  archivalRpcUrl: string | null;
   scheme: '0u' | '0s';
   codeHashB58: string | null;
   invoiceDir: string;
@@ -91,12 +93,16 @@ function signer(env: Env, prefix: 'PAYER' | 'SWEEPER'): Signer | null {
   return { accountId, secret };
 }
 
+const DEFAULT_RPC_URL = 'https://rpc.testnet.fastnear.com';
 const TESTNET_ACCOUNT = /^(?:[\w.-]+\.testnet|[0-9a-f]{64}|0[us][0-9a-z]+)$/;
 export function loadConfig(env: Env = process.env): Config {
   const network = env.ZI_NETWORK ?? 'testnet';
   if (network !== 'testnet') throw new Error('ZI_NETWORK must be "testnet": ZeroInit is testnet-only');
-  const rpcUrl = env.ZI_RPC_URL ?? 'https://rpc.testnet.fastnear.com';
+  const rpcUrl = env.ZI_RPC_URL ?? DEFAULT_RPC_URL;
   if (/mainnet/i.test(rpcUrl)) throw new Error('refusing a mainnet RPC URL');
+  // A substring test is only a first line of defence; every command also asserts chain_id == testnet over RPC (checkNetwork, rpc.ts).
+  const archivalRpcUrl = env.ZI_ARCHIVAL_RPC_URL ?? (rpcUrl === DEFAULT_RPC_URL ? 'https://archival-rpc.testnet.fastnear.com' : null);
+  if (archivalRpcUrl !== null && /mainnet/i.test(archivalRpcUrl)) throw new Error('refusing a mainnet archival RPC URL');
   const scheme = (env.ZI_SCHEME ?? '0u') as '0u' | '0s';
   if (scheme !== '0u' && scheme !== '0s') throw new Error('ZI_SCHEME must be 0u or 0s');
   const codeHashB58 = env.ZI_CODE_HASH ?? null;
@@ -104,7 +110,7 @@ export function loadConfig(env: Env = process.env): Config {
   const tokens = allowedTokens(env);
   for (const t of tokens) if (!TESTNET_ACCOUNT.test(t.accountId)) throw new Error(`ZI_TUSDC_ACCOUNT "${t.accountId}" is not a testnet account`);
   return {
-    network: 'testnet', rpcUrl, scheme, codeHashB58,
+    network: 'testnet', rpcUrl, archivalRpcUrl, scheme, codeHashB58,
     invoiceDir: env.ZI_INVOICE_DIR ?? 'invoices',
     record: env.ZI_RECORD ?? null,
     payer: signer(env, 'PAYER'),

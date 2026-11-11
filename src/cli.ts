@@ -318,6 +318,14 @@ async function main(argv: string[]): Promise<number> {
     if (cmd === 'pay' && entry) {
       // token path: register the invoice id if needed -> init + fund if the account does not exist -> ft_transfer_call / plain ft_transfer
       const amount = v.amount ? parseUnits(v.amount, entry.decimals) : docAmountRaw(doc);
+      // audit claims-3: ft_on_transfer cannot see tokens already parked by a plain ft_transfer, so a one-step payment on top of them is charged
+      // twice (the parked amount is later swept as an extra). Refuse and point at `zi sweep`; --allow-parked overrides on purpose.
+      if (!v.plain && !v['allow-parked']) {
+        const parked = await ftBalanceOf(cfg, entry.accountId, doc.account_id);
+        if (parked > 0n) {
+          throw new UsageError(`invoice ${doc.invoice_id} already holds ${formatUnits(parked, entry.decimals)} ${entry.symbol} from a plain transfer: run \`zi sweep ${doc.invoice_id}\` instead of paying again (or pass --allow-parked)`);
+        }
+      }
       const sb = await storageBalanceOf(cfg, entry.accountId, doc.account_id);
       if (sb === null) {
         const bounds = await storageBalanceBounds(cfg, entry.accountId);
@@ -404,8 +412,14 @@ async function main(argv: string[]): Promise<number> {
     let events: unknown[] = []; let ftTransfers: unknown[] = []; let txHash: string | null = null;
     if (v.tx) {
       const signerGuess = inv.paid_by ?? cfg.sweeper?.accountId ?? doc.merchant;
-      const st = await rpcCall(cfg, 'EXPERIMENTAL_tx_status', { tx_hash: v.tx, sender_account_id: signerGuess, wait_until: 'FINAL' });
-      if (st.error) throw new Error(`--tx ${v.tx}: tx_status lookup failed (signer guess ${signerGuess}): ${JSON.stringify(st.error)}`);
+      const txParams = { tx_hash: v.tx, sender_account_id: signerGuess, wait_until: 'FINAL' };
+      let st = await rpcCall(cfg, 'EXPERIMENTAL_tx_status', txParams);
+      // audit claims-1: the default RPC prunes transactions after about 1.5 days; ask the archival endpoint before giving up.
+      if (st.error && JSON.stringify(st.error).includes('UNKNOWN_TRANSACTION') && cfg.archivalRpcUrl && cfg.archivalRpcUrl !== cfg.rpcUrl) {
+        console.error(`INFO tx not on ${cfg.rpcUrl} (pruned?): asking ${cfg.archivalRpcUrl}`);
+        st = await rpcCall({ ...cfg, archivalRpcUrl: null, rpcUrl: cfg.archivalRpcUrl }, 'EXPERIMENTAL_tx_status', txParams, 'aux: EXPERIMENTAL_tx_status (archival)');
+      }
+      if (st.error) throw new Error(`--tx ${v.tx}: tx_status lookup failed (signer guess ${signerGuess}): ${JSON.stringify(st.error)}${JSON.stringify(st.error).includes('UNKNOWN_TRANSACTION') ? '; the default RPC prunes old transactions, set ZI_ARCHIVAL_RPC_URL=https://archival-rpc.testnet.fastnear.com' : ''}`);
       const p = parseTxStatus(st.result, doc.account_id);
       // The tx must be about THIS invoice: an event from the invoice account naming it, a call/transfer sent to it, or a token transfer to it.
       const ours = p.receiverId === doc.account_id

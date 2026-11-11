@@ -93,6 +93,19 @@ test('token pay: invoice_paid is 200/paid:true; rejected is 409; pending is 202;
   }
 });
 
+// audit claims-3: a one-step token payment on top of tokens parked by a plain ft_transfer would be charged twice.
+test('token pay is refused (409, nothing sent) while tokens are parked; plain and sweep still work', async (t) => {
+  const doc = makeTokenDoc();
+  const { port, rpc } = await boot(t, doc, { storageBalance: { total: MIN, available: '0' }, ftBalance: '1500000', invoice: onchainInvoice(doc), txResult: txResult(doc, '0', [paidEvent(doc)]) });
+  const r = await call(port, 'POST', `/api/invoices/${doc.invoice_id}/pay`, {});
+  assert.equal(r.status, 409, JSON.stringify(r.json));
+  assert.equal(r.json.paid, false);
+  assert.match(r.json.error, /already holds 1\.5 .* use Sweep/);
+  assert.equal(rpc.calls.filter((c) => c.method === 'send_tx').length, 0);
+  const p = await call(port, 'POST', `/api/invoices/${doc.invoice_id}/plain`, {});
+  assert.equal(p.status, 200, JSON.stringify(p.json));
+});
+
 test('token plain transfer and sweep/refund endpoints', async (t) => {
   const doc = makeTokenDoc();
   {

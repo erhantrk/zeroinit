@@ -66,6 +66,9 @@ Facts this relies on (all verified in source / official tests; Day-0 spikes re-p
   must equal the deployed code hash (v3.1 `2prMzXHZVWdeHfmdqqxzb5ahLy2pWBWZjuE25EDJDaYX`, checked by `PASS code-hash-onchain`; v1/v2/v3 history invoices are checked against their own hash and labelled by `zi verify`).
   A state init can only install code whose hash is already baked into the address, and repeating it on an initialized
   account is a no-op that refunds the deposit (INTERFACES §1, fact 3).
+- **What this does *not* mean.** Only **invoice** accounts are keyless. The tUSDC mock token `sm1110-tusdc.testnet` (a contract account) and the operator's deployer/merchant/vault/payer accounts each hold a full-access key
+  (checked with `view_access_key_list`, 2026-11-11; README "Who holds keys" has the command). The invoice contract trusts nobody; a **token** invoice trusts whoever controls the token contract, which on testnet is that key. The global
+  code is published by hash, so the deployer's key cannot change what `2prMzXHZ…DaYX` runs.
 - **The terms are in the address.** The id is `0u` + crockford-base32(SHA3-256(borsh
   `UniversalStateInit{code: CodeHash, data: {STATE}, access_keys: {}}`)): merchant, tax vault, tax_bps, amount,
   expiry and salt are inside the bytes that are hashed. The merchant cannot change terms after issuing, the payer
@@ -104,7 +107,7 @@ v1 numbers were measured on testnet 2026-11-10 (protocol 88, code hash `Amg4WXKy
 | Tokens burnt, token init `[UniversalStateInit, fund]` / settling `ft_transfer_call` / token sweep with state init | 0.0072530 NEAR (9.96 Tgas) / 0.0011780 NEAR (13.13 Tgas) / 0.0083450 NEAR (21.99 Tgas) |
 | NEP-145 registration of one account (token side) | 0.00125 NEAR deposit, kept by the token, plus 0.000182 NEAR burnt |
 | One-time global deploy burn, v3 (161,213-byte wasm) | **about 16.1226 NEAR** (operator's balance 27 → 10.8774031 NEAR, gas included); deploy tx `43D4EifRGJJBtWUVhFPXPFsZqooPwz1czD8LwRz6sjYT` |
-| One-time global deploy burn, v3.1 (163,771-byte wasm) | **about 16.38 NEAR** (the operator's figure, not re-measured); deploy tx `52dRw7RcBom9EbUJ6hCExDF5esWjsHPh5e1sUa87XyvB` |
+| One-time global deploy burn, v3.1 (163,771-byte wasm) | **about 16.38 NEAR** (deployer balance 17.8774031 → 1.4989866 NEAR across the tx); deploy tx `52dRw7RcBom9EbUJ6hCExDF5esWjsHPh5e1sUa87XyvB` |
 
 Issuing an invoice costs nothing and sends no transaction. After a completed payment the account sits at 0 NEAR
 (v3: 421 B after `pay()`, 393 B after `sweep()`; v2: 358 B / 331 B; v1: 352 B; all below the zero-balance limit), so there is no per-invoice storage to fund and nothing left
@@ -121,7 +124,7 @@ movement is **not** claimed; v2 adds callbacks that record what failed.
 |---|---|---|---|
 | contract-1 (medium): tax skipped after EXPIRED | funds parked by a plain transfer, a 0-deposit `pay()` after expiry sets `EXPIRED`, and `sweep()` sends everything to the merchant: the tax vault gets 0 | `sweep()` treats `EXPIRED` with `paid_amount == 0` like `OPEN` (92/8, `late: true`; pro rata if short) | `AUD1-V2`: zero pay `678rsqwk…`, sweep `8WQr2GUm…` → vault gets 0.008 |
 | contract-3 (low): `pay()` ignores parked funds | transfer then pay charges twice, the first amount reaches the merchant untaxed | `pay()` settles parked funds like `sweep()` and refunds the whole deposit (`already_funded`) | `AUD3-V2`: pay `3YPLdAp5…` → deposit refunded, one split |
-| contract-2 (low): failed transfer after PAID | the record says PAID, the bounced funds go to the merchant on the next sweep | `on_transfer` callbacks emit `transfer_failed`, the tax stays owed (`OWED_TAX`, `get_owed_tax()`), `sweep()` re-sends it to the vault, never to the merchant (`tax_resent`; the live `AUD2-V2` retry bounced again because that vault does not exist) | `AUD2-V2`: pay `ARgzUkMK…`, sweep `7z45ySFY…` → `TAX_RESENT`. The first retry bounced (the vault did not exist); after the vault account was created (`FWBnYH6K…`) a second sweep `HECqnmty…` delivered the 0.008 NEAR |
+| contract-2 (low): failed transfer after PAID | the record says PAID, the bounced funds go to the merchant on the next sweep | `on_transfer` callbacks emit `transfer_failed`, the tax stays owed (`OWED_TAX`, `get_owed_tax()`), `sweep()` re-sends it to the vault, never to the merchant (`tax_resent`; the live `AUD2-V2` retry bounced again because that vault does not exist) | `AUD2-V2`: pay `ARgzUkMK…`, sweep `7z45ySFY…` → `TAX_RESENT`. The first retry bounced (the vault did not exist); after the vault account was created (`FWBnYH6K…`) a second sweep `HECqnmtE…` delivered the 0.008 NEAR |
 
 Residual: `invoice_paid` precedes the transfers; extra funds arriving while a tax transfer is in flight can be sent to the
 vault as the owed share; a nonexistent merchant still cannot receive its share, so the CLI and the dashboard check both

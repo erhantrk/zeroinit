@@ -214,6 +214,13 @@ export function serve(cfg: Config, port: number, opts: { token?: string } = {}):
               if (m[2] === 'pay' || m[2] === 'plain') {
                 let amount = docAmountRaw(doc);
                 if (b.value.amount !== undefined && b.value.amount !== '') amount = parseUnits(String(b.value.amount), entry.decimals);
+                if (m[2] === 'pay') {
+                  // audit claims-3: tokens already parked by a plain ft_transfer would be charged twice by a one-step payment; sweep them instead.
+                  const parked = await ftBalanceOf(cfg, entry.accountId, doc.account_id);
+                  if (parked > 0n) {
+                    return send(res, 409, { paid: false, error: `invoice already holds ${formatUnits(parked, entry.decimals)} ${entry.symbol} from a plain transfer: use Sweep instead of paying again` });
+                  }
+                }
                 const { txs, last } = await tokenPay(cfg, doc, entry, m[2] === 'plain', amount);
                 const paid = last.events.some((e) => e.event === 'invoice_paid');
                 const rejected = last.events.find((e) => e.event === 'payment_rejected');

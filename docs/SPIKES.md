@@ -680,7 +680,7 @@ near-api-js 7.4.0), keys from `.env`, never printed. Recordings keep ids and tx 
 - wasm: `contract/res/zeroinit_invoice.wasm`, 163,771 bytes (local `npm run contract:build` from commit `49ec835`, **not** a reproducible build), sha256
   `1b1dcc7515f2b9d6bada0540ed20833dd3050d074e155fb8d489ac2afe01e278`, code hash (base58) `2prMzXHZVWdeHfmdqqxzb5ahLy2pWBWZjuE25EDJDaYX`. This run re-checked the sha256 of the committed file
   (`sha256sum`: the same digest) and ran `zi verify`, which compares the on-chain `global_contract_hash` of every invoice below with that code hash (all `PASS code-hash-onchain`).
-- Global deploy: tx `52dRw7RcBom9EbUJ6hCExDF5esWjsHPh5e1sUa87XyvB`. Deployer burn **about 16.38 NEAR**: the operator's figure, not measured in this run.
+- Global deploy: tx `52dRw7RcBom9EbUJ6hCExDF5esWjsHPh5e1sUa87XyvB`. Deployer burn **about 16.38 NEAR**: deployer balance 17.8774031 → 1.4989866 NEAR across the deploy tx, gas included (cross-checked on chain on 2026-11-11: 16.378417 NEAR).
 - Accounts as in "Contract v3 live". New in this round: `late.sm1110-zi3-merchant.testnet`, created by its parent (L3, below).
 
 ### The runs (fixtures under `fixtures/v31/`)
