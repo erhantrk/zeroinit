@@ -228,12 +228,21 @@ A residual that stays open (`docs/STABLECOIN.md` §5.3): a sweep that lands in t
 
 ## Older claims and how to verify them
 
+These rows used to sit in the README claims table. The v3 and v3.1 rows are checked on those versions' recordings (they replay under their own hashes); the current v3.2 claims are in the README.
+
 | Claim | Verify with | Expected |
 |---|---|---|
 | v2: the tax vault is not skipped after expiry (contract-1) | `npm run zi -- replay fixtures/v2/audit-scenarios.json` | `PASS refund-event AUD1-V2 REFUNDED_EXPIRED`, `PASS sweep-tx-success AUD1-V2 8WQr2GUm… result=PAID`, `PASS split-vault AUD1-V2 0.008` |
 | v2: a payer who already sent a plain transfer is not charged twice (contract-3) | same replay | `PASS refund-already-funded AUD3-V2 refunded 0.1 to sm1110-zi-payer.testnet`, `PASS split-vault AUD3-V2 0.008` |
 | v2: a failed transfer is recorded, the tax stays owed, and a later sweep delivers it (contract-2) | same replay | `PASS transfer-failures-recorded AUD2-V2 1 failed, 1 transfer_failed events`, `PASS sweep-tx-success AUD2-V2 HECqnmtE… result=TAX_RESENT` (the second sweep, after the vault account was created) |
 | The v2 and v1 recordings still check out (history) | `npm run zi -- replay fixtures/v2/demo-run.json`, `fixtures/v1/demo-run.json` and `npm run zi -- verify INV-1111-A --offline` | `INFO deployment v2 (history…` / `v1 (history, frozen…`, all `PASS` |
+| A missing NEAR merchant: owed, then paid after the account exists (L3) | `npm run zi -- replay fixtures/v31/late.json` and `fixtures/v3/late-resweep.json` | `PASS owed-after-failure LATE-V31 …`, `PASS owed-resent LATE-V31 late.sm1110-zi3-merchant.testnet 92000000000000000000000`; the same for the v3 invoice `LATE-V3` |
+| A token payment through `ft_transfer_call` settles, or is returned whole with a reason | `npm run zi -- replay fixtures/v3/tokens.json` and `fixtures/v3/failures.json` | `PASS ft-excess-refunded TOK-V3-C …`, `PASS ft-rejected-underpaid TOK-V3-D used 0, 500000 of 500000 returned …`, `ft-rejected-expired`, `ft-rejected-not_open`, `ft-rejected-wrong_token`, `ft-rejected-bad_msg`, `ft-rejected-low_gas` |
+| `invoice_paid` is never emitted before the payouts succeeded (v2 residual fixed) | `npm run zi -- replay fixtures/v3/fixes.json` and `failures.json` | `PASS invoice-paid-after-callback TAX-V3`; for `LATE-V3` and `UNREG-V3` a failed payout gives `PAYOUT_PENDING` and no `invoice_paid` (`test/live-v3.test.ts`) |
+| A failed payout is owed, retried to its own recipient, or refunded to the payer after the grace period (v2 residual fixed) | `npm run zi -- replay fixtures/v3/failures.json`, `fixes.json`, `tokens.json` | `PASS owed-resent UNREG-V3 sm1110-zi3-unreg.testnet 920000`, `PASS refund-payer-to-paid-by REFUND-V3 sm1110-zi3-payer.testnet`, `owed-after-failure …` |
+| A partly parked amount is taxed too (v2 residual fixed) | `npm run zi -- replay fixtures/v3/fixes.json` | `TAX-V3`: vault 0.008 + 0.004 (`extra_swept`), `PASS split-matches-terms TAX-V3 …` |
+| The tax split is the invoice's own rule | any v3 replay | `PASS split-matches-terms <id> 0.1 -> merchant 0.092, tax 0.008` |
+| A `pay()` that underpays, is late or hits a paid invoice is refunded to the payer (NEAR; not for plain transfers) | `npm run zi -- replay fixtures/v3/near.json` | `PASS refund-event INV-V3-C REFUNDED_UNDERPAID`, `PASS refund-event INV-V3-D REFUNDED_EXPIRED`, `PASS refund-event INV-V3-E REFUNDED_NOT_OPEN`: each checks the `payment_refunded` event, its reason, and a `Transfer` of exactly the deposit to the payer (since the audit round; mutation tests in `test/replay-v3-hardening.test.ts`). A plain-transfer underpay is **not** refunded: it stays parked and, after expiry, is released to merchant and vault |
 
 ## Deploy transactions and burns
 
@@ -243,6 +252,10 @@ A residual that stays open (`docs/STABLECOIN.md` §5.3): a sweep that lands in t
 - **v2** (`4bQ61AgH…yx9zEA`): `DvNnUtvqMg5Q5e2Mn4fMx7GYBFNFhTo7z9wo64szAFKG` (signer `sm1110-zi-deployer.testnet`, burn 8.2949 NEAR). `shasum -a 256 contract-v2/res/zeroinit_invoice.wasm` → `3562e978e6924a2c538e9906fc42d15a652947891f18f7816e3c7807d20f622f` (82,942 bytes).
 - **v1** (`Amg4WXKy…GW6k`): `DSXd2Sjq59zRF2ZX9j3D8SMYd6GZ44XpsW1aJbKfpJ1h` (burn 7.8526 NEAR); wasm digest `912ae75e…c3c9`; `git show e5581e8:contract/res/zeroinit_invoice.wasm` prints it. This tx
   is already outside the default RPC's window (`UNKNOWN_TRANSACTION`); the archival endpoint still has it.
+
+### What a first payment cost on each version
+
+Measured tokens burnt for a NEAR `pay` (gas plus the protocol account-creation charge): v3.2 0.0075620 NEAR, v3.1 0.0075610, v3 0.0075600, v2 0.0077197, v1 0.0073617847981195 NEAR. One-time global-deploy burn: v3.2 about 16.41 NEAR, v3.1 about 16.38 (the README "Limits" keeps the v3.2 figures).
 
 ### The v2 wasm rebuild (not re-run by us)
 

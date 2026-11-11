@@ -128,7 +128,7 @@ movement is **not** claimed; v2 adds callbacks that record what failed.
 
 Residual: `invoice_paid` precedes the transfers; extra funds arriving while a tax transfer is in flight can be sent to the
 vault as the owed share; a nonexistent merchant still cannot receive its share, so the CLI and the dashboard check both
-accounts exist at issue time. Full tx hashes and the README table are in `README.md` → "v1 → v2".
+accounts exist at issue time. Full tx hashes and the table are in `docs/HISTORY.md` → "v1 → v2".
 
 Client side (`src/config.ts`): a known-deployments list holds v3.2 (the trusted build, labelled "current, deployed on testnet"), v3.1, v3, v2 (deployed, historical for the client) and v1 (historical).
 `zi verify`, `zi receipt` and `zi replay` accept a v1, v2, v3 or v3.1 invoice or fixture against its own hash to replay the recorded history
