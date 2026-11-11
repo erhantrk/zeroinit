@@ -42,13 +42,18 @@ export function parseTxStatus(result: any, invoiceAccountId: string): ParsedTx {
   const logs: string[] = (result.receipts_outcome ?? []).flatMap((ro: any) => ro.outcome?.logs ?? []);
   const events: ZiEvent[] = [];
   const nep141Events: Array<Record<string, unknown>> = [];
-  for (const l of logs) {
-    if (!l.startsWith('EVENT_JSON:')) continue;
-    try {
-      const e = JSON.parse(l.slice('EVENT_JSON:'.length));
-      if (e.standard === 'zeroinit') events.push(e);
-      else if (e.standard === 'nep141') nep141Events.push(e);
-    } catch { /* ignore foreign logs */ }
+  for (const ro of result.receipts_outcome ?? []) {
+    // A zeroinit event only counts when the invoice account emitted it: any other contract can log a look-alike EVENT_JSON.
+    const executor = ro.outcome?.executor_id;
+    const fromInvoice = executor === undefined || executor === invoiceAccountId;
+    for (const l of ro.outcome?.logs ?? []) {
+      if (typeof l !== 'string' || !l.startsWith('EVENT_JSON:')) continue;
+      try {
+        const e = JSON.parse(l.slice('EVENT_JSON:'.length));
+        if (e.standard === 'zeroinit' && fromInvoice) events.push(e);
+        else if (e.standard === 'nep141') nep141Events.push(e);
+      } catch { /* ignore foreign logs */ }
+    }
   }
   let returnValue: unknown = null;
   const sv = result.status?.SuccessValue;

@@ -2,23 +2,31 @@
 // Signs with server-side env keys (demo only).
 import { createServer, type IncomingMessage, type ServerResponse, type Server } from 'node:http';
 import { readFileSync } from 'node:fs';
+import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { parseNear, formatNear, utf8 } from './bytes.ts';
 import { actFunctionCall, actTransfer } from './tx.ts';
-import { trustedCodeHash, deploymentOf, tokenBySymbol, type Config, type AllowedToken } from './config.ts';
+import { trustedCodeHash, pinForVerification, deploymentOf, tokenBySymbol, type Config, type AllowedToken } from './config.ts';
 import { viewAccount, viewInvoice } from './rpc.ts';
 import { sendActions } from './send.ts';
-import { createInvoiceDoc, saveDoc, loadDoc, listDocs, assertDocTrusted, assertAccountsUsable, stateInitAction, randomSalt,
+import { createInvoiceDoc, saveDoc, loadDoc, listDocs, assertDocTrusted, docProblem, onchainProblem, assertAccountsUsable, stateInitAction, randomSalt,
   isV3Doc, docAmountRaw, docAmountDisplay, docToken, docUnit, docDecimals, docGraceMs, GRACE_MIN_MS, GRACE_MAX_MS, type InvoiceDoc } from './invoice.ts';
 import { GAS, FLOAT_YOCTO, actFund, actFtTransfer, actFtTransferCall, actStorageDeposit, payMsg, parseUnits, formatUnits,
   ftBalanceOf, storageBalanceBounds, storageBalanceOf } from './ft.ts';
+
+/** The dashboard files are resolved from this module's location, not from the cwd. */
+const webFile = (name: string): string => readFileSync(new URL(`../web/${name}`, import.meta.url), 'utf8');
+/** No inline script, no foreign origin: an injected invoice field can neither run script nor call another host. */
+const CSP = "default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+/** Header every POST must carry (see serve()). */
+const TOKEN_HEADER = 'x-zi-token';
 
 const j = (v: unknown) => JSON.stringify(v, (_k, x) => (typeof x === 'bigint' ? x.toString() : x));
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 /** A signing/transport failure is a bad gateway; a bad document or request is a 400. */
 const statusForError = (e: unknown): number => (/chain_id|RPC request|send_tx|tx_status|HTTP 5\d\d/.test(message(e)) ? 502 : 400);
 
-function send(res: ServerResponse, code: number, body: unknown, type = 'application/json'): void {
-  res.writeHead(code, { 'content-type': type });
+function send(res: ServerResponse, code: number, body: unknown, type = 'application/json', extra: Record<string, string> = {}): void {
+  res.writeHead(code, { 'content-type': type, 'x-content-type-options': 'nosniff', ...extra });
   res.end(typeof body === 'string' ? body : j(body));
 }
 async function readBody(req: IncomingMessage): Promise<any> {
@@ -68,7 +76,18 @@ async function tokenPay(cfg: Config, doc: InvoiceDoc, entry: AllowedToken, plain
   return { txs, last };
 }
 
-export function serve(cfg: Config, port: number): Promise<Server> {
+/**
+ * `opts.token` is the per-run secret every POST must carry in the x-zi-token header (default: random). It is not in any page the
+ * server serves; the operator opens the OPEN url (token in the #fragment, which browsers never send), so a local process that can only
+ * reach the port cannot make the server sign.
+ */
+export function serve(cfg: Config, port: number, opts: { token?: string } = {}): Promise<Server> {
+  const apiToken = opts.token ?? randomBytes(24).toString('hex');
+  const tokenOk = (v: unknown): boolean => {
+    if (typeof v !== 'string') return false;
+    const a = Buffer.from(v), b = Buffer.from(apiToken);
+    return a.length === b.length && timingSafeEqual(a, b);
+  };
   const server = createServer(async (req, res) => {
     const url = new URL(req.url ?? '/', 'http://127.0.0.1');
     const bound = server.address();
@@ -81,6 +100,9 @@ export function serve(cfg: Config, port: number): Promise<Server> {
     const origin = req.headers.origin;
     if (origin !== undefined && origin !== `http://127.0.0.1:${boundPort}` && origin !== `http://localhost:${boundPort}`) {
       return send(res, 403, { error: `origin ${origin} is not the dashboard origin` });
+    }
+    if (req.method === 'POST' && !tokenOk(req.headers[TOKEN_HEADER])) {
+      return send(res, 403, { error: `missing or wrong ${TOKEN_HEADER}: open the OPEN url printed at startup` });
     }
     const body = async (): Promise<{ ok: true; value: any } | { ok: false }> => {
       const type = (req.headers['content-type'] ?? '').split(';')[0].trim().toLowerCase();
@@ -97,8 +119,9 @@ export function serve(cfg: Config, port: number): Promise<Server> {
     };
     try {
       const m = /^\/api\/invoices\/([A-Za-z0-9_-]{1,32})\/(status|pay|sweep|refund|plain)$/.exec(url.pathname);
-      if (req.method === 'GET' && url.pathname === '/') return send(res, 200, readFileSync('web/index.html', 'utf8'), 'text/html; charset=utf-8');
-      if (req.method === 'GET' && url.pathname === '/state.js') return send(res, 200, readFileSync('web/state.js', 'utf8'), 'text/javascript; charset=utf-8');
+      if (req.method === 'GET' && url.pathname === '/') return send(res, 200, webFile('index.html'), 'text/html; charset=utf-8', { 'content-security-policy': CSP });
+      if (req.method === 'GET' && url.pathname === '/state.js') return send(res, 200, webFile('state.js'), 'text/javascript; charset=utf-8');
+      if (req.method === 'GET' && url.pathname === '/app.js') return send(res, 200, webFile('app.js'), 'text/javascript; charset=utf-8');
       if (req.method === 'GET' && url.pathname === '/api/invoices') {
         // Display amounts are derived from the raw amount (what the contract moves), never trusted from the file's display field.
         return send(res, 200, listDocs(cfg.invoiceDir).map((d) => {
@@ -106,8 +129,9 @@ export function serve(cfg: Config, port: number): Promise<Server> {
             // Derive the display amount from the raw amount (what the contract moves), never from the file's display field.
             const raw = docAmountRaw(d);
             const display = isV3Doc(d) ? (d.asset.kind === 'ft' ? formatUnits(raw, d.asset.decimals) : formatNear(raw)) : formatNear(raw);
-            return { ...d, amount_display: display, unit: docUnit(d), amount_near: docToken(d) === null ? display : undefined };
-          } catch { return d; }
+            return { ...d, amount_display: display, unit: docUnit(d), amount_near: docToken(d) === null ? display : undefined,
+              unverified_reason: docProblem(d, pinForVerification(trustedCodeHash(cfg), d.code_hash), cfg.allowedTokens) };
+          } catch { return { ...d, unverified_reason: 'unreadable amount' }; }
         }));
       }
       if (req.method === 'POST' && url.pathname === '/api/invoices') {
@@ -151,14 +175,25 @@ export function serve(cfg: Config, port: number): Promise<Server> {
           return send(res, 400, { error: message(e) });
         }
         if (m[2] === 'status' && req.method === 'GET') {
+          // Only a document that is the invoice its own terms derive gets an on-chain state: a forged file must not show another account's PAID.
+          const pin = pinForVerification(trustedCodeHash(cfg), doc.code_hash);
+          const bad = docProblem(doc, pin, cfg.allowedTokens);
+          if (bad) return send(res, 200, { state: 'UNVERIFIED', reason: bad, invoice: null });
           const s = await viewAccount(cfg, doc.account_id);
           const invoice = s.kind === 'INITIALIZED' ? await viewInvoice(cfg, doc.account_id) : null;
+          if (s.kind === 'INITIALIZED') {
+            const mismatch = onchainProblem(doc, pin, s.globalContractHash, invoice);
+            if (mismatch) return send(res, 200, { state: 'UNVERIFIED', reason: mismatch, invoice: null });
+          }
           const token = docToken(doc);
-          const tokenBalance = token === null ? 0n : await ftBalanceOf(cfg, token, doc.account_id).catch(() => 0n);
+          // A failed token view is "unknown", never a zero balance.
+          let tokenBalance: bigint | null = 0n; let tokenError: string | null = null;
+          if (token !== null) { try { tokenBalance = await ftBalanceOf(cfg, token, doc.account_id); } catch (e) { tokenBalance = null; tokenError = message(e); } }
           return send(res, 200, { state: s.kind, balance_yocto: s.kind === 'NONEXISTENT' ? '0' : s.amount.toString(),
             storage_usage: s.kind === 'NONEXISTENT' ? null : s.storageUsage, invoice,
             token, token_symbol: isV3Doc(doc) && doc.asset.kind === 'ft' ? doc.asset.symbol : null,
-            token_decimals: token === null ? null : docDecimals(doc), token_balance_raw: tokenBalance.toString(),
+            token_decimals: token === null ? null : docDecimals(doc), token_balance_raw: tokenBalance === null ? null : tokenBalance.toString(),
+            ...(tokenError ? { token_balance_error: tokenError } : {}),
             owed_merchant: invoice?.owed_merchant ?? null, owed_tax: invoice?.owed_tax ?? null, owed_payer: invoice?.owed_payer ?? null,
             busy_until_ms: invoice?.busy_until_ms ?? null });
         }
@@ -242,9 +277,13 @@ export function serve(cfg: Config, port: number): Promise<Server> {
             const p = await sendActions(cfg, signer, doc.account_id, [stateInitAction(doc, trusted), actFunctionCall(m[2], utf8('{}'), isPay ? GAS.payNear : GAS.sweepNear, deposit)], m[2]);
             // pay() refunds instead of panicking: only PAID is a payment (409 + paid:false for REFUNDED_*).
             // A settlement whose payouts are still in flight or partly failed is pending (202), not paid.
-            const paid = p.success && (!isPay || p.returnValue === 'PAID');
-            const pending = isPay && p.success && ['PAYOUT_PENDING', 'SETTLING'].includes(String(p.returnValue));
-            return send(res, !p.success ? 502 : paid ? 200 : pending ? 202 : 409, { paid, pending, tx_hash: p.txHash, result: p.returnValue, events: p.events, transfers_failed: p.downstreamFailures.length,
+            // sweep() does not panic when a payout fails: it returns PAYOUT_PENDING (or EXTRA_SWEPT / TAX_RESENT / OWED_RESENT / REFUNDED for the
+            // other non-PAID outcomes). Only PAID is a settled invoice; a sweep is ok when the call did something and nothing failed downstream.
+            const value = String(p.returnValue);
+            const paid = p.success && value === 'PAID' && (isPay || p.downstreamFailures.length === 0);
+            const pending = p.success && ['PAYOUT_PENDING', 'SETTLING'].includes(value);
+            const sweepOk = !isPay && p.success && p.downstreamFailures.length === 0 && ['PAID', 'EXTRA_SWEPT', 'TAX_RESENT', 'OWED_RESENT', 'REFUNDED'].includes(value);
+            return send(res, !p.success ? 502 : paid || sweepOk ? 200 : pending ? 202 : 409, { paid, pending, tx_hash: p.txHash, result: p.returnValue, events: p.events, transfers_failed: p.downstreamFailures.length,
               transfers: p.transfers.map((t) => ({ to: t.to, yocto: t.yocto.toString() })) });
           } catch (e) {
             return send(res, statusForError(e), { error: message(e) });
@@ -260,6 +299,7 @@ export function serve(cfg: Config, port: number): Promise<Server> {
     const addr = server.address();
     const boundPort = typeof addr === 'object' && addr ? addr.port : port;
     console.log(`SERVE http://127.0.0.1:${boundPort}`);
+    console.log(`OPEN http://127.0.0.1:${boundPort}/#zi_token=${apiToken}   (the dashboard needs this url: POSTs carry the token)`);
     resolve(server);
   }));
 }

@@ -269,7 +269,43 @@ export function loadDoc(dir: string, id: string): InvoiceDoc {
   }
   throw new Error(`invoice ${id} not found in ${dir}/, ${dir}/examples/, ${dir}/v31/, ${dir}/v3/, ${dir}/v2/, ${dir}/v1/ or ${dir}/demo/`);
 }
-export function listDocs(dir: string): InvoiceDoc[] {
+/** Invoice ids are used in file names and URL paths: this is the only shape the dashboard routes accept. */
+export const SAFE_INVOICE_ID = /^[A-Za-z0-9_-]{1,32}$/;
+/** Cheap structural check (not a trust check): the fields the dashboard and CLI index on are strings and the id is path-safe. */
+export function looksLikeInvoiceDoc(d: any): d is InvoiceDoc {
+  return d !== null && typeof d === 'object' && (d.format === 'zeroinit-invoice/1' || d.format === 'zeroinit-invoice/2')
+    && typeof d.invoice_id === 'string' && SAFE_INVOICE_ID.test(d.invoice_id) && typeof d.account_id === 'string';
+}
+/**
+ * Every top-level invoice document in the directory. Files that do not parse, or that are not invoice documents (a ZI_RECORD fixture,
+ * a half-written file, a hostile invoice_id), are skipped with a warning instead of failing the whole listing.
+ */
+export function listDocs(dir: string, warn: (m: string) => void = (m) => console.error(m)): InvoiceDoc[] {
   if (!existsSync(dir)) return [];
-  return readdirSync(dir).filter((f) => f.endsWith('.json') && !f.endsWith('.receipt.json')).map((f) => JSON.parse(readFileSync(join(dir, f), 'utf8')));
+  const docs: InvoiceDoc[] = [];
+  for (const f of readdirSync(dir).filter((x) => x.endsWith('.json') && !x.endsWith('.receipt.json'))) {
+    try {
+      const d = JSON.parse(readFileSync(join(dir, f), 'utf8'));
+      if (looksLikeInvoiceDoc(d)) docs.push(d); else warn(`WARNING skipping ${f}: not a valid invoice document`);
+    } catch (e) { warn(`WARNING skipping ${f}: ${e instanceof Error ? e.message : String(e)}`); }
+  }
+  return docs;
+}
+
+/**
+ * Why a document must not be presented as a real invoice (null when it is fine): it is not the invoice its own terms derive
+ * on the pinned code hash / allow-list. Read-only views use this so a forged file never shows another account's state.
+ */
+export function docProblem(d: InvoiceDoc, pin: string, allowed?: readonly AllowedToken[] | null): string | null {
+  const c = checkDoc(d, pin, allowed);
+  const bad = [!c.codeHashTrusted && 'code_hash is not the pinned hash', !c.formatMatchesDeployment && 'format does not match the deployment',
+    !c.idFromTerms && `account_id does not match the terms (expected ${c.expectedId})`, !c.rawFromTerms && 'raw_state_init_hex does not match the terms',
+    !c.fieldsConsistent && 'display fields do not match the terms'].filter(Boolean);
+  return bad.length ? bad.join('; ') : null;
+}
+/** Why the on-chain account does not belong to the document (null when it does): wrong global contract hash or different terms. */
+export function onchainProblem(d: InvoiceDoc, pin: string, globalContractHash: string | null, inv: any): string | null {
+  if (globalContractHash !== pin) return `account runs ${globalContractHash ?? 'no global contract'}, not the pinned ${pin}`;
+  if (!termsMatchOnchain(d, inv)) return 'on-chain terms differ from the document';
+  return null;
 }

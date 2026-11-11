@@ -9,7 +9,7 @@ import { actFunctionCall } from './tx.ts';
 import { loadConfig, trustedCodeHash, pinForVerification, deploymentLabel, deploymentOf, fixesParkedFunds, tokenBySymbol, type Config, type Signer, type AllowedToken } from './config.ts';
 import { checkNetwork, viewAccount, viewInvoice, setRecordInvoice, recordInvoiceDoc, rpcCall } from './rpc.ts';
 import { sendActions } from './send.ts';
-import { createInvoiceDoc, loadDoc, saveDoc, checkDoc, assertDocTrusted, assertAccountsUsable, stateInitAction, termsMatchOnchain, randomSalt,
+import { createInvoiceDoc, loadDoc, saveDoc, checkDoc, assertDocTrusted, assertAccountsUsable, stateInitAction, termsMatchOnchain, docProblem, onchainProblem, randomSalt,
   isV3Doc, docAmountRaw, docAmountDisplay, docToken, docUnit, docDecimals, GRACE_DEFAULT_MS, GRACE_MIN_MS, GRACE_MAX_MS, type InvoiceDoc } from './invoice.ts';
 import { runVectors } from './vectors.ts';
 import { replayFixture, fixturePin } from './replay.ts';
@@ -101,20 +101,35 @@ function failureText(p: ParsedTx): string {
   return JSON.stringify(p.failures);
 }
 
+/** NEP-141 balance for a status view: a failed view is reported as unknown, never as zero. */
+async function tokenBalanceOrError(cfg: Config, token: string | null, account: string): Promise<{ raw: bigint | null; error: string | null }> {
+  if (token === null) return { raw: 0n, error: null };
+  try { return { raw: await ftBalanceOf(cfg, token, account), error: null }; } catch (e) { return { raw: null, error: e instanceof Error ? e.message : String(e) }; }
+}
+
 async function statusLine(cfg: Config, doc: InvoiceDoc, label?: string): Promise<{ line: string; obj: any }> {
+  // A status is only shown for a document that is the invoice its own terms derive: a forged file must not borrow another account's PAID state.
+  const pin = pinForVerification(trustedCodeHash(cfg), doc.code_hash);
+  const bad = docProblem(doc, pin, cfg.allowedTokens);
+  if (bad) return { line: `STATE UNVERIFIED ${bad}`, obj: { state: 'UNVERIFIED', reason: bad } };
   const s = await viewAccount(cfg, doc.account_id, label);
   const token = docToken(doc);
   const unit = docUnit(doc);
   const dec = docDecimals(doc);
-  const tokens = token === null ? 0n : await ftBalanceOf(cfg, token, doc.account_id).catch(() => 0n);
-  const parked = tokens > 0n ? ` tokens_parked=${formatUnits(tokens, dec)} ${unit}` : '';
-  if (s.kind === 'NONEXISTENT') return { line: `STATE NONEXISTENT${parked}`.trim(), obj: { ...s, token_balance_raw: tokens.toString() } };
-  if (s.kind === 'UNINITIALIZED') return { line: `STATE UNINITIALIZED balance=${formatNear(s.amount)}${parked}`, obj: { ...s, token_balance_raw: tokens.toString() } };
+  const bal = await tokenBalanceOrError(cfg, token, doc.account_id);
+  const tokens = bal.raw;
+  const tokenFields = { token_balance_raw: tokens === null ? null : tokens.toString(), ...(bal.error ? { token_balance_error: bal.error } : {}) };
+  const tokensText = tokens === null ? `UNKNOWN (${bal.error})` : `${formatUnits(tokens, dec)} ${unit}`;
+  const parked = tokens === null ? ` tokens=${tokensText}` : tokens > 0n ? ` tokens_parked=${tokensText}` : '';
+  if (s.kind === 'NONEXISTENT') return { line: `STATE NONEXISTENT${parked}`.trim(), obj: { ...s, ...tokenFields } };
+  if (s.kind === 'UNINITIALIZED') return { line: `STATE UNINITIALIZED balance=${formatNear(s.amount)}${parked}`, obj: { ...s, ...tokenFields } };
   const inv = await viewInvoice(cfg, doc.account_id, label ? label.replace('view_account', 'get_invoice') : undefined);
+  const mismatch = onchainProblem(doc, pin, s.globalContractHash, inv);
+  if (mismatch) return { line: `STATE UNVERIFIED ${mismatch}`, obj: { state: 'UNVERIFIED', reason: mismatch, onchain: s.kind } };
   const extra = token === null ? ''
-    : ` tokens=${formatUnits(tokens, dec)} ${unit} owed_merchant=${formatUnits(BigInt(inv.owed_merchant ?? '0'), dec)} owed_tax=${formatUnits(BigInt(inv.owed_tax ?? '0'), dec)} owed_payer=${formatUnits(BigInt(inv.owed_payer ?? '0'), dec)}`;
+    : ` tokens=${tokensText} owed_merchant=${formatUnits(BigInt(inv.owed_merchant ?? '0'), dec)} owed_tax=${formatUnits(BigInt(inv.owed_tax ?? '0'), dec)} owed_payer=${formatUnits(BigInt(inv.owed_payer ?? '0'), dec)}`;
   return { line: `STATE INITIALIZED status=${inv.status} paid_by=${inv.paid_by ?? 'null'} balance=${formatNear(s.amount)} storage=${s.storageUsage}${extra}`,
-    obj: { ...s, token_balance_raw: tokens.toString(), invoice: inv } };
+    obj: { ...s, ...tokenFields, invoice: inv } };
 }
 
 async function main(argv: string[]): Promise<number> {
@@ -271,7 +286,7 @@ async function main(argv: string[]): Promise<number> {
     await checkNetwork(cfg);
     const s = await statusLine(cfg, doc);
     out(json, s.obj, [s.line]);
-    return 0;
+    return s.obj.state === 'UNVERIFIED' ? 1 : 0;
   }
   if (cmd === 'refund-payer') {
     const trusted = trustedCodeHash(cfg);
@@ -391,7 +406,13 @@ async function main(argv: string[]): Promise<number> {
       const signerGuess = inv.paid_by ?? cfg.sweeper?.accountId ?? doc.merchant;
       const st = await rpcCall(cfg, 'EXPERIMENTAL_tx_status', { tx_hash: v.tx, sender_account_id: signerGuess, wait_until: 'FINAL' });
       if (st.error) throw new Error(`--tx ${v.tx}: tx_status lookup failed (signer guess ${signerGuess}): ${JSON.stringify(st.error)}`);
-      const p = parseTxStatus(st.result, doc.account_id); events = p.events; ftTransfers = p.ftTransfers.map((t) => ({ ...t, amount: t.amount.toString() })); txHash = p.txHash;
+      const p = parseTxStatus(st.result, doc.account_id);
+      // The tx must be about THIS invoice: an event from the invoice account naming it, a call/transfer sent to it, or a token transfer to it.
+      const ours = p.receiverId === doc.account_id
+        || p.events.some((e) => { const d = e.data?.[0] ?? {}; return d.account_id === doc.account_id && d.invoice_id === doc.invoice_id; })
+        || p.nep141Events.some((e) => (e.data as any[] | undefined)?.some((d) => d?.new_owner_id === doc.account_id));
+      if (!ours) throw new Error(`--tx ${v.tx}: tx does not belong to this invoice (${doc.invoice_id} / ${doc.account_id}): no event or call for it`);
+      events = p.events; ftTransfers = p.ftTransfers.map((t) => ({ ...t, amount: t.amount.toString() })); txHash = p.txHash;
     }
     const c = checkDoc(doc, trusted, cfg.allowedTokens);
     const checks = { id_matches_terms: c.idFromTerms && c.rawFromTerms && c.fieldsConsistent, code_hash_matches: c.codeHashTrusted && s.globalContractHash === trusted,

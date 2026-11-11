@@ -9,7 +9,7 @@ import { readdirSync } from 'node:fs';
 import { serve } from '../src/server.ts';
 import { loadConfig } from '../src/config.ts';
 import { DEPLOYED, tempDir, makeTokenDoc, writeDoc, throwawaySigner, fakeRpc, handlers, statusResult, viewResult, unknownAccount,
-  onchainInvoice, b64, type Chain } from './helpers.ts';
+  onchainInvoice, b64, TEST_TOKEN, type Chain } from './helpers.ts';
 import type { InvoiceDoc } from '../src/invoice.ts';
 
 const TOKEN = 'tusdc.example.testnet';
@@ -18,7 +18,7 @@ const MIN = '1250000000000000000000';
 function call(port: number, method: string, path: string, body?: unknown, headers: Record<string, string> = {}) {
   return new Promise<{ status: number; json: any }>((resolve, reject) => {
     const payload = body === undefined ? undefined : JSON.stringify(body);
-    const r = request({ host: '127.0.0.1', port, method, path, headers: { ...(payload ? { 'content-type': 'application/json' } : {}), ...headers } }, (res) => {
+    const r = request({ host: '127.0.0.1', port, method, path, headers: { ...(payload ? { 'content-type': 'application/json' } : {}), ...(method === 'POST' ? { 'x-zi-token': TEST_TOKEN } : {}), ...headers } }, (res) => {
       let text = '';
       res.setEncoding('utf8'); res.on('data', (d) => { text += d; });
       res.on('end', () => { let json: any = null; try { json = JSON.parse(text); } catch { /* html */ } resolve({ status: res.statusCode ?? 0, json }); });
@@ -49,7 +49,7 @@ async function boot(t: { after: (fn: () => Promise<void>) => void }, doc: Invoic
   const s = throwawaySigner();
   const cfg = loadConfig({ ZI_INVOICE_DIR: dir, ZI_RPC_URL: rpc.url, ZI_CODE_HASH: DEPLOYED, ZI_TUSDC_ACCOUNT: TOKEN,
     ZI_PAYER_ACCOUNT: s.account, ZI_PAYER_KEY: s.secret, ZI_SWEEPER_ACCOUNT: s.account, ZI_SWEEPER_KEY: s.secret, ...env });
-  const server = await serve(cfg, 0);
+  const server = await serve(cfg, 0, { token: TEST_TOKEN });
   t.after(async () => { await new Promise<void>((r) => (server as Server).close(() => r())); await rpc.close(); });
   return { port: (server.address() as AddressInfo).port, rpc, dir };
 }

@@ -392,9 +392,14 @@ creation uses near-cli-rs. The steps below assume you are in the repo root.
    ```bash
    npm run zi -- serve --port 8787
    # SERVE http://127.0.0.1:8787
+   # OPEN http://127.0.0.1:8787/#zi_token=<random per run>
    ```
 
-   Open it, create an invoice (no transaction), pay, or send a plain transfer and sweep. The server signs with
+   Open the **OPEN** url (the token after `#` is never sent to the server; every `POST` must carry it in `x-zi-token`, so another local
+   process that only knows the port cannot make the server sign; a bare `http://127.0.0.1:8787/` shows the list but its buttons get 403).
+   The page is served with a Content-Security-Policy (no inline script) and escapes every invoice-file value; invoice files are untrusted
+   input. A document that is not the invoice its own terms derive (or whose account runs other code/terms) shows an **UNVERIFIED** badge,
+   and `zi status` exits 1 with `STATE UNVERIFIED`. Create an invoice (no transaction), pay, or send a plain transfer and sweep. The server signs with
    the payer/sweeper keys from `.env` and binds `127.0.0.1` only. Statuses load when the page opens, after each
    action, and when you click **Refresh statuses** (no polling, to stay under public RPC rate limits).
 

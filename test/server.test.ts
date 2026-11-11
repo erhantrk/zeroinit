@@ -6,12 +6,13 @@ import { request, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { serve } from '../src/server.ts';
 import { loadConfig } from '../src/config.ts';
+import { TEST_TOKEN } from './helpers.ts';
 
 const CODE_HASH = '4bQ61AgHWWmYXp5c3fwj9NJxS79D9R3cGZAZxHyx9zEA';
 
 function call(port: number, method: string, path: string, body?: string, headers: Record<string, string> = {}) {
   return new Promise<{ status: number; type: string; text: string }>((resolve, reject) => {
-    const r = request({ host: '127.0.0.1', port, method, path, headers }, (res) => {
+    const r = request({ host: '127.0.0.1', port, method, path, headers: { ...(method === 'POST' ? { 'x-zi-token': TEST_TOKEN } : {}), ...headers } }, (res) => {
       let text = '';
       res.setEncoding('utf8');
       res.on('data', (d) => { text += d; });
@@ -24,7 +25,7 @@ function call(port: number, method: string, path: string, body?: string, headers
 }
 
 async function start(t: { after: (fn: () => Promise<void>) => void }) {
-  const server = await serve(loadConfig({ ZI_INVOICE_DIR: 'invoices', ZI_CODE_HASH: CODE_HASH }), 0);
+  const server = await serve(loadConfig({ ZI_INVOICE_DIR: 'invoices', ZI_CODE_HASH: CODE_HASH }), 0, { token: TEST_TOKEN });
   t.after(() => new Promise<void>((resolve) => (server as Server).close(() => resolve())));
   return { server, port: (server.address() as AddressInfo).port };
 }

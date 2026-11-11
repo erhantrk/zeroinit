@@ -18,6 +18,9 @@ export const V2 = V2_CODE_HASH;
 export const V1 = V1_CODE_HASH;
 export const FOREIGN = base58.encode(new Uint8Array(32).fill(0xee));
 
+/** The per-run API token the dashboard tests pass to serve() and send on every POST. */
+export const TEST_TOKEN = 'test-token-0123456789abcdef';
+
 export const tempDir = (): string => mkdtempSync(join(tmpdir(), 'zi-test-'));
 
 /** A throwaway ed25519 payer: an implicit (64-hex) account plus its secret in near-cli format. Not a real key. */
