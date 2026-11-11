@@ -2,7 +2,7 @@
 
 **Every invoice gets its own NEAR address, and issuing it needs no transaction.** The payer's one transaction creates the account, pays the merchant and sets the tax aside (92/8 in the demo). Nobody ever holds a key to that account.
 
-NEAR HACKATHON 2026 · Tracks: **Open Innovation** (primary), **Real-World Money** · Testnet only, mock token only, not audited, written with AI help (["AI use disclosure"](#ai-use-disclosure)).
+NEAR HACKATHON 2026 · Tracks (proposed, confirmed at submission): **Open Innovation** (primary), **Real-World Money** · Testnet only, mock token only, not audited, written with AI help (["AI use disclosure"](#ai-use-disclosure)).
 Also by the same submitter: [ProvenExit](https://github.com/erhantrk/provenexit) (hackathon rule Q-015).
 
 ![ZeroInit local dashboard: invoice list with PAID badges and the payer panel with the "Pay (one transaction)" button](docs/img/dashboard-pay.png)
@@ -32,7 +32,7 @@ You should see `PASS split-merchant INV-1111-V32-A 0.92` and `PASS split-vault I
 NEAR protocol 88 (universal accounts, NEP-655) lets an account id be the SHA3-256 hash of its future code and state, so the invoice address can be printed before the account exists. One transaction carries a `UniversalStateInit` and a `FunctionCall`: it creates the account, runs the contract and splits the payment. A plain transfer to the address also works for NEAR invoices: the money waits in the "uninitialized" account, which only its matching state init can unlock, until anyone calls `sweep`. The invoice code is a global contract deployed once, by hash; each invoice only references it.
 
 One honest clause: **token (NEP-141) invoices need one `storage_deposit` registration of the `0u` id on the token (0.00125 NEAR, sent by the merchant, the payer or anyone) before a wallet or exchange can `ft_transfer` to it**. Issuing is still free; whoever registers the id pays that one small transaction.
-The contract deployed on testnet is **v3.2**; v1 to v3.1 are history ([`docs/HISTORY.md`](docs/HISTORY.md)). The mock token's source is [test-usdc](https://github.com/erhantrk/test-usdc).
+The contract deployed on testnet is **v3.2**; v1 to v3.1 are history ([`docs/HISTORY.md`](docs/HISTORY.md)). The mock token's source is [test-usdc](https://github.com/erhantrk/test-usdc) (private until submission).
 
 ## Offline judge path (do X, see Y)
 
@@ -206,7 +206,7 @@ curl -s https://rpc.testnet.fastnear.com -H 'content-type: application/json' -d 
 ## Limits (honest)
 
 - **Nothing here is audited by a third party.** The audit rounds were AI reviews; the deployed v3.2 contract is the source after the fixes for that audit, and those fixes were checked by unit tests and, for the race on the `bad_msg` path, by one live run (`docs/HISTORY.md` "v3.1 → v3.2"). A residual stays open: a sweep that lands in the same block as an already-executed rejected `ft_transfer_call` (no lock held yet) can still read a balance the token is about to take back; a payer's single call cannot produce it (`docs/STABLECOIN.md` §5.3).
-- **tUSDC is a testnet mock, not a stablecoin, and its key holder is trusted.** The token `sm1110-tusdc.testnet` is a copy of the [`test-usdc`](https://github.com/erhantrk/test-usdc) mock (6 decimals, owner-only mint) with a full-access key held by the operator ("Who holds keys"): it has no value and no
+- **tUSDC is a testnet mock, not a stablecoin, and its key holder is trusted.** The token `sm1110-tusdc.testnet` is a copy of the [`test-usdc`](https://github.com/erhantrk/test-usdc) (private until submission) mock (6 decimals, owner-only mint) with a full-access key held by the operator ("Who holds keys"): it has no value and no
   issuer behind it. The contract does not know tUSDC; each invoice names one NEP-141 token in its terms (so in its address), the contract accepts only that token, and the
   client allow-list (`src/config.ts`, `ZI_TUSDC_ACCOUNT`) pins symbol, decimals and account. On mainnet the allow-list would name a real issuer's NEP-141 contract with its real decimals, checked against `ft_metadata`; that was not tried.
 - **Token invoices are not payable from an exchange until the id is registered.** An `ft_transfer` to an unregistered `0u` id fails in the token. One `storage_deposit` transaction (0.00125 NEAR, sent by merchant, payer or anyone) must come first;
