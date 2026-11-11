@@ -351,10 +351,19 @@ impl Invoice {
             return SweepOutcome::Pay(batch, st);
         }
 
-        let open_or_unpaid_expired = self.status == STATUS_OPEN
-            || (self.status == STATUS_EXPIRED && self.paid_amount == 0);
+        // contract-4: an OPEN invoice past its expiry is EXPIRED, whether or not anyone has called
+        // pay()/ft_on_transfer to flag it. One permissionless sweep both flags and releases.
+        let lapsed_open = self.status == STATUS_OPEN && now > self.expires_at_ms;
+        let eff_status = if lapsed_open { STATUS_EXPIRED } else { self.status };
+        // contract-2: "never settled" is `paid_at_ms == 0` (set only by a settlement). `paid_amount`
+        // also grows on pro-rata releases after expiry, so it cannot be the marker.
+        let open_or_unpaid_expired = eff_status == STATUS_OPEN
+            || (eff_status == STATUS_EXPIRED && self.paid_at_ms == 0);
 
         if open_or_unpaid_expired {
+            if lapsed_open {
+                st.status = STATUS_EXPIRED;
+            }
             if avail >= self.amount {
                 let (net, tax) = self.split_of(avail);
                 if net > 0 { payouts.push(Payout { role: ROLE_MERCHANT, to: self.merchant.clone(), amount: net, from_owed: false, near: false }); }
@@ -362,14 +371,15 @@ impl Invoice {
                 st.status = STATUS_SETTLING;
                 st.paid_by = None;
                 st.paid_at_ms = now;
-                st.paid_amount = avail;
-                st.tax_amount = tax;
+                // Running totals: pro-rata releases made while EXPIRED were already delivered.
+                st.paid_amount += avail;
+                st.tax_amount += tax;
                 st.lock_until = Some(now + BUSY_MS);
                 let batch = Batch { kind: KIND_TRANSFER, result: "PAID".to_string(), late: now > self.expires_at_ms, excess: 0,
                     refund_reason: String::new(), merchant_part: 0, tax_part: 0, lock: true, payouts };
                 return SweepOutcome::Pay(batch, st);
             }
-            if self.status == STATUS_OPEN {
+            if eff_status == STATUS_OPEN {
                 if owed_paid {
                     st.lock_until = Some(now + BUSY_MS);
                     let batch = Batch { kind: KIND_RESEND, result: resend, late: false, excess: 0, refund_reason: String::new(),
@@ -499,6 +509,13 @@ impl Invoice {
         if self.token.as_ref() != Some(&predecessor) {
             return reject(self, "wrong_token");
         }
+        // contract-1: any call from the invoice's own token while a lock is held may carry a credit
+        // that a pending token sweep's balance read already includes, and the token takes that
+        // credit back whenever this hook returns it (every rejection below). Change the lock value
+        // first, for every status and every rejection reason, so `on_token_balance` plans nothing.
+        if env::block_timestamp_ms() < self.busy_until_ms {
+            self.busy_until_ms += 1;
+        }
         let parsed = serde_json::from_str::<PayMsg>(&msg);
         let ok_msg = match &parsed {
             Ok(m) => m.action == "pay" && m.invoice_id.as_ref().map_or(true, |id| *id == self.invoice_id),
@@ -516,10 +533,8 @@ impl Invoice {
             return reject(self, "expired");
         }
         if now < self.busy_until_ms {
-            // An OPEN invoice is only locked by a token sweep that is reading the balance. That
-            // read may already include this credit, so change the lock value: `on_token_balance`
-            // sees the change and plans nothing (the token refunds this transfer in full).
-            self.busy_until_ms += 1;
+            // The lock value was already changed above (contract-1), so a pending token sweep
+            // plans nothing; the token refunds this transfer in full.
             return reject(self, "busy");
         }
         let (net, tax) = self.split();
@@ -691,7 +706,12 @@ impl Invoice {
         }
         let mut results: Vec<bool> = Vec::with_capacity(batch.payouts.len());
         for i in 0..batch.payouts.len() {
-            results.push(env::promise_result_checked(i as u64, 64).is_ok());
+            // contract-3: success is the promise status only. A token may return a body from
+            // ft_transfer (longer than any cap); `TooLong` still means the call succeeded.
+            results.push(matches!(
+                env::promise_result_checked(i as u64, 64),
+                Ok(_) | Err(near_sdk::PromiseError::TooLong(_))
+            ));
         }
         let all_ok = results.iter().all(|ok| *ok);
 
@@ -2110,5 +2130,149 @@ mod tests {
         assert_eq!(tok.split(), (920_000, 80_000));
         near.amount = 1_000_000;
         assert_eq!(near.split(), (920_000, 80_000));
+    }
+
+    // ---- audit contract-1..4 (contract v3.2) ----
+
+    /// Starts a token sweep (takes the lock), then delivers `ft_on_transfer(msg)` from the token at
+    /// `at_ms`, then runs the balance callback with a balance that holds the (soon refunded) credit.
+    fn race_sweep_with_ft_call(mut inv: Invoice, msg: &str, at_ms: u64, parked: u128, credit: u128) -> (Invoice, String) {
+        ctx(0, NOW, 1000);
+        drop(inv.sweep());
+        let lock = inv.busy_until_ms;
+        assert_eq!(lock, NOW + BUSY_MS);
+        ctx_at(TOKEN, 0, at_ms, 1000, 300);
+        rejected(inv.ft_on_transfer("sender.testnet".parse().unwrap(), U128(credit), msg.to_string()), credit);
+        let before = ft_calls().len();
+        let bal = format!("\"{}\"", parked + credit);
+        ctx_cb(vec![PromiseResult::Successful(bal.into_bytes())], at_ms + 1, 1000);
+        let out = match inv.on_token_balance(U64(lock)) {
+            PromiseOrValue::Value(s) => s,
+            _ => panic!("a balance read that holds a refunded credit must not plan payouts"),
+        };
+        assert_eq!(ft_calls().len(), before, "no ft_transfer was created");
+        assert_eq!(inv.busy_until_ms, 0, "the lock is released");
+        (inv, out)
+    }
+
+    #[test]
+    fn token_sweep_racing_a_bad_msg_ft_transfer_call_plans_nothing() {
+        let (inv, out) = race_sweep_with_ft_call(token_invoice(), "junk", NOW + 1, 0, 1_000_000);
+        assert_eq!(out, "CONCURRENT_PAYMENT");
+        assert_eq!(inv.status, STATUS_OPEN);
+        assert_eq!(inv.owed_merchant + inv.owed_tax, 0, "no phantom owed ledger");
+        assert_eq!(inv.paid_by, None);
+    }
+
+    #[test]
+    fn token_sweep_racing_a_bad_msg_with_parked_funds_does_not_let_merchant_take_the_tax() {
+        // outcome B of the audit: 1,000,000 parked, junk credit 86,956 about to be pulled back.
+        let (inv, out) = race_sweep_with_ft_call(token_invoice(), "junk", NOW + 1, 1_000_000, 86_956);
+        assert_eq!(out, "CONCURRENT_PAYMENT");
+        assert_eq!(inv.status, STATUS_OPEN);
+        assert_eq!(inv.owed_merchant + inv.owed_tax, 0);
+    }
+
+    #[test]
+    fn token_sweep_racing_a_not_open_ft_transfer_call_plans_nothing() {
+        let mut inv = token_invoice();
+        inv.status = STATUS_PAID;
+        let (inv, out) = race_sweep_with_ft_call(inv, "{\"action\":\"pay\"}", NOW + 1, 0, 500_000);
+        assert_eq!(out, "CONCURRENT_PAYMENT");
+        assert_eq!(inv.status, STATUS_PAID);
+        assert_eq!(inv.paid_amount, 0);
+    }
+
+    #[test]
+    fn token_sweep_racing_an_expired_ft_transfer_call_plans_nothing() {
+        let mut inv = token_invoice();
+        inv.expires_at_ms = NOW + 1000;
+        let (inv, out) = race_sweep_with_ft_call(inv, "{\"action\":\"pay\"}", NOW + 2000, 0, 1_000_000);
+        assert_eq!(out, "CONCURRENT_PAYMENT");
+        assert_eq!(inv.status, STATUS_EXPIRED, "the expiry flip persists");
+        assert_eq!(inv.owed_merchant + inv.owed_tax, 0);
+        assert_eq!(inv.paid_amount, 0);
+    }
+
+    #[test]
+    fn token_sweep_racing_a_wrong_sender_hook_is_not_disturbed() {
+        // wrong_token (a call from some other contract) never touches the lock: only the invoice's
+        // own token can have credited this account.
+        let mut inv = token_invoice();
+        ctx(0, NOW, 1000);
+        drop(inv.sweep());
+        let lock = inv.busy_until_ms;
+        ctx_at("other.testnet", 0, NOW + 1, 1000, 300);
+        rejected(inv.ft_on_transfer("s.testnet".parse().unwrap(), U128(5), "junk".into()), 5);
+        assert_eq!(inv.busy_until_ms, lock);
+    }
+
+    #[test]
+    fn ft_on_transfer_rejection_without_a_lock_leaves_the_lock_alone() {
+        let mut inv = token_invoice();
+        rejected(accept(&mut inv, "sender.testnet", 1_000_000, "junk", 1000, 300), 1_000_000);
+        assert_eq!(inv.busy_until_ms, 0);
+    }
+
+    #[test]
+    fn on_settled_treats_a_long_ft_transfer_result_as_success() {
+        // contract-3: a token whose ft_transfer returns a body longer than 64 bytes still succeeded.
+        let mut inv = token_invoice();
+        accept(&mut inv, "sender.testnet", 1_000_000, "{\"action\":\"pay\"}", 1000, 300);
+        let b = batch(KIND_PAY, "PAID", payouts_from_ft(false));
+        let long = || PromiseResult::Successful(vec![b'x'; 500]);
+        ctx_cb(vec![long(), long()], NOW + 1000, 0);
+        assert_eq!(inv.on_settled(b), "PAID");
+        assert_eq!(inv.status, STATUS_PAID);
+        assert_eq!(inv.owed_merchant + inv.owed_tax, 0, "nothing is recorded as owed");
+    }
+
+    #[test]
+    fn expired_unpaid_partial_release_then_full_payment_still_settles_as_paid() {
+        // contract-2: a 1-unit sweep after expiry must not disable late settlement.
+        let mut inv = token_invoice();
+        inv.status = STATUS_EXPIRED;
+        match inv.plan_sweep(1, EXPIRES + 10) {
+            SweepOutcome::Pay(b, st) => {
+                assert_eq!(b.kind, KIND_EXTRA);
+                inv.apply(st);
+            }
+            _ => panic!("the 1-unit release must be planned"),
+        }
+        assert_eq!(inv.paid_amount, 1);
+        assert_eq!(inv.paid_at_ms, 0, "a release is not a settlement");
+        match inv.plan_sweep(1_000_000, EXPIRES + 20) {
+            SweepOutcome::Pay(b, st) => {
+                assert_eq!(b.kind, KIND_TRANSFER, "the full payment is a settlement, not an extra");
+                assert!(b.late);
+                inv.apply(st);
+            }
+            _ => panic!("must settle"),
+        }
+        assert_eq!(inv.status, STATUS_SETTLING);
+        assert_eq!(inv.paid_amount, 1_000_001, "running total of everything delivered");
+        assert_eq!(inv.tax_amount, tax_of(1) + tax_of(1_000_000));
+    }
+
+    #[test]
+    fn expired_open_partial_tokens_are_released_by_sweep_alone() {
+        // contract-4: the invoice is still OPEN in storage but past its expiry.
+        let inv = token_invoice();
+        assert_eq!(inv.status, STATUS_OPEN);
+        match inv.plan_sweep(500_000, EXPIRES + 1) {
+            SweepOutcome::Pay(b, st) => {
+                assert_eq!(b.kind, KIND_EXTRA);
+                assert_eq!(st.status, STATUS_EXPIRED, "the same sweep flags the expiry");
+                assert_eq!(st.paid_amount, 500_000);
+                let total: u128 = b.payouts.iter().map(|p| p.amount).sum();
+                assert_eq!(total, 500_000);
+            }
+            _ => panic!("expired parked tokens must be released"),
+        }
+        // not yet expired: still UNDERPAID
+        match inv.plan_sweep(500_000, EXPIRES) {
+            SweepOutcome::Panic(s) => assert!(s.starts_with("UNDERPAID")),
+            _ => panic!("an unexpired partial stays UNDERPAID"),
+        }
     }
 }

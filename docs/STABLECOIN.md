@@ -268,7 +268,7 @@ text, any extra field (so a `sender_id` or `amount` in `msg` is rejected, not tr
 | 2 | `msg` does not parse or does not match | `amount` | `bad_msg` |
 | 3 | status is not `OPEN` | `amount` | `not_open` |
 | 4 | `now > expires_at_ms` | `amount`, status becomes `EXPIRED` | `expired` |
-| 5 | busy | `amount`; while the status is `OPEN` the lock value `busy_until_ms` is also raised by 1 (see 5.3) | `busy` |
+| 5 | busy | `amount` | `busy` |
 | 6 | account NEAR balance below the number of payouts (1 yocto each) | `amount` | `no_yocto` |
 | 7 | remaining gas below 90 Tgas | `amount` | `low_gas` |
 | 8 | `amount < invoice.amount` | `amount` | `underpaid` |
@@ -280,6 +280,18 @@ log (`memo: "refund"`) is the proof it happened.
 
 ### 5.3 `sweep()` (anyone; settles funds that arrived without a call)
 
+**Contract v3.2 (audit round 3, fix of contract-1/2/3/4). This is source only: the deployed contract and the pinned code hash stay v3.1 until the operator deploys v3.2 as a new global contract; v3.1 and older stay recorded history, and the live v3.1 contract still has the contract-1 hole described here.**
+In `ft_on_transfer`, right after the `wrong_token` check and before anything else, if `now < busy_until_ms` the lock value is raised by 1, **for every status and every
+rejection reason** (`bad_msg`, `not_open`, `expired`, `busy`, ...). A call from the invoice's own token while a lock is held may carry a credit that a pending token
+sweep's balance read already includes and that the token takes back whenever the hook returns it. v3.1 only did this for `busy` on an `OPEN` invoice, so a
+`bad_msg`/`not_open`/`expired` rejection during a pending sweep still let `on_token_balance` plan on a balance that was about to shrink
+(tests `token_sweep_racing_a_bad_msg_ft_transfer_call_plans_nothing`, `..._with_parked_funds_does_not_let_merchant_take_the_tax`, `..._not_open_...`, `..._expired_...`).
+Also in v3.2: an `OPEN` invoice past `expires_at_ms` is treated as `EXPIRED` by `sweep` itself (so parked partial tokens are released by one permissionless sweep, contract-4);
+"never settled" is `paid_at_ms == 0`, not `paid_amount == 0`, so a 1-unit release after expiry no longer blocks a later full payment from settling as `PAID` (contract-2; `paid_amount`/`tax_amount`
+are running totals); `on_settled` decides success from the promise status only, a body longer than 64 bytes from `ft_transfer` is still a success (contract-3).
+Residual, not closed: if the sweep transaction lands in the same block as an already-executed rejected `ft_on_transfer` (no lock held yet), the balance read can still run
+before the token's refund resolves; this needs the sweeper to race a rejected transfer by one block and is not reproducible by a payer's single call.
+
 `sweep` takes no deposit. NEAR: runs the plan below at once. Token: panics `NEEDS_GAS` if prepaid gas is below 150 Tgas, panics `PAYOUT_IN_FLIGHT` if busy, takes the lock,
 calls `ft_balance_of(self)` (5 Tgas) and ends with `on_token_balance`, which runs the same plan with `balance = result` and the remaining gas.
 
@@ -289,14 +301,15 @@ Plan, with `bal` the balance, `owed_total`, `avail = bal − owed_total` (satura
    These are the `RESEND` payouts; each is debited now (4.2).
 2. If status is `SETTLING`: stop after step 1 (extra funds wait until the invoice is `PAID`). Nothing to pay: `NOTHING_TO_SWEEP`.
 3. If status is `OPEN`, or `EXPIRED` (never paid):
-   - `avail ≥ amount`: settle **all** of `avail` through `split_of`: `TRANSFER` batch, status `SETTLING`, `paid_amount = avail`, `tax_amount = tax`, `late` if expired.
+   - `avail ≥ amount`: settle **all** of `avail` through `split_of`: `TRANSFER` batch, status `SETTLING`, `paid_amount += avail`, `tax_amount += tax`, `late` if expired.
+     "EXPIRED (never paid)" means `paid_at_ms == 0`; an `OPEN` invoice past its expiry counts as `EXPIRED` here (v3.2).
    - `avail < amount`, status `OPEN`: nothing is settled. If step 1 paid something, finish with `OWED_RESENT`; otherwise **NEAR: panic `UNDERPAID: available … < amount …`** (v2 string, the whole receipt reverts, funds stay parked).
      **Token: return the value `UNDERPAID`** (a callback must not panic, see 4.4), the lock is cleared and the tokens stay parked.
    - `avail < amount`, status `EXPIRED`, `avail > 0`: release `avail` pro rata through `split_of` (`EXTRA` batch, `EXTRA_SWEPT`), status stays `EXPIRED` (v2 behaviour, now the same rule).
 4. If status is `PAID` or `REFUNDED`: `avail > 0` goes through `split_of` (`EXTRA` batch); `paid_amount += avail`, `tax_amount += tax`.
 5. Nothing to do at all: NEAR panics `NOTHING_TO_SWEEP`; token returns the value `NOTHING_TO_SWEEP`.
 
-`sweep` passes the lock value it stored to `on_token_balance` (argument `lock`). If `ft_on_transfer` rejected a call as `busy` while the status was `OPEN`, it raised
+`sweep` passes the lock value it stored to `on_token_balance` (argument `lock`). If `ft_on_transfer` rejected a call (any reason, v3.2) while a lock was held, it raised
 `busy_until_ms` by 1, so the lock no longer equals `lock`. The balance read may then include that rejected transfer's credit (the token refunds it), so
 `on_token_balance` clears the lock, plans nothing and returns `CONCURRENT_PAYMENT`. The invoice stays `OPEN` and the payer can retry. Test:
 `token_sweep_racing_a_busy_ft_transfer_call_plans_nothing`. Not fixed: a caller who repeats `sweep` every few blocks can still keep `ft_transfer_call` rejected
