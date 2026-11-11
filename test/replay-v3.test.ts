@@ -1,4 +1,5 @@
-// v3 replay rules on a SYNTHETIC v3 fixture (no v3 contract is deployed, so no live recording exists).
+// v3 replay rules on a SYNTHETIC hand-written fixture (receipt ids r1/r3, fixtures/v3-synthetic-token.json). The live v3 / v3.1 recordings
+// are covered by live-v3.test.ts, live-v31.test.ts and replay-v3-hardening.test.ts.
 // Each mutation below must produce a FAIL: that is the guard the rule exists for.
 // Run: node --test test/replay-v3.test.ts
 import { test } from 'node:test';

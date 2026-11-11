@@ -51,6 +51,19 @@ test('v3.1 is the deployment the new recordings were made on: hash, format, and 
   }
 });
 
+// Not vacuous: each invoice of each v3.1 recording runs EXACTLY this set of rules (a removed call, a skipped rule or a new rule shows up here).
+// To refresh after a deliberate rule change: node -e on replayFixture, one sorted name list per invoice (see git log of this file).
+test('the replay runs the pinned set of checks for every invoice of every v3.1 recording', () => {
+  const pinned = JSON.parse(readFileSync('test/v31-check-names.json', 'utf8'));
+  for (const file of FILES) {
+    const name = file.replace('fixtures/v31/', '').replace('.json', '');
+    const got: Record<string, string[]> = {};
+    for (const c of replayFixture(file, DEPLOYED)) (got[c.id] ??= []).push(c.name);
+    const norm = Object.fromEntries(Object.entries(got).map(([k, v]) => [k, [...new Set(v)].sort()]));
+    assert.deepEqual(norm, pinned[name], `${file}: the set of checks per invoice changed`);
+  }
+});
+
 test('every invoice document in invoices/v31/ re-derives its address and is v3.1', () => {
   const files = readdirSync('invoices/v31').filter((f) => f.endsWith('.json'));
   assert.ok(files.length >= 8, `${files.length} documents`);

@@ -2275,4 +2275,439 @@ mod tests {
             _ => panic!("an unexpired partial stays UNDERPAID"),
         }
     }
+
+    // ---- audit tests-1 / 6 / 7 / 8: the batch the contract REALLY sends, token/owed/guard paths, boundaries ----
+
+    /// The Batch the contract put into its `on_settled` receipt (borsh-decoded from the created receipt),
+    /// and the static gas of that receipt. Call it right after the flow, before `ctx_cb` replaces the env.
+    fn sent_batch() -> (Batch, u64) {
+        let mut found = vec![];
+        for r in get_created_receipts() {
+            if r.receiver_id.to_string() != SELF {
+                continue;
+            }
+            for a in r.actions {
+                if let MockAction::FunctionCallWeight { method_name, args, prepaid_gas, .. } = a {
+                    if method_name == b"on_settled" {
+                        found.push((args, prepaid_gas.as_gas()));
+                    }
+                }
+            }
+        }
+        assert_eq!(found.len(), 1, "exactly one on_settled receipt");
+        let (args, gas) = found.remove(0);
+        (near_sdk::borsh::from_slice::<Batch>(&args).expect("on_settled args are a borsh Batch"), gas)
+    }
+    /// Runs `on_settled` with the real batch and the given promise results.
+    fn settle_with(inv: &mut Invoice, b: Batch, results: Vec<PromiseResult>, now: u64) -> String {
+        ctx_cb(results, now, 0);
+        inv.on_settled(b)
+    }
+    fn shape(b: &Batch) -> Vec<(u8, String, u128, bool, bool)> {
+        b.payouts.iter().map(|p| (p.role, p.to.to_string(), p.amount, p.from_owed, p.near)).collect()
+    }
+    fn m(to: &str, amount: u128) -> (u8, String, u128, bool, bool) { (ROLE_MERCHANT, to.to_string(), amount, false, false) }
+    fn t(to: &str, amount: u128) -> (u8, String, u128, bool, bool) { (ROLE_TAX, to.to_string(), amount, false, false) }
+
+    #[test]
+    fn real_batch_pay_exact() {
+        ctx(ONE_NEAR, NOW, ONE_NEAR);
+        let mut inv = near_invoice();
+        drop(inv.pay());
+        let (b, gas) = sent_batch();
+        assert_eq!(gas, 20_000_000_000_000, "on_settled static gas");
+        assert_eq!((b.kind, b.lock, b.excess, b.late, b.result.as_str(), b.refund_reason.as_str()), (KIND_PAY, true, 0, false, "PAID", ""));
+        assert_eq!(shape(&b), vec![m(MERCHANT, ONE_NEAR - tax_of(ONE_NEAR)), t(VAULT, tax_of(ONE_NEAR))], "no near flag on a NEAR invoice's own payouts");
+        assert_eq!(settle_with(&mut inv, b, vec![ok(), ok()], NOW + 1000), "PAID");
+        assert_eq!(inv.status, STATUS_PAID);
+        assert_eq!(inv.busy_until_ms, 0, "the real batch owns the lock and releases it");
+        let paid = logs_with("\"event\":\"invoice_paid\"");
+        assert_eq!(paid.len(), 1);
+        assert!(paid[0].contains("\"excess_refunded\":\"0\"") && paid[0].contains("\"via\":\"pay\"") && paid[0].contains("\"retried\":false"));
+    }
+
+    #[test]
+    fn real_batch_overpay_carries_excess_and_payer_role_even_when_payer_is_the_merchant() {
+        let d = ONE_NEAR * 3 / 2;
+        // payer == merchant: the role of the excess refund is PAYER, not guessed from the address
+        ctx_at(MERCHANT, d, NOW, d, 300);
+        let mut inv = near_invoice();
+        drop(inv.pay());
+        let (b, _) = sent_batch();
+        assert_eq!((b.kind, b.lock, b.excess), (KIND_PAY, true, ONE_NEAR / 2));
+        assert_eq!(shape(&b), vec![
+            m(MERCHANT, ONE_NEAR - tax_of(ONE_NEAR)),
+            t(VAULT, tax_of(ONE_NEAR)),
+            (ROLE_PAYER, MERCHANT.to_string(), ONE_NEAR / 2, false, true),
+        ]);
+        // the excess refund fails: it is owed to the payer, never to the merchant ledger
+        assert_eq!(settle_with(&mut inv, b, vec![ok(), ok(), PromiseResult::Failed], NOW + 1000), "PAID");
+        assert_eq!((inv.owed_payer, inv.owed_merchant, inv.owed_tax), (ONE_NEAR / 2, 0, 0));
+        assert_eq!(inv.refund_to, Some(MERCHANT.parse().unwrap()));
+        let paid = logs_with("\"event\":\"invoice_paid\"");
+        assert!(paid[0].contains(&format!("\"excess_refunded\":\"{}\"", ONE_NEAR / 2)), "{}", paid[0]);
+    }
+
+    #[test]
+    fn real_batch_parked_pay_refunds_the_whole_deposit() {
+        ctx(ONE_NEAR, NOW, 2 * ONE_NEAR);
+        let mut inv = near_invoice();
+        drop(inv.pay());
+        let (b, _) = sent_batch();
+        assert_eq!((b.kind, b.lock, b.excess, b.refund_reason.as_str(), b.result.as_str()), (KIND_TRANSFER, true, ONE_NEAR, "already_funded", "PAID"));
+        assert_eq!(shape(&b), vec![
+            m(MERCHANT, ONE_NEAR - tax_of(ONE_NEAR)),
+            t(VAULT, tax_of(ONE_NEAR)),
+            (ROLE_PAYER, PAYER.to_string(), ONE_NEAR, false, true),
+        ]);
+        assert_eq!(settle_with(&mut inv, b, vec![ok(), ok(), ok()], NOW + 1000), "PAID");
+        assert_eq!(logs_with("\"event\":\"payment_refunded\"").len(), 1);
+        let paid = logs_with("\"event\":\"invoice_paid\"");
+        assert!(paid[0].contains("\"via\":\"transfer\"") && paid[0].contains(&format!("\"excess_refunded\":\"{}\"", ONE_NEAR)), "{}", paid[0]);
+    }
+
+    #[test]
+    fn real_batch_refund_does_not_own_the_lock() {
+        let mut inv = near_invoice();
+        inv.busy_until_ms = NOW + 30_000;
+        ctx(ONE_NEAR, NOW, ONE_NEAR);
+        drop(inv.pay());
+        let (b, _) = sent_batch();
+        assert_eq!((b.kind, b.lock, b.excess, b.refund_reason.as_str(), b.result.as_str()), (KIND_REFUND, false, 0, "busy", "REFUNDED_BUSY"));
+        assert_eq!(shape(&b), vec![(ROLE_PAYER, PAYER.to_string(), ONE_NEAR, false, true)]);
+        assert_eq!(settle_with(&mut inv, b, vec![ok()], NOW + 1), "REFUNDED_BUSY");
+        assert_eq!(inv.busy_until_ms, NOW + 30_000);
+        // underpaid on a token invoice: wrong_asset refunds NEAR, flagged near
+        let mut tok = token_invoice();
+        ctx(ONE_NEAR, NOW, ONE_NEAR);
+        drop(tok.pay());
+        let (b, _) = sent_batch();
+        assert_eq!((b.kind, b.lock, b.refund_reason.as_str()), (KIND_REFUND, false, "wrong_asset"));
+        assert_eq!(shape(&b), vec![(ROLE_PAYER, PAYER.to_string(), ONE_NEAR, false, true)]);
+    }
+
+    #[test]
+    fn real_batch_sweep_transfer_and_late_flag() {
+        let mut inv = near_invoice();
+        ctx(0, NOW, ONE_NEAR);
+        drop(inv.sweep());
+        let (b, _) = sent_batch();
+        assert_eq!((b.kind, b.lock, b.late, b.excess, b.result.as_str()), (KIND_TRANSFER, true, false, 0, "PAID"));
+        assert_eq!(shape(&b), vec![m(MERCHANT, ONE_NEAR - tax_of(ONE_NEAR)), t(VAULT, tax_of(ONE_NEAR))]);
+        assert_eq!(settle_with(&mut inv, b, vec![ok(), ok()], NOW + 1000), "PAID");
+        assert!(logs_with("\"event\":\"invoice_paid\"")[0].contains("\"via\":\"transfer\""));
+
+        // the same sweep after the expiry: the real batch is late and so is the event
+        let mut late = near_invoice();
+        ctx(0, EXPIRES + 5, ONE_NEAR);
+        drop(late.sweep());
+        let (b, _) = sent_batch();
+        assert_eq!((b.kind, b.late), (KIND_TRANSFER, true));
+        assert_eq!(settle_with(&mut late, b, vec![ok(), ok()], EXPIRES + 10), "PAID");
+        let paid = logs_with("\"event\":\"invoice_paid\"");
+        assert!(paid[0].contains("\"late\":true"), "{}", paid[0]);
+    }
+
+    #[test]
+    fn real_batch_resend_and_reclaim() {
+        let tax = tax_of(ONE_NEAR);
+        let net = ONE_NEAR - tax;
+        let mut inv = settling_with_owed(net, tax, Some(PAYER));
+        ctx(0, NOW + 1000, ONE_NEAR);
+        drop(inv.sweep());
+        let (b, _) = sent_batch();
+        assert_eq!((b.kind, b.lock, b.result.as_str()), (KIND_RESEND, true, "OWED_RESENT"));
+        assert_eq!(shape(&b), vec![
+            (ROLE_TAX, VAULT.to_string(), tax, true, false),
+            (ROLE_MERCHANT, MERCHANT.to_string(), net, true, false),
+        ]);
+        assert_eq!(settle_with(&mut inv, b, vec![ok(), ok()], NOW + 2000), "PAID");
+        assert!(logs_with("\"event\":\"invoice_paid\"")[0].contains("\"retried\":true"));
+
+        let mut only_tax = settling_with_owed(0, tax, Some(PAYER));
+        ctx(0, NOW + 1000, tax);
+        drop(only_tax.sweep());
+        let (b, _) = sent_batch();
+        assert_eq!((b.kind, b.result.as_str()), (KIND_RESEND, "TAX_RESENT"));
+
+        let mut rec = ready_to_reclaim();
+        let amount = rec.owed_merchant + rec.owed_tax;
+        let now = NOW + 60_001;
+        ctx(0, now, amount);
+        drop(rec.refund_payer());
+        let (b, _) = sent_batch();
+        assert_eq!((b.kind, b.lock, b.result.as_str(), b.merchant_part, b.tax_part), (KIND_RECLAIM, true, "REFUNDED", ONE_NEAR / 2, ONE_NEAR / 100));
+        assert_eq!(shape(&b), vec![(ROLE_PAYER, PAYER.to_string(), amount, true, false)]);
+        assert_eq!(settle_with(&mut rec, b, vec![ok()], now + 1), "REFUNDED");
+        assert_eq!(rec.status, STATUS_REFUNDED);
+    }
+
+    #[test]
+    fn real_batch_ft_on_transfer_and_token_refund() {
+        let mut inv = token_invoice();
+        drop(accept(&mut inv, "sender.testnet", 1_500_000, "{\"action\":\"pay\"}", 1000, 300));
+        let (b, gas) = sent_batch();
+        assert_eq!(gas, 20_000_000_000_000);
+        assert_eq!((b.kind, b.lock, b.excess, b.late), (KIND_PAY, true, 500_000, false));
+        assert_eq!(shape(&b), vec![m(MERCHANT, 920_000), t(VAULT, 80_000)], "token payouts are never flagged near");
+        assert_eq!(settle_with(&mut inv, b, vec![ok(), ok()], NOW + 1000), "PAID");
+        let paid = logs_with("\"event\":\"invoice_paid\"");
+        assert!(paid[0].contains("\"excess_refunded\":\"500000\"") && paid[0].contains("\"payer\":\"sender.testnet\""), "{}", paid[0]);
+    }
+
+    // ---- tests-6: token invoices ----
+
+    #[test]
+    fn token_extra_after_paid_is_taxed() {
+        let mut inv = token_invoice();
+        inv.status = STATUS_PAID;
+        inv.paid_at_ms = NOW;
+        inv.paid_by = Some(PAYER.parse().unwrap());
+        inv.paid_amount = 1_000_000;
+        inv.tax_amount = 80_000;
+        ctx(0, NOW + 10, 1000);
+        drop(inv.sweep());
+        let lock = inv.busy_until_ms;
+        ctx_cb(vec![PromiseResult::Successful(b"\"200000\"".to_vec())], NOW + 11, 1000);
+        drop(inv.on_token_balance(U64(lock)));
+        let (b, _) = sent_batch();
+        assert_eq!((b.kind, b.lock, b.late, b.result.as_str()), (KIND_EXTRA, true, false, "EXTRA_SWEPT"));
+        assert_eq!(shape(&b), vec![m(MERCHANT, 184_000), t(VAULT, 16_000)], "tUSDC extras are taxed like the price");
+        let fts: Vec<_> = ft_calls().into_iter().filter(|(_, m, _, _, _)| m == "ft_transfer").collect();
+        assert_eq!(fts.len(), 2);
+        assert_eq!((inv.paid_amount, inv.tax_amount), (1_200_000, 96_000));
+        assert_eq!(settle_with(&mut inv, b, vec![ok(), ok()], NOW + 12), "EXTRA_SWEPT");
+        let ev = logs_with("\"event\":\"extra_swept\"");
+        assert_eq!(ev.len(), 1);
+        assert!(ev[0].contains("\"tax_amount\":\"16000\"") && ev[0].contains("\"amount\":\"184000\""), "{}", ev[0]);
+        assert!(logs_with("\"event\":\"invoice_paid\"").is_empty());
+    }
+
+    #[test]
+    fn token_owed_is_retried_while_settling() {
+        let mut inv = token_invoice();
+        inv.status = STATUS_SETTLING;
+        inv.owed_merchant = 920_000;
+        inv.paid_by = Some(PAYER.parse().unwrap());
+        inv.paid_at_ms = NOW;
+        inv.paid_amount = 1_000_000;
+        inv.tax_amount = 80_000;
+        ctx(0, NOW + 10, 1000);
+        drop(inv.sweep());
+        let lock = inv.busy_until_ms;
+        ctx_cb(vec![PromiseResult::Successful(b"\"920000\"".to_vec())], NOW + 11, 1000);
+        drop(inv.on_token_balance(U64(lock)));
+        let (b, _) = sent_batch();
+        assert_eq!((b.kind, b.lock), (KIND_RESEND, true));
+        assert_eq!(shape(&b), vec![(ROLE_MERCHANT, MERCHANT.to_string(), 920_000, true, false)]);
+        let fts: Vec<_> = ft_calls().into_iter().filter(|(_, m, _, _, _)| m == "ft_transfer").collect();
+        assert_eq!(fts.len(), 1);
+        assert_eq!(fts[0].2["receiver_id"], MERCHANT);
+        assert_eq!(fts[0].2["amount"], "920000");
+        assert_eq!(inv.owed_merchant, 0, "the owed ledger is debited when the retry is scheduled");
+        assert_eq!(settle_with(&mut inv, b, vec![ok()], NOW + 12), "PAID");
+        assert_eq!(inv.status, STATUS_PAID);
+        assert!(logs_with("\"event\":\"invoice_paid\"")[0].contains("\"retried\":true"));
+        assert_eq!(logs_with("\"event\":\"owed_resent\"").len(), 1);
+    }
+
+    #[test]
+    fn token_sweep_while_payouts_in_flight_panics_and_reads_no_balance() {
+        let mut inv = token_invoice();
+        inv.busy_until_ms = NOW + 1000;
+        ctx_at(PAYER, 0, NOW, 1000, 300);
+        let msg = panic_message(|| { drop(inv.sweep()); });
+        assert!(msg.contains("PAYOUT_IN_FLIGHT"), "{msg}");
+        assert_eq!(ft_calls().len(), 0, "no ft_balance_of while a lock is held");
+        assert_eq!(inv.busy_until_ms, NOW + 1000, "the lock is not extended by a refused sweep");
+    }
+
+    // ---- tests-7: money-path guards ----
+
+    #[test]
+    fn pay_with_an_owed_payer_balance_does_not_spend_it() {
+        // 1 NEAR sits on the account only because a refund to X failed (owed_payer). Y's pay() of 1 NEAR must
+        // settle with Y's own deposit, never with X's money.
+        let mut inv = near_invoice();
+        inv.owed_payer = ONE_NEAR;
+        inv.refund_to = Some("x.testnet".parse().unwrap());
+        ctx(ONE_NEAR, NOW, 2 * ONE_NEAR);
+        drop(inv.pay());
+        let (b, _) = sent_batch();
+        assert_eq!(b.kind, KIND_PAY, "not the parked-funds path");
+        assert_eq!(inv.paid_by, Some(PAYER.parse().unwrap()));
+        assert_eq!(b.excess, 0);
+        assert!(b.payouts.iter().all(|p| p.to.to_string() != PAYER && p.to.to_string() != "x.testnet"), "{:?}", shape(&b));
+        assert_eq!(inv.owed_payer, ONE_NEAR, "X's owed refund is untouched");
+    }
+
+    #[test]
+    fn extra_failure_then_retry_never_emits_a_second_invoice_paid() {
+        let extra = ONE_NEAR / 5;
+        let mut inv = near_invoice();
+        inv.status = STATUS_PAID;
+        inv.paid_at_ms = NOW;
+        inv.paid_by = Some(PAYER.parse().unwrap());
+        inv.paid_amount = ONE_NEAR;
+        inv.tax_amount = tax_of(ONE_NEAR);
+        ctx(0, NOW + 10, extra);
+        drop(inv.sweep());
+        let (b, _) = sent_batch();
+        assert_eq!(b.kind, KIND_EXTRA);
+        // merchant share fails, tax share arrives
+        assert_eq!(settle_with(&mut inv, b, vec![PromiseResult::Failed, ok()], NOW + 11), "PAYOUT_PENDING");
+        assert_eq!(inv.owed_merchant, extra - tax_of(extra));
+        assert_eq!(inv.status, STATUS_PAID);
+        assert!(logs_with("\"event\":\"extra_swept\"").is_empty(), "an undelivered extra is not reported as swept");
+        assert!(logs_with("\"event\":\"invoice_paid\"").is_empty());
+        assert_eq!(inv.busy_until_ms, 0);
+        // the retry
+        ctx(0, NOW + 20, extra - tax_of(extra));
+        drop(inv.sweep());
+        let (b, _) = sent_batch();
+        assert_eq!(b.kind, KIND_RESEND);
+        assert_eq!(settle_with(&mut inv, b, vec![ok()], NOW + 21), "OWED_RESENT");
+        assert_eq!(inv.status, STATUS_PAID);
+        assert_eq!(inv.owed_merchant, 0);
+        assert_eq!(logs_with("\"event\":\"owed_resent\"").len(), 1);
+        assert!(logs_with("\"event\":\"invoice_paid\"").is_empty(), "the invoice was already PAID: no second invoice_paid");
+    }
+
+    #[test]
+    fn expired_status_full_parked_sweep_is_paid_late() {
+        // the v2 contract-1 scenario: EXPIRED (flagged by a zero-deposit pay), then the full amount parked, then a sweep
+        let mut inv = near_invoice();
+        inv.status = STATUS_EXPIRED;
+        ctx(0, EXPIRES + 10, ONE_NEAR);
+        drop(inv.sweep());
+        let (b, _) = sent_batch();
+        assert_eq!((b.kind, b.late, b.result.as_str()), (KIND_TRANSFER, true, "PAID"), "a full payment is a settlement, not an extra");
+        assert_eq!(inv.status, STATUS_SETTLING);
+        assert_eq!(settle_with(&mut inv, b, vec![ok(), ok()], EXPIRES + 11), "PAID");
+        assert_eq!(inv.status, STATUS_PAID);
+        let paid = logs_with("\"event\":\"invoice_paid\"");
+        assert_eq!(paid.len(), 1);
+        assert!(paid[0].contains("\"late\":true") && paid[0].contains("\"via\":\"transfer\""), "{}", paid[0]);
+        assert!(logs_with("\"event\":\"extra_swept\"").is_empty());
+    }
+
+    #[test]
+    fn refund_payer_while_busy_panics() {
+        let mut inv = ready_to_reclaim();
+        let now = NOW + 60_001;
+        inv.busy_until_ms = now + 1000;
+        ctx(0, now, ONE_NEAR);
+        let msg = panic_message(|| { drop(inv.refund_payer()); });
+        assert!(msg.contains("PAYOUT_IN_FLIGHT"), "{msg}");
+        assert_eq!(inv.owed_merchant, ONE_NEAR / 2, "nothing was debited");
+        assert_eq!(transfers().len(), 0);
+    }
+
+    // ---- tests-8: thresholds and boundaries ----
+
+    #[test]
+    fn ft_accept_gas_boundary_is_about_90_tgas() {
+        let mut low = token_invoice();
+        rejected(accept(&mut low, "s.testnet", 1_000_000, "{\"action\":\"pay\"}", 1000, 89), 1_000_000);
+        assert!(logs_with("\"reason\":\"low_gas\"").len() == 1);
+        let mut ok_inv = token_invoice();
+        // the hook measures prepaid minus what it has already burned (a fraction of a Tgas in the mock)
+        let r = accept(&mut ok_inv, "s.testnet", 1_000_000, "{\"action\":\"pay\"}", 1000, 91);
+        rejected(r, 0);
+        assert_eq!(ok_inv.status, STATUS_SETTLING);
+    }
+
+    #[test]
+    fn token_sweep_gas_boundary_is_150_tgas() {
+        let mut inv = token_invoice();
+        ctx_at(PAYER, 0, NOW, 1000, 149);
+        let msg = panic_message(|| { drop(inv.sweep()); });
+        assert!(msg.contains("NEEDS_GAS"), "{msg}");
+        ctx_at(PAYER, 0, NOW, 1000, 150);
+        assert!(matches!(inv.sweep(), PromiseOrValue::Promise(_)));
+    }
+
+    #[test]
+    fn yocto_float_boundary_is_one_per_payout() {
+        // ft_on_transfer: price 1_000_000 at 8% = 2 payouts
+        let mut one = token_invoice();
+        rejected(accept(&mut one, "s.testnet", 1_000_000, "{\"action\":\"pay\"}", 1, 300), 1_000_000);
+        assert!(logs_with("\"reason\":\"no_yocto\"").len() == 1);
+        let mut two = token_invoice();
+        rejected(accept(&mut two, "s.testnet", 1_000_000, "{\"action\":\"pay\"}", 2, 300), 0);
+        assert_eq!(two.status, STATUS_SETTLING);
+        // on_token_balance: balance 1 with 2 payouts is NEEDS_YOCTO, balance 2 plans
+        let mut inv = token_invoice();
+        inv.busy_until_ms = NOW + BUSY_MS;
+        ctx_cb(vec![PromiseResult::Successful(b"\"1000000\"".to_vec())], NOW + 1, 1);
+        match inv.on_token_balance(U64(inv.busy_until_ms)) {
+            PromiseOrValue::Value(s) => assert_eq!(s, "NEEDS_YOCTO"),
+            _ => panic!("one yocto cannot pay two transfers"),
+        }
+        let mut inv = token_invoice();
+        inv.busy_until_ms = NOW + BUSY_MS;
+        ctx_cb(vec![PromiseResult::Successful(b"\"1000000\"".to_vec())], NOW + 1, 2);
+        assert!(matches!(inv.on_token_balance(U64(inv.busy_until_ms)), PromiseOrValue::Promise(_)));
+    }
+
+    #[test]
+    fn expiry_boundary_is_inclusive_in_pay_and_ft_on_transfer() {
+        // now == expires_at_ms is still payable, +1 ms is not
+        ctx(ONE_NEAR, EXPIRES, ONE_NEAR);
+        let mut inv = near_invoice();
+        drop(inv.pay());
+        assert_eq!(inv.status, STATUS_SETTLING, "pay at now == expires_at_ms");
+        let mut late = near_invoice();
+        ctx(ONE_NEAR, EXPIRES + 1, ONE_NEAR);
+        drop(late.pay());
+        assert_eq!(late.status, STATUS_EXPIRED);
+
+        let mut tok = token_invoice();
+        ctx_at(TOKEN, 0, EXPIRES, 1000, 300);
+        let r = tok.ft_on_transfer("s.testnet".parse().unwrap(), U128(1_000_000), "{\"action\":\"pay\"}".into());
+        rejected(r, 0);
+        assert_eq!(tok.status, STATUS_SETTLING, "ft_on_transfer at now == expires_at_ms");
+        // and a sweep at now == expires_at_ms is not yet "lapsed": a short balance is UNDERPAID, not released
+        match token_invoice().plan_sweep(500_000, EXPIRES) {
+            SweepOutcome::Panic(s) => assert!(s.starts_with("UNDERPAID")),
+            _ => panic!("not lapsed at now == expires_at_ms"),
+        }
+    }
+
+    #[test]
+    fn refund_payer_deadline_boundary_uses_milliseconds() {
+        // the default 7-day grace: now == deadline is NOT_YET, deadline + 1 ms is refundable, deadline - 1 ms is NOT_YET
+        let mk = || {
+            let mut inv = settling_with_owed(ONE_NEAR / 2, 0, Some(PAYER));
+            inv.expires_at_ms = NOW;
+            inv.paid_at_ms = NOW;
+            inv
+        };
+        let deadline = NOW + GRACE;
+        for now in [deadline - 1, deadline] {
+            let mut inv = mk();
+            ctx(0, now, ONE_NEAR);
+            let msg = panic_message(|| { drop(inv.refund_payer()); });
+            assert!(msg.contains("NOT_YET: refundable after"), "{now}: {msg}");
+        }
+        let mut inv = mk();
+        ctx(0, deadline + 1, ONE_NEAR);
+        drop(inv.refund_payer());
+        assert_eq!(transfers(), vec![(PAYER.to_string(), ONE_NEAR / 2)]);
+    }
+
+    #[test]
+    fn malformed_balance_is_unavailable_not_zero() {
+        for body in [&b"garbage"[..], b"\"12abc\"", b"", b"{\"a\":1}"] {
+            let mut inv = token_invoice();
+            inv.busy_until_ms = NOW + BUSY_MS;
+            ctx_cb(vec![PromiseResult::Successful(body.to_vec())], NOW + 1, 1000);
+            match inv.on_token_balance(U64(inv.busy_until_ms)) {
+                PromiseOrValue::Value(s) => assert_eq!(s, "BALANCE_UNAVAILABLE", "{:?}", String::from_utf8_lossy(body)),
+                _ => panic!("must not plan"),
+            }
+            assert_eq!(inv.busy_until_ms, 0);
+            assert_eq!(inv.status, STATUS_OPEN);
+        }
+    }
 }
