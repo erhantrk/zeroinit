@@ -264,10 +264,10 @@ export function saveDoc(dir: string, d: InvoiceDoc): string {
   return p;
 }
 export function loadDoc(dir: string, id: string): InvoiceDoc {
-  for (const p of [join(dir, `${id}.json`), join(dir, 'examples', `${id}.json`), join(dir, 'v31', `${id}.json`), join(dir, 'v3', `${id}.json`), join(dir, 'v2', `${id}.json`), join(dir, 'v1', `${id}.json`), join(dir, 'demo', `${id}.json`)]) {
+  for (const p of [join(dir, `${id}.json`), join(dir, 'examples', `${id}.json`), join(dir, 'v32', `${id}.json`), join(dir, 'v31', `${id}.json`), join(dir, 'v3', `${id}.json`), join(dir, 'v2', `${id}.json`), join(dir, 'v1', `${id}.json`), join(dir, 'demo', `${id}.json`)]) {
     if (existsSync(p)) return JSON.parse(readFileSync(p, 'utf8'));
   }
-  throw new Error(`invoice ${id} not found in ${dir}/, ${dir}/examples/, ${dir}/v31/, ${dir}/v3/, ${dir}/v2/, ${dir}/v1/ or ${dir}/demo/`);
+  throw new Error(`invoice ${id} not found in ${dir}/, ${dir}/examples/, ${dir}/v32/, ${dir}/v31/, ${dir}/v3/, ${dir}/v2/, ${dir}/v1/ or ${dir}/demo/`);
 }
 /** Invoice ids are used in file names and URL paths: this is the only shape the dashboard routes accept. */
 export const SAFE_INVOICE_ID = /^[A-Za-z0-9_-]{1,32}$/;

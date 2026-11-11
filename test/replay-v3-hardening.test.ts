@@ -284,7 +284,7 @@ test('tests-9: the plain transfer that parked the funds is attributed to its inv
   const f = load(N);
   const plain = f.calls.find((c: any) => c.invoice_id == null && c.label === 'transfer: tx_status');
   assert.ok(plain && plain.response.result.transaction.receiver_id === accountOf(f, B));
-  assert.ok(replayFixture(N, DEPLOYED).some((c) => c.name === 'plain-transfer-tx' && c.id === B && c.ok));
+  assert.ok(replayFixture(N, fixturePin(N, DEPLOYED)).some((c) => c.name === 'plain-transfer-tx' && c.id === B && c.ok));
   const f1 = failing(N, (fx) => { fx.calls.find((c: any) => c.invoice_id == null && c.label === 'transfer: tx_status').response.result.transaction.actions[0].Transfer.deposit = '0'; });
   has(f1, 'plain-transfer-tx', B);
   const f2 = failing(N, (fx) => { fx.calls.find((c: any) => c.invoice_id == null && c.label === 'transfer: tx_status').response.result.status = { Failure: { ActionError: { kind: 'X' } } }; });

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# HISTORY: this recorder ran against contract v3.1 (2prMzXHZ…DaYX) on 2026-11-10. The client default is v3.2 now: pay/sweep/init refuse a v3.1 invoice unless ZI_CODE_HASH is pinned to the v3.1 hash, and a re-run records v3.2 invoices (use record-v32-*.sh).
 # LIVE v3.1 F1 race: sweep while an ft_transfer_call is in flight (docs/STABLECOIN.md "Live results (v3.1)").
 # Whether the two transactions land in the same block decides if the race happens, so this tries fresh invoices (RACE-<suffix>-<n>) with
 # different send offsets and keeps the recording of the first attempt that produced it as fixtures/v31/race.json. Every attempt is logged.

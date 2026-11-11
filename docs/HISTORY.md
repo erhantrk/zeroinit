@@ -1,10 +1,10 @@
-# ZeroInit history: v1, v2, v3 and v3.1
+# ZeroInit history: v1, v2, v3, v3.1 and v3.2
 
 This file holds what used to be the long middle of the README: what each contract version fixed, the live evidence, and how to replay the older
-recordings. The README keeps only what a judge needs for the **deployed v3.1** contract. Everything here is recorded history on testnet:
-v1, v2 and v3 stay deployed, keep replaying under their own code hashes, and are never used by `zi pay` / `zi sweep` / `zi init` (the client refuses them).
+recordings. The README keeps only what a judge needs for the **deployed v3.2** contract. Everything here is recorded history on testnet:
+v1, v2, v3 and v3.1 stay deployed, keep replaying under their own code hashes, and are never used by `zi pay` / `zi sweep` / `zi init` (the client refuses them).
 
-Sections: [Replaying the earlier recordings](#replaying-the-earlier-recordings) · [v1 → v2](#v1--v2) · [v2 → v3](#v2--v3) · [v3 → v3.1](#v3--v31) ·
+Sections: [Replaying the earlier recordings](#replaying-the-earlier-recordings) · [v1 → v2](#v1--v2) · [v2 → v3](#v2--v3) · [v3 → v3.1](#v3--v31) · [v3.1 → v3.2](#v31--v32) ·
 [Older claims](#older-claims-and-how-to-verify-them) · [Deploy transactions](#deploy-transactions-and-burns).
 
 **Transaction lookups:** the default RPC prunes transactions after about 1.5 days, so most hashes below no longer resolve there. Use
@@ -13,7 +13,7 @@ offline (`zi replay fixtures/…`), which never needs a network.
 
 ## Replaying the earlier recordings
 
-   The v3.1 recordings in `fixtures/v31/` other than the demos replay the same way: `tokens.json` (init, then one `ft_transfer_call` that settles, then a second one that is returned) and `late.json` (a missing
+   The v3.2 recordings in `fixtures/v32/` (`demo-run.json`, `token-demo-run.json`, `tokens.json`, `race.json`) replay under the current hash. The v3.1 recordings in `fixtures/v31/` (history since v3.2; their first line says `INFO deployment v3.1 (history, frozen: …)`) other than the demos replay the same way: `tokens.json` (init, then one `ft_transfer_call` that settles, then a second one that is returned) and `late.json` (a missing
    merchant, then the L3 sweep after the account was created). The v3 recordings, made earlier the same day on the previous contract, replay under their own hash (history):
    `near.json` (pay, plain transfer + sweep, underpay, expired, double pay), `fixes.json` (a missing merchant gives `SETTLING` and no `invoice_paid`; `refund_payer`; a parked part is
    taxed), `tokens.json` (tUSDC plain path, one-step pay, overpay, underpay, expiry, token `refund_payer`, wrong asset), `failures.json` (an unregistered receiver that is retried to
@@ -100,13 +100,13 @@ checking that both accounts exist. v2 costs a little more gas: the pay tx burns 
 for v1 (both from the recorded demo runs, 15.5 vs 11.5 Tgas over all receipts), and storage after a normal `pay()` is
 358 B (v1: 352 B), 429 B while a tax share is owed, all below the 770 B zero-balance limit.
 
-How the client handles the four deployments: `src/config.ts` keeps a list of known deployments — **v3.1** is the trusted
-build (labelled "current, deployed on testnet"; `ZI_CODE_HASH` overrides it), **v3**, **v2** and **v1** are historical. They are
-accepted **only to verify recorded history**: `zi verify`, `zi receipt` and `zi replay` check a v1/v2/v3 invoice or fixture
+How the client handles the five deployments: `src/config.ts` keeps a list of known deployments — **v3.2** is the trusted
+build (labelled "current, deployed on testnet"; `ZI_CODE_HASH` overrides it), **v3.1**, **v3**, **v2** and **v1** are historical. They are
+accepted **only to verify recorded history**: `zi verify`, `zi receipt` and `zi replay` check a v1/v2/v3/v3.1 invoice or fixture
 against its own hash, and `zi verify` prints which deployment an invoice uses; `pay`, `sweep` and `init` refuse
 a historical or foreign invoice. A foreign hash is never accepted. The v1 mitigation in `zi pay` (refuse to pay when a
 plain transfer already parked funds, `--allow-parked` overrides) stays for any hash that is not known to fix contract-3,
-and is off for v2, v3 and v3.1. To operate a v3 invoice that is still owed money (the L3 sweep of `LATE-V3`), pin its hash on purpose: `ZI_CODE_HASH=<v3 hash> zi sweep LATE-V3`.
+and is off for v2, v3, v3.1 and v3.2. To operate a v3 (or v3.1) invoice that is still owed money (the L3 sweep of `LATE-V3`), pin its hash on purpose: `ZI_CODE_HASH=<v3 hash> zi sweep LATE-V3`.
 
 ## v2 → v3
 
@@ -195,14 +195,36 @@ instead (`fixtures/v31/sf4.json`).
 **Not done.** A reproducible wasm build, a browser walk-through of the dashboard, wallet checks, an audit, mainnet. The v3.1 deploy burn is derived from the deployer's balances before and after the deploy tx (17.8774031 → 1.4989866 NEAR, gas included): about 16.3784 NEAR.
 Tests at the time of the v3.1 round: 65 Rust tests in `contract/` (the v3.1 source, `git show 49ec835:contract/src/lib.rs`), 14 in `contract-v2/`, 169 JavaScript tests.
 
-## v3.1 → v3.2 (source only, not deployed)
+## v3.1 → v3.2
 
-After the final audit round, `contract/src/lib.rs` holds a **v3.2 source** that closes four contract findings: the busy-lock bump now applies to every rejection reason while a token sweep's
-lock is held (not only `busy` on an `OPEN` invoice), an `OPEN` invoice past its expiry is treated as `EXPIRED` by `sweep` itself, "never settled" is `paid_at_ms == 0`, and `on_settled`
-decides success from the promise status only (`docs/STABLECOIN.md` §5.3 has the details and the residual). **It is not deployed.** The deployed contract, the pinned code hash
-(`ZI_CODE_HASH` default) and `contract/res/zeroinit_invoice.wasm` are still **v3.1** (`2prMzXHZ…DaYX`, built from commit `49ec835`; its source is `git show 49ec835:contract/src/lib.rs`).
-`npm run contract:build` on the current tree would produce a different wasm (a different hash) than the deployed one. Until the operator deploys v3.2 as a new global contract
-(new hash, new invoice addresses) the live contract still has the findings v3.2 fixes. The 94 Rust tests in `contract/` run against the v3.2 source.
+Contract **v3.2** is a new wasm and a new code hash (`6YtW5oJ8UtCrzUePQf14zqKMb9G3DUtMynEnZvMCNHJ`, 164,040 bytes, sha256 `016bf5ba27ae4e10022458d158cc070167b8b7eabc84cdd35ab2bd7c69f5e63d`, built by the operator with `npm run contract:build` from HEAD `b6c6d9c`, the commit before this one), deployed by the operator as another global contract: tx `GHHsammf6Mg4nNZWtdB9sBYPJtSojSE46JVUs7nyd3Pg`, signer `sm1110-zi32-deployer.testnet`, burn about **16.4053 NEAR** (balance 17 → 0.5946814 NEAR, gas included; the
+tx's `tokens_burnt` read back from RPC on 2026-11-11 is 16.405318 NEAR). We also compared the on-chain `view_global_contract_code` bytes of that hash with the committed `contract/res/zeroinit_invoice.wasm`: identical (164,040 bytes, same sha256).
+The state layout and the interface did not change; the same terms give a different address under v3.2 (new ids end in `-V32`). v3.1 (`2prMzXHZ…DaYX`) stays on testnet as recorded history. Nothing is migrated.
+
+**The four contract findings of the final audit that v3.2 fixes** (details and the residual in `docs/STABLECOIN.md` §5.3):
+
+1. **contract-1 (HIGH), the sweep-vs-payment race on every rejection path.** v3.1 closed the race of v3's F1 only for the `busy` rejection on an `OPEN` invoice. A token `sweep` that read `ft_balance_of`
+   while a rejected `ft_transfer_call` credit was still on the invoice (rejected as `bad_msg`, `not_open` or `expired`, not as `busy`) could still plan payouts with tokens the token was about to take back.
+   v3.2 raises the lock value by 1 on **every** rejection while a lock is held, so `on_token_balance` sees the changed lock and answers `CONCURRENT_PAYMENT`. Rust tests:
+   `token_sweep_racing_a_bad_msg_ft_transfer_call_plans_nothing`, `..._not_open_...`, `..._expired_...` and the parked-funds variant.
+2. **contract-2.** "Never settled" is `paid_at_ms == 0`, not `paid_amount == 0`, so a 1-unit release after expiry no longer blocks a later full payment from settling as `PAID`.
+3. **contract-3.** `on_settled` decides success from the promise status only: a token whose `ft_transfer` returns a body longer than 64 bytes is still a success.
+4. **contract-4.** An `OPEN` invoice past `expires_at_ms` is treated as `EXPIRED` by `sweep` itself, so parked partial tokens are released by one permissionless `sweep`.
+
+The Rust suite has 94 tests (65 at v3.1; the audit round added 29, among them mutation checks), 14 in `contract-v2/`; 218 JavaScript tests (169 at v3.1).
+
+**Re-recorded on v3.2** (2026-11-11, with the operator's `sm1110-zi3-*` accounts; transactions in `docs/SPIKES.md` "Contract v3.2 live"): the NEAR demo (`INV-1111-V32-A/B/C`: pay, plain transfer + sweep, underpay), the tUSDC demo
+(`TOK-1111-V32-A`: register the id, plain `ft_transfer`, then a sweep by anyone), the one-step path (`TOK-V32-B`: `zi init`, one `ft_transfer_call` settles, a second is returned `not_open`) and **the race on the `bad_msg` path**
+(`RACE-V32-1`). Same behaviour as v3.1 for the flows (0.92 / 0.08, `invoice_paid` from `on_settled`, the final value of `ft_transfer_call` is the amount used).
+
+**The race on the `bad_msg` path, produced on testnet once.** `scripts/race-v32.ts` signs the sweeper's `sweep` and the payer's `ft_transfer_call` of the full price with the wrong msg `{"action":"x"}` first and sends both at the same moment.
+The first attempt produced it: sweep `4yJfVi5u7xovrd4oS9oRogzsGQ6bZQjYUqjY7MpMH18H` returned `CONCURRENT_PAYMENT` with no payout and no event; the call `3mT71ThnrkXoMXqBVhrBwafTDJPNkzQiL4L5DL58jtag` got `payment_rejected bad_msg` and the token
+returned the whole 1 tUSDC; the invoice stayed `OPEN` with nothing owed and no payer recorded; the retry with the right msg `6GDR43PSW3XvrKvL2HEtFKeyd46g8ERnAEomtW4SM6HR` was accepted and paid 0.92 / 0.08 tUSDC. This is one run that hit
+the right block alignment, not a rate; we did not run the same sequence on v3.1 to show the old behaviour (the alignment is chance and v3.1 is history), so **the evidence that v3.1 had the hole is the Rust test, not a testnet run**.
+The replay rules `concurrent-payment-plans-nothing`, `concurrent-payment-nothing-owed` and `ft-rejected-bad_msg` check the recording offline.
+
+**Not run live:** the `expired` and `not_open` variants of the race, and the contract-2/3/4 fixes (Rust unit tests only). Also not done: a reproducible wasm build, a browser walk-through of the dashboard, wallet checks, an independent audit, mainnet.
+A residual that stays open (`docs/STABLECOIN.md` §5.3): a sweep that lands in the same block as an already-executed rejected `ft_transfer_call` (no lock held yet) can still read a balance the token is about to take back.
 
 ## Older claims and how to verify them
 
@@ -215,7 +237,8 @@ decides success from the promise status only (`docs/STABLECOIN.md` §5.3 has the
 
 ## Deploy transactions and burns
 
-- **v3.1** (current): `52dRw7RcBom9EbUJ6hCExDF5esWjsHPh5e1sUa87XyvB`, burn about 16.3784 NEAR (deployer balance 17.8774031 → 1.4989866 NEAR across that tx, gas included), built from commit `49ec835`.
+- **v3.2** (current): `GHHsammf6Mg4nNZWtdB9sBYPJtSojSE46JVUs7nyd3Pg` (signer `sm1110-zi32-deployer.testnet`), wasm sha256 `016bf5ba…5e63d`, 164,040 bytes, burn about 16.4053 NEAR (balance 17 → 0.5946814 NEAR across that tx, gas included; `tokens_burnt` 16.405318 NEAR read back from RPC).
+- **v3.1**: `52dRw7RcBom9EbUJ6hCExDF5esWjsHPh5e1sUa87XyvB`, burn about 16.3784 NEAR (deployer balance 17.8774031 → 1.4989866 NEAR across that tx, gas included), built from commit `49ec835`.
 - **v3** (`Ut7EQhLD…reWa`): `43D4EifRGJJBtWUVhFPXPFsZqooPwz1czD8LwRz6sjYT`, wasm digest `0724781d…0b1f`, 161,213 bytes, burn about 16.1226 NEAR (balance 27 → 10.8774031 NEAR, gas included). `git show 49ec835:contract/res/zeroinit_invoice.wasm` prints the v3 wasm (sha256 verified).
 - **v2** (`4bQ61AgH…yx9zEA`): `DvNnUtvqMg5Q5e2Mn4fMx7GYBFNFhTo7z9wo64szAFKG` (signer `sm1110-zi-deployer.testnet`, burn 8.2949 NEAR). `shasum -a 256 contract-v2/res/zeroinit_invoice.wasm` → `3562e978e6924a2c538e9906fc42d15a652947891f18f7816e3c7807d20f622f` (82,942 bytes).
 - **v1** (`Amg4WXKy…GW6k`): `DSXd2Sjq59zRF2ZX9j3D8SMYd6GZ44XpsW1aJbKfpJ1h` (burn 7.8526 NEAR); wasm digest `912ae75e…c3c9`; `git show e5581e8:contract/res/zeroinit_invoice.wasm` prints it. This tx

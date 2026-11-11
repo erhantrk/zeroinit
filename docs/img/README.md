@@ -1,6 +1,6 @@
 # docs/img
 
-Real browser screenshots of the **v2** dashboard (Chrome, 2026-11-10, contract v2, not v3.1: the v3.1 dashboard has not been opened in a browser; `node src/cli.ts serve --port 8787`):
+Real browser screenshots of the **v2** dashboard (Chrome, 2026-11-10, contract v2, not v3.2: the v3.2 dashboard has not been opened in a browser; `node src/cli.ts serve --port 8787`):
 
 - `dashboard-pay.png`: the dashboard with INV-SHOT-1 selected after **Pay (one transaction)**: a 0.1 NEAR invoice paid by
   `sm1110-zi-payer.testnet`; the invoice file `INV-SHOT-1.json` lives only in the gitignored `invoices/` root, so it is not in a clone; on the machine that took the shot `zi status INV-SHOT-1` showed `status=PAID`, `paid_amount` 0.1 NEAR, `tax_amount` 0.008 NEAR.

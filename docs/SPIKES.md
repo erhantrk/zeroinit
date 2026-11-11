@@ -2,14 +2,14 @@
 
 Live testnet results and build numbers. Every tx hash recorded here is real unless marked synthetic.
 
-**Current contract: v3.1** (code hash `2prMzXHZVWdeHfmdqqxzb5ahLy2pWBWZjuE25EDJDaYX`, global deploy tx `52dRw7RcBom9EbUJ6hCExDF5esWjsHPh5e1sUa87XyvB`), see the last
-section ("Contract v3.1 live"). v3 (`Ut7EQhLDrvYVarHb6ZaXk6m7o9kQqYPCpyqiamvreWa`, deploy tx `43D4EifRGJJBtWUVhFPXPFsZqooPwz1czD8LwRz6sjYT`) is recorded history too (section "Contract v3 live"). v2 (`4bQ61AgHWWmYXp5c3fwj9NJxS79D9R3cGZAZxHyx9zEA`, deploy tx `DvNnUtvqMg5Q5e2Mn4fMx7GYBFNFhTo7z9wo64szAFKG`) is recorded
+**Current contract: v3.2** (code hash `6YtW5oJ8UtCrzUePQf14zqKMb9G3DUtMynEnZvMCNHJ`, global deploy tx `GHHsammf6Mg4nNZWtdB9sBYPJtSojSE46JVUs7nyd3Pg`), see the last
+section ("Contract v3.2 live"). v3.1 (`2prMzXHZVWdeHfmdqqxzb5ahLy2pWBWZjuE25EDJDaYX`, deploy tx `52dRw7RcBom9EbUJ6hCExDF5esWjsHPh5e1sUa87XyvB`, section "Contract v3.1 live") is recorded history. v3 (`Ut7EQhLDrvYVarHb6ZaXk6m7o9kQqYPCpyqiamvreWa`, deploy tx `43D4EifRGJJBtWUVhFPXPFsZqooPwz1czD8LwRz6sjYT`) is recorded history too (section "Contract v3 live"). v2 (`4bQ61AgHWWmYXp5c3fwj9NJxS79D9R3cGZAZxHyx9zEA`, deploy tx `DvNnUtvqMg5Q5e2Mn4fMx7GYBFNFhTo7z9wo64szAFKG`) is recorded
 history (sections "Contract v2 build", "Contract v2 live"). Everything above those is the **v1** log (code hash
 `Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k`), kept as recorded history too.
 
 **Paths:** the text is a record of the paths used on the day. The v2 contract now lives in `contract-v2/` (wasm
 `contract-v2/res/`), the v2 recordings in `fixtures/v2/` and `invoices/v2/`, and the v1 recordings in `fixtures/v1/`
-and `invoices/v1/`. `contract/` is the v3.1 contract (deployed), `fixtures/v31/` and `invoices/v31/` are its live recordings, `fixtures/v3/` and `invoices/v3/` the v3 ones, and `fixtures/v3-synthetic-token.json` is a **synthetic** parser fixture (not a recording).
+and `invoices/v1/`. `contract/` is the v3.2 contract (deployed), `fixtures/v32/` and `invoices/v32/` are its live recordings, `fixtures/v31/` and `invoices/v31/` the v3.1 ones, `fixtures/v3/` and `invoices/v3/` the v3 ones, and `fixtures/v3-synthetic-token.json` is a **synthetic** parser fixture (not a recording).
 
 ## T03 build
 
@@ -743,3 +743,69 @@ from block numbers.
 
 A reproducible wasm build, a browser walk-through of the dashboard, wallet checks, an audit, mainnet, and a repeat of the race (one success is recorded; the alignment is chance, so it
 was not run again). The slot wrapper `$CONDUCTOR_BIN slot run` was not used: nothing here was heavy (`cargo test` and `node --test` ran directly).
+
+## Contract v3.2 live (2026-11-11)
+
+Contract v3.2 is v3.1 plus the final audit's contract fixes (contract-1 HIGH: the sweep-vs-payment race closed on every rejection path; contract-2, -3, -4; `docs/HISTORY.md` "v3.1 → v3.2").
+It was built and deployed by the operator (Claude Opus 5.5) and run live by Claude Sonnet 5.5 with the operator's accounts. All hashes below are real testnet transactions; each run is a
+fixture that replays offline (`npm run zi -- replay fixtures/v32/<name>.json`). RPC `https://rpc.testnet.fastnear.com`; every transaction was signed with the repo's own encoder (parity-tested against
+near-api-js 7.4.0) and the keys from `.env`, never printed. In this sandbox Node needed `NODE_USE_ENV_PROXY=1` for fetch; near-cli was not used. Recordings keep ids and tx hashes; the 64-byte signatures are redacted.
+
+### Build and deploy (operator)
+
+- wasm: `contract/res/zeroinit_invoice.wasm`, 164,040 bytes (local `npm run contract:build` from HEAD `b6c6d9c`, **not** a reproducible build), sha256
+  `016bf5ba27ae4e10022458d158cc070167b8b7eabc84cdd35ab2bd7c69f5e63d`, code hash (base58) `6YtW5oJ8UtCrzUePQf14zqKMb9G3DUtMynEnZvMCNHJ`. In this run we re-computed the sha256 of the committed file and its base58 (same
+  values), read the on-chain bytes with `view_global_contract_code` for that hash (164,040 bytes, **identical** to the committed file), and ran `zi verify` on every invoice below (all `PASS code-hash-onchain`).
+- Global deploy: tx `GHHsammf6Mg4nNZWtdB9sBYPJtSojSE46JVUs7nyd3Pg`, signer `sm1110-zi32-deployer.testnet` (one `DeployGlobalContract` action, status `SuccessValue`). Burn **about 16.4053 NEAR**: the operator reported the deployer balance 17 → 0.5946814 NEAR
+  across the tx; we re-read the balance on 2026-11-11 (0.5946814 NEAR) and the tx's `tokens_burnt` from RPC (16.405318 NEAR). The deployer has one `FullAccess` key (`view_access_key_list`).
+- Accounts as in "Contract v3 live" (`sm1110-zi3-*`, tUSDC `sm1110-tusdc.testnet`); nothing new was created this round.
+
+### The runs (fixtures under `fixtures/v32/`)
+
+Merchant = `sm1110-zi3-sweeper.testnet`, tax vault `sm1110-zi3-taxvault.testnet`, payer `sm1110-zi3-payer.testnet`, 800 bps, tUSDC `sm1110-tusdc.testnet`. Scripts: `scripts/demo.sh 1111-V32`, `scripts/demo-token.sh 1111-V32`,
+`scripts/record-v32-tokens.sh`, `scripts/record-v32-race.sh` (all with `ZI_RECORD` set to the fixture).
+
+| Run | Invoice | Transactions | Result |
+|---|---|---|---|
+| NEAR demo: pay | `INV-1111-V32-A` (1 NEAR, `0ue8ts6v…s62g`) | pay `5429mVJRFRoocYM8NoWMgzwJvF5Bm9SV8q1DudCPikTV` | `PAID`, 0.92 / 0.08, `invoice_paid` from `on_settled` |
+| NEAR demo: plain + sweep | `INV-1111-V32-B` | plain transfer `9uDgwNmgD7GhnvLiCVjqfSSb65j62pqJLi5ntQEdGDfb`, sweep `EYnZsmvDFywiKGbsYgisxoo3RtA6qaSVpu9gpt3jS6RD` | `PAID`, `paid_by` null, 0.92 / 0.08 |
+| NEAR demo: underpay | `INV-1111-V32-C` | pay 0.5 `FAmP6Tex6DZ2fMCCtppTfuyqBwsp1qiXqYL41dDFcHRt` | `REFUNDED_UNDERPAID`, status `OPEN`, 0.5 NEAR back to the payer |
+| tUSDC demo: plain `ft_transfer` + sweep | `TOK-1111-V32-A` (1 tUSDC) | register the id `5D2YNnw2JK3M6yitqyLDnSscfdCEP6t4DbRM7ic4H5W9`, plain `ft_transfer` `81AaAHTuKnXVTX5D5NYv8RgcXKsqajhmFoJiEXPfTiKd`, sweep (state init + fund + sweep) `49CH4p2wTbiauGgW91nu6XwBBg7vHVsrRZmTQYW1SxRn` | before the sweep NEAR says `NONEXISTENT` and `tokens_parked=1 tUSDC`; after it `PAID`, 0.92 / 0.08 tUSDC |
+| tUSDC one-step | `TOK-V32-B` | init (state init + fund) `4uLyLPLqZJHwQytBG6CWAzzd23hRuMUxbbpz8N9D2s1V`, register the id `c6hssuq5ZYdkmd4H7zJutdQFAk77Hh1nGsVQsKM5f4z`, `ft_transfer_call` `5675fC47kRnffiZsEpLzQszsGiAEQeeFYfUHRjubwTbT`, second call `36PxGeGUxYhg7UTX4AjrRX13xfbRwWDqJazXNbTKgRae` | `invoice_paid` via `pay`, payer recorded, final value `"1000000"` (amount used); the second call `payment_rejected not_open`, final value `"0"` |
+| **Race on the `bad_msg` path** | `RACE-V32-1` | init `JC7yFPjq74dzQyGJsrcjY5gsZaPXBtvNZAEQQDdgSHRx`, register the id `BmmpffkDzat2bKnqpL2ZuRJWUnyerf5pVjSnFFCn6t3y`, sweep `4yJfVi5u7xovrd4oS9oRogzsGQ6bZQjYUqjY7MpMH18H` and `ft_transfer_call` with `msg` `{"action":"x"}` `3mT71ThnrkXoMXqBVhrBwafTDJPNkzQiL4L5DL58jtag` sent at the same moment (offset 0 ms), then the retry with the right msg `6GDR43PSW3XvrKvL2HEtFKeyd46g8ERnAEomtW4SM6HR` | the sweep returned **`CONCURRENT_PAYMENT`** (success, no payout, no event); the call got `payment_rejected bad_msg`, final value `"0"`, the token returned the whole 1 tUSDC to the payer; the invoice stayed `OPEN` (owed 0, `paid_by` null, lock 0); the retry was accepted: `"1000000"`, `invoice_paid`, 0.92 / 0.08 tUSDC, `PAID` |
+
+**What the race run does and does not show.** It is the first attempt of the recorder (`RACE-V32-1`, offset 0 ms); no attempt failed and nothing was retried except the intended payer retry. The sweep took the lock, read `ft_balance_of`
+while the wrong-`msg` credit was on the invoice, and the callback found the lock value changed by the rejection and planned nothing. That is exactly the path v3.1 did not protect (v3.1 raised the lock only for `busy`).
+It is **one run that hit the right block alignment, not a rate**. We did **not** run the same sequence on v3.1, so the testnet evidence shows v3.2 behaving correctly, not v3.1 failing; that v3.1 had the hole rests on the Rust test.
+The `expired` and `not_open` variants of the race were not produced on testnet (the unit tests cover them); the contract-2/3/4 fixes were not run live either.
+
+### Measured on v3.2 (single runs; tokens burnt = sum over all receipts, deposits not included)
+
+| What | Measured |
+|---|---|
+| NEAR `pay` creating the account (`INV-1111-V32-A`) | 13.71 Tgas, 0.007562 NEAR (v3.1: 0.007561) |
+| token init `[UniversalStateInit, fund]` (`TOK-V32-B`) | 9.96 Tgas, 0.007254 NEAR |
+| token `ft_transfer_call` that settles (`TOK-V32-B`; the retry in `RACE-V32-1`) | 13.15 / 13.14 Tgas, 0.001181 NEAR |
+| token `ft_transfer_call` rejected `not_open` (`TOK-V32-B`) / rejected `bad_msg` (`RACE-V32-1`) | 6.94 / 6.92 Tgas, 0.000627 / 0.000625 NEAR |
+| token sweep that returned `CONCURRENT_PAYMENT` (`RACE-V32-1`) | 5.59 Tgas, 0.000492 NEAR |
+| token sweep: state init + fund + sweep (`TOK-1111-V32-A`) | 22.04 Tgas, 0.008350 NEAR, 200 Tgas attached |
+| NEAR sweep after a plain transfer, with state init (`INV-1111-V32-B`) | 13.69 Tgas, 0.001279 NEAR (the plain transfer itself, 8.37 Tgas, 0.007095 NEAR, created the uninitialized account) |
+| NEP-145 registration of the invoice id | 2.05 Tgas, 0.000183 NEAR (plus the 0.00125 NEAR deposit kept by the token) |
+| `storage_usage` after a NEAR `pay` / after plain + sweep / token initialized / token paid by `ft_transfer_call` / token paid by plain + sweep | 427 B / 399 B / 418 B / 446 B / 423 B (limit 770 B) |
+
+### Verification run (this round, 2026-11-11)
+
+| Command | Result |
+|---|---|
+| `node --test test/*.test.ts` (= `npm test`) | `# tests 218` / `# pass 218` / `# fail 0` |
+| `cd contract && cargo test --offline` | 94 passed, 0 failed |
+| `cd contract-v2 && cargo test --offline` | 14 passed, 0 failed |
+| `node src/cli.ts vectors` | 8 `PASS` |
+| `zi replay` of every fixture of `scripts/judge-offline.sh` (v32, v31, v3, v2, v1: 21 files) and offline `zi verify` of every invoice in `invoices/v32`, `v31`, `v3`, `v2`, `v1`, run as a shell loop (not the script itself) | 0 failures |
+| `zi verify <id>` (online) on the 6 invoices of `invoices/v32/` | exit 0 for each; `PASS code-hash-onchain 6YtW5oJ8…vMCNHJ`, `PASS no-access-keys` |
+| `zi replay fixtures/v32/{demo-run,token-demo-run,tokens,race}.json` | 62 / 31 / 45 / 46 `PASS`, 0 `FAIL` |
+
+### Not run
+
+A reproducible wasm build, a browser walk-through of the dashboard, wallet checks, an independent audit, mainnet, the `expired` / `not_open` race variants on testnet, the contract-2/3/4 fixes on testnet, and a repeat of the race (one success is recorded).
+`$CONDUCTOR_BIN slot run -- npm test` exited 255 with no output here, so `node --test` and `cargo test` were run directly (nothing was heavy). The invoice documents are `invoices/v32/*.json`; none contain secrets.

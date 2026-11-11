@@ -1,3 +1,4 @@
+// HISTORY: this recorder ran against contract v3.1 (2prMzXHZ…DaYX) on 2026-11-10. The client default is v3.2 now: pay/sweep/init refuse a v3.1 invoice unless ZI_CODE_HASH is pinned to the v3.1 hash, and a re-run records v3.2 invoices (use record-v32-*.sh).
 // LIVE v3.1 F1 race (final review): a token `sweep` that reads the balance while an `ft_transfer_call` credit is in flight.
 //   node scripts/race-v31.ts <invoice-id> [offset-ms]
 // The invoice must be initialized and OPEN (`zi init`). Both transactions are signed first (the sweeper's `sweep`, the payer's

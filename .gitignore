@@ -8,6 +8,7 @@ invoices/*.receipt.json
 !invoices/v2/
 !invoices/v3/
 !invoices/v31/
+!invoices/v32/
 !invoices/demo/
 *.log
 .DS_Store

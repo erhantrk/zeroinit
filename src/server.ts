@@ -148,7 +148,7 @@ export function serve(cfg: Config, port: number, opts: { token?: string } = {}):
           }
           const dep = deploymentOf(trustedCodeHash(cfg));
           const layout = dep?.layout ?? 1;
-          if (entry && layout !== 3) throw new Error('token invoices need the v3 or v3.1 deployment');
+          if (entry && layout !== 3) throw new Error('token invoices need the v3, v3.1 or v3.2 deployment');
           const amountText = nonEmptyString('amount', b.value.amount ?? b.value.amount_near);
           const amount = entry ? parseUnits(amountText, entry.decimals) : parseNear(amountText);
           const graceRaw = b.value.payout_grace_ms;

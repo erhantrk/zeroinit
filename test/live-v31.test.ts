@@ -13,9 +13,12 @@ import { checkDoc } from '../src/invoice.ts';
 import { V31_CODE_HASH } from '../src/config.ts';
 import { DEPLOYED, V3, tempDir } from './helpers.ts';
 
+// v3.1 is history since v3.2: its recordings replay and verify under their own hash (the trusted default is v3.2).
+const PIN = V31_CODE_HASH;
+
 const FILES = ['demo-run', 'token-demo-run', 'tokens', 'race', 'late'].map((n) => `fixtures/v31/${n}.json`);
 const load = (file: string) => JSON.parse(readFileSync(file, 'utf8'));
-const checks = (file: string) => replayFixture(file, DEPLOYED).map((c) => `${c.name} ${c.id}${c.detail ? ' ' + c.detail : ''}`);
+const checks = (file: string) => replayFixture(file, PIN).map((c) => `${c.name} ${c.id}${c.detail ? ' ' + c.detail : ''}`);
 const has = (file: string, want: string) => assert.ok(checks(file).some((s) => s === want || s.startsWith(`${want} `)), `missing check "${want}" in ${file}`);
 const tx = (file: string, id: string, label: string, n = 0): ParsedTx => {
   const f = load(file);
@@ -33,19 +36,20 @@ const finalStatus = (file: string, id: string): string => {
 function mutated(file: string, mutate: (fx: any) => void): string[] {
   const fx = load(file); mutate(fx);
   const p = join(tempDir(), 'f.json'); writeFileSync(p, JSON.stringify(fx));
-  return replayFixture(p, DEPLOYED).filter((c) => !c.ok).map((c) => `${c.name} ${c.id}`);
+  return replayFixture(p, PIN).filter((c) => !c.ok).map((c) => `${c.name} ${c.id}`);
 }
 const callOf = (fx: any, id: string, label: string, n = 0) => fx.calls.filter((c: any) => c.invoice_id === id && c.label === label)[n];
 
 test('v3.1 is the deployment the new recordings were made on: hash, format, and every fixture replays clean', () => {
-  assert.equal(V31_CODE_HASH, DEPLOYED);
+  assert.notEqual(V31_CODE_HASH, DEPLOYED, 'v3.2 is the current deployment now');
+  assert.equal(fixturePin(FILES[0], DEPLOYED), V31_CODE_HASH, 'a v3.1 recording is pinned to its own hash');
   for (const file of FILES) {
     assert.ok(existsSync(file), `${file} is missing`);
     const f = load(file);
     assert.notEqual(f.synthetic, true, `${file} must be a recording`);
     assert.ok(f.invoices.length > 0);
     for (const d of f.invoices) { assert.equal(d.code_hash, V31_CODE_HASH); assert.equal(d.format, 'zeroinit-invoice/2'); }
-    const out = replayFixture(file, DEPLOYED);
+    const out = replayFixture(file, PIN);
     assert.ok(out.length > 0, file);
     for (const c of out) assert.ok(c.ok, `${file}: FAIL ${c.name} ${c.id} ${c.detail}`);
   }
@@ -58,7 +62,7 @@ test('the replay runs the pinned set of checks for every invoice of every v3.1 r
   for (const file of FILES) {
     const name = file.replace('fixtures/v31/', '').replace('.json', '');
     const got: Record<string, string[]> = {};
-    for (const c of replayFixture(file, DEPLOYED)) (got[c.id] ??= []).push(c.name);
+    for (const c of replayFixture(file, PIN)) (got[c.id] ??= []).push(c.name);
     const norm = Object.fromEntries(Object.entries(got).map(([k, v]) => [k, [...new Set(v)].sort()]));
     assert.deepEqual(norm, pinned[name], `${file}: the set of checks per invoice changed`);
   }
@@ -70,17 +74,17 @@ test('every invoice document in invoices/v31/ re-derives its address and is v3.1
   for (const f of files) {
     const d = JSON.parse(readFileSync(join('invoices/v31', f), 'utf8'));
     assert.equal(d.code_hash, V31_CODE_HASH, f);
-    const c = checkDoc(d, DEPLOYED);
+    const c = checkDoc(d, PIN);
     assert.ok(c.idFromTerms && c.rawFromTerms && c.fieldsConsistent && c.codeHashTrusted && c.formatMatchesDeployment, `${f} does not verify offline`);
   }
 });
 
-test('v3 recordings stay replayable and verifiable under their own hash while v3.1 is the trusted one', () => {
+test('v3 recordings stay replayable and verifiable under their own hash while v3.2 is the trusted one', () => {
   for (const n of ['near', 'fixes', 'tokens', 'failures', 'demo-run', 'token-demo-run', 'late-resweep']) {
     const file = `fixtures/v3/${n}.json`;
-    const out = replayFixture(file, fixturePin(file, DEPLOYED));   // trusted = v3.1; `zi replay` pins a fixture of historical documents to their own hash
+    const out = replayFixture(file, fixturePin(file, DEPLOYED));   // trusted = v3.2; `zi replay` pins a fixture of historical documents to their own hash
     assert.ok(out.length > 0);
-    for (const c of out) assert.ok(c.ok, `fixtures/v3/${n}.json under the v3.1 pin: FAIL ${c.name} ${c.id} ${c.detail}`);
+    for (const c of out) assert.ok(c.ok, `fixtures/v3/${n}.json under the v3.2 pin: FAIL ${c.name} ${c.id} ${c.detail}`);
     assert.ok(out.some((c) => c.name === 'code-hash-trusted' && c.detail === V3), `${n}: documents are checked against the v3 hash`);
   }
 });

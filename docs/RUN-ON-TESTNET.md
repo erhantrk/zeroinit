@@ -5,8 +5,8 @@ Offline checks that need no keys are in the README ("Try it offline in 2 minutes
 
 ## Run it yourself on testnet
 
-This walkthrough was recorded on **v3** (`fixtures/v3/`, NEAR then tUSDC); the same commands run on the current **v3.1** deployment,
-whose re-recorded runs are in `fixtures/v31/`. The recorded runs in `fixtures/v3/` were made with the project's own CLI and the operator's
+This walkthrough was recorded on **v3** (`fixtures/v3/`, NEAR then tUSDC); the same commands run on the current **v3.2** deployment,
+whose re-recorded runs are in `fixtures/v32/` (v3.1: `fixtures/v31/`). The recorded runs in `fixtures/v3/` were made with the project's own CLI and the operator's
 accounts, exactly the commands below; the account-creation commands in step 1 are the near-cli-rs form the operator used for the earlier accounts and are not part of the
 recorded v3 runs.
 
@@ -27,8 +27,8 @@ creation uses near-cli-rs. The steps below assume you are in the repo root.
    Each command prints the new account and a transaction hash. The payer needs a little NEAR; the faucet grant
    is enough for this walkthrough, top up at https://near-faucet.io/ if it is not.
 
-2. No deploy needed: `contract/res/zeroinit_invoice.wasm` is already a global contract on testnet with code hash `2prMzXHZVWdeHfmdqqxzb5ahLy2pWBWZjuE25EDJDaYX` (v3.1).
-   Optionally deploy your own copy (this burns about 16.4 NEAR, the cost of the v3.1 deploy; the hash of an identical wasm is the same, so only a
+2. No deploy needed: `contract/res/zeroinit_invoice.wasm` is already a global contract on testnet with code hash `6YtW5oJ8UtCrzUePQf14zqKMb9G3DUtMynEnZvMCNHJ` (v3.2).
+   Optionally deploy your own copy (this burns about 16.4 NEAR, the cost of the v3.2 deploy; the hash of an identical wasm is the same, so only a
    changed wasm gives a new hash):
 
    ```bash
@@ -36,7 +36,7 @@ creation uses near-cli-rs. The steps below assume you are in the repo root.
      as-global-hash "$P"-zi-deployer.testnet network-config testnet sign-with-legacy-keychain send
    ```
 
-3. `cp .env.example .env` and fill it in (uncomment the account and key lines). `.env.example` prefills the v3.1 hash and the FastNEAR RPC; change the hash only if you
+3. `cp .env.example .env` and fill it in (uncomment the account and key lines). `.env.example` prefills the v3.2 hash and the FastNEAR RPC; change the hash only if you
    deployed your own changed global contract in step 2. Set `ZI_PAYER_ACCOUNT=example-zi-payer.testnet`, `ZI_SWEEPER_ACCOUNT=example-zi-merchant.testnet`,
    `ZI_TAXVAULT_ACCOUNT=example-zi-taxvault.testnet`, and for `ZI_PAYER_KEY` / `ZI_SWEEPER_KEY` paste the
    `private_key` values from `~/.near-credentials/testnet/example-zi-payer.testnet.json` and
@@ -81,7 +81,7 @@ creation uses near-cli-rs. The steps below assume you are in the repo root.
 
    ```bash
    npm run zi -- verify INV-RUN-1
-   # PASS code-hash-trusted / INFO deployment v3.1 (current… / PASS format-matches-deployment / PASS id-from-terms 0u… / PASS raw-from-terms / PASS doc-fields-from-terms / PASS code-hash-onchain 2prMzXHZ… / PASS terms-onchain /
+   # PASS code-hash-trusted / INFO deployment v3.2 (current… / PASS format-matches-deployment / PASS id-from-terms 0u… / PASS raw-from-terms / PASS doc-fields-from-terms / PASS code-hash-onchain 6YtW5oJ8… / PASS terms-onchain /
    # PASS no-access-keys / INFO status=PAID
 
    npm run zi -- invoice new --id INV-RUN-2 --merchant example-zi-merchant.testnet \
@@ -140,4 +140,4 @@ creation uses near-cli-rs. The steps below assume you are in the repo root.
 
    ![ZeroInit dashboard on the v2 build (2026-11-10): INV-SHOT-1 paid on testnet](img/dashboard-pay.png)
 
-   *This screenshot is from the **v2** dashboard. The v3.1 dashboard (token selector, `SETTLING`/`REFUNDED` badges, Refund payer) has not been opened in a browser; its invoice file `INV-SHOT-1.json` is not in the repo (`invoices/` root is gitignored), so `zi status INV-SHOT-1` cannot be run from a clone.*
+   *This screenshot is from the **v2** dashboard. The v3.2 dashboard (token selector, `SETTLING`/`REFUNDED` badges, Refund payer) has not been opened in a browser; its invoice file `INV-SHOT-1.json` is not in the repo (`invoices/` root is gitignored), so `zi status INV-SHOT-1` cannot be run from a clone.*

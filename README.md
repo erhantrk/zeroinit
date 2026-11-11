@@ -21,16 +21,18 @@ These are required by the hackathon rules (`docs/plan/HACKATHON-RULES.md`: Q-012
 
 ## Status (2026-11-11)
 
-The contract **deployed on testnet and used by the client is v3.1**: code hash `2prMzXHZVWdeHfmdqqxzb5ahLy2pWBWZjuE25EDJDaYX` (wasm sha256 `1b1dcc75…e278`, 163,771 bytes), global deploy tx
-`52dRw7RcBom9EbUJ6hCExDF5esWjsHPh5e1sUa87XyvB`, deploy burn about **16.38 NEAR** (deployer balance 17.8774031 → 1.4989866 NEAR across the tx, gas included). v3.1 handles NEAR and
-**tUSDC, a testnet mock token** (`sm1110-tusdc.testnet`, no value, no issuer), with a `SETTLING` status, an owed ledger and a payout lock; it was run live on testnet and every run is a fixture that replays
-offline (`fixtures/v31/`, transactions in `docs/SPIKES.md` "Contract v3.1 live"). Older versions (v3, v2, v1) stay on testnet as recorded history: `docs/HISTORY.md`.
+The contract **deployed on testnet and used by the client is v3.2**: code hash `6YtW5oJ8UtCrzUePQf14zqKMb9G3DUtMynEnZvMCNHJ` (wasm sha256 `016bf5ba…5e63d`, 164,040 bytes), global deploy tx
+`GHHsammf6Mg4nNZWtdB9sBYPJtSojSE46JVUs7nyd3Pg` from `sm1110-zi32-deployer.testnet`, deploy burn about **16.4053 NEAR** (deployer balance 17 → 0.5946814 NEAR across the tx, gas included; the tx's
+`tokens_burnt` read back from RPC on 2026-11-11 is 16.405318 NEAR). v3.2 is v3.1 plus the audit's contract fixes (`docs/HISTORY.md` "v3.1 → v3.2"). It handles NEAR and
+**tUSDC, a testnet mock token** (`sm1110-tusdc.testnet`, no value, no issuer), with a `SETTLING` status, an owed ledger and a payout lock. It was run live on testnet on 2026-11-11 (NEAR pay, plain transfer + sweep,
+underpay, tUSDC plain `ft_transfer` + sweep, one-step `ft_transfer_call`, and the sweep-vs-`ft_transfer_call` race on the `bad_msg` rejection path) and every run is a fixture that replays offline
+(`fixtures/v32/`, transactions in `docs/SPIKES.md` "Contract v3.2 live"). Older versions (v3.1, v3, v2, v1) stay on testnet as recorded history and keep replaying: `docs/HISTORY.md`.
 
-**The source in `contract/` is newer than the deployed contract.** After the final audit, `contract/src/lib.rs` holds a **v3.2 source** (four contract fixes, `docs/HISTORY.md` "v3.1 → v3.2") that is **not deployed**:
-the deployed contract, the client's pinned hash and `contract/res/zeroinit_invoice.wasm` are v3.1, whose source is `git show 49ec835:contract/src/lib.rs`. `npm run contract:build` on this tree would give a different wasm.
-The live contract therefore still has the findings that v3.2 fixes.
+**The v3.2 source is what is deployed.** `contract/res/zeroinit_invoice.wasm` was built from this tree (`npm run contract:build`, a local non-reproducible build) and its sha256 equals the digest above; on 2026-11-11 its bytes were
+also compared with the on-chain `view_global_contract_code` bytes of that hash (identical). The race on the `busy` rejection was already closed on chain by v3.1; v3.2 closes it for every rejection reason, and
+that one new path was produced on testnet once (`fixtures/v32/race.json`). The other v3.2 fixes (an `OPEN` invoice past its expiry released by one `sweep`, `paid_at_ms == 0` as "never settled", success decided from the promise status only) are covered by Rust unit tests and were **not run live**.
 
-Not done: a reproducible wasm build, a browser walk-through of the v3.1 dashboard, wallet checks, anything on mainnet, an independent audit (the audit rounds were AI reviews, see "AI use disclosure").
+Not done: a reproducible wasm build, a browser walk-through of the v3.2 dashboard, wallet checks, anything on mainnet, a live run of the `expired` / `not_open` race variants and of the other v3.2 fixes, an independent audit (the audit rounds were AI reviews, see "AI use disclosure").
 `docs/STABLECOIN.md` is the interface spec ("Live results" sections say what the runs showed).
 
 ## Who holds keys (trust, disclosed)
@@ -40,9 +42,9 @@ The invoice contract has no owner and no admin call, and **invoice accounts have
 
 | Account | What it is | Keys | What the holder could do |
 |---|---|---|---|
-| invoice `0u…` accounts (`INV-1111-V31-A` …) | the payment account | **none** (`zi verify` → `PASS no-access-keys`) | nothing: code is fixed by hash, terms are in the address |
-| the v3.1 code itself (`2prMzXHZ…DaYX`) | a global contract published **by hash** | n/a | content-addressed, so nobody can change what that hash runs |
-| `sm1110-zi3-deployer.testnet` (v3.1/v3 publisher), `sm1110-zi-deployer.testnet` (v2/v1) | operator accounts | 1 **full-access** key each, held by the operator | publish other wasm under other hashes (the client does not trust them), spend their own NEAR. **Cannot** alter `2prMzXHZ…DaYX` |
+| invoice `0u…` accounts (`INV-1111-V32-A` …) | the payment account | **none** (`zi verify` → `PASS no-access-keys`) | nothing: code is fixed by hash, terms are in the address |
+| the v3.2 code itself (`6YtW5oJ8…vMCNHJ`) | a global contract published **by hash** | n/a | content-addressed, so nobody can change what that hash runs |
+| `sm1110-zi32-deployer.testnet` (v3.2 publisher), `sm1110-zi3-deployer.testnet` (v3.1/v3), `sm1110-zi-deployer.testnet` (v2/v1) | operator accounts | 1 **full-access** key each, held by the operator (`view_access_key_list` for the v3.2 deployer, 2026-11-11: one `FullAccess` key) | publish other wasm under other hashes (the client does not trust them), spend their own NEAR. **Cannot** alter `6YtW5oJ8…vMCNHJ` |
 | **`sm1110-tusdc.testnet`** (the tUSDC mock token, a contract account, owner = itself) | the token that token invoices trust | 1 **full-access** key, held by the operator | mint, redeploy or replace the token code, move or burn any tUSDC, including tokens parked on or paid through an invoice. **Token invoices trust this key**; NEAR invoices do not |
 | merchant, tax vault, payer, sweeper (`sm1110-zi3-*`) | ordinary testnet accounts | 1 full-access key each | spend what they receive (they are the recipients, by design) |
 
@@ -59,17 +61,17 @@ curl -s https://rpc.testnet.fastnear.com -H 'content-type: application/json' -d 
 - Protocol 88 lets an account id be SHA3-256 of its future code + storage, so we can print the address first.
 - `UniversalStateInit` + `FunctionCall` in one transaction: create, pay and split happen in one tx.
 - Plain transfers to a `0u` id create an "uninitialized" account that only its matching state init can unlock.
-- Global contracts: the invoice code is deployed once by hash (v3.1, current: `2prMzXHZVWdeHfmdqqxzb5ahLy2pWBWZjuE25EDJDaYX`); each invoice only references it.
+- Global contracts: the invoice code is deployed once by hash (v3.2, current: `6YtW5oJ8UtCrzUePQf14zqKMb9G3DUtMynEnZvMCNHJ`); each invoice only references it.
 
 ## Repo map
 
-- `contract/` — the invoice contract **source** (Rust, near-sdk 5.30.1): currently the **v3.2 source, not deployed** (see Status); `contract/res/zeroinit_invoice.wasm` is the **deployed v3.1 wasm** (a local build of commit `49ec835`, not a reproducible one).
+- `contract/` — the invoice contract (Rust, near-sdk 5.30.1): the **v3.2 source**, 94 unit tests; `contract/res/zeroinit_invoice.wasm` is the **deployed v3.2 wasm** (a local build of this tree, not a reproducible one; its sha256 equals the on-chain code).
   `contract-v2/` — the v2 contract, its 14 tests and wasm (history).
-- `src/` — the `zi` CLI, the frozen byte encoders (`bytes.ts`, `stateinit.ts`, `tx.ts`), `ft.ts` (NEP-141 views, exact units), RPC client, outcome parser, invoice docs, replay (`replay.ts` for v1/v2, `replay-v3.ts` for v3/v3.1), and the optional local dashboard (`server.ts`, `web/`).
-- `fixtures/` — recorded RPC sessions that replay offline: `fixtures/v31/` (current: `demo-run.json`, `token-demo-run.json`, `tokens.json`, `race.json`, `late.json`, plus `sf4.json`, spike evidence, not a replay), `fixtures/v3/`, `fixtures/v2/`, `fixtures/v1/` (history), and two **synthetic** fixtures used by tests only. Public signatures are replaced by `ed25519:REDACTED-PUBLIC-SIGNATURE` in the v2/v3 fixtures.
-- `invoices/` — `v31/` (current), `v3/`, `v2/`, `v1/` and `examples/INV-0001.json` (the frozen test vector); none contain secrets.
-- `scripts/` — `demo.sh`, `demo-token.sh`, the `record-*.sh` recorders that were run, helpers (`plain-transfer.ts`, `plain-ft-transfer.ts`, `race-v31.ts`, …) and `judge-offline.sh` (one-command offline check).
-- `docs/` — `HISTORY.md` (v1/v2/v3/v3.1 and the older replays), `RUN-ON-TESTNET.md` (the keyed walkthrough), `SPIKES.md` (live tx hashes and measurements), `ARCHITECTURE.md`, `STABLECOIN.md` (the v3 interface spec), `SUBMISSION.md` (human checklist), `plan/` (the frozen plan and byte-level interfaces).
+- `src/` — the `zi` CLI, the frozen byte encoders (`bytes.ts`, `stateinit.ts`, `tx.ts`), `ft.ts` (NEP-141 views, exact units), RPC client, outcome parser, invoice docs, replay (`replay.ts` for v1/v2, `replay-v3.ts` for v3, v3.1 and v3.2), and the optional local dashboard (`server.ts`, `web/`).
+- `fixtures/` — recorded RPC sessions that replay offline: `fixtures/v32/` (current: `demo-run.json`, `token-demo-run.json`, `tokens.json`, `race.json`), `fixtures/v31/` (`demo-run.json`, `token-demo-run.json`, `tokens.json`, `race.json`, `late.json`, plus `sf4.json`, spike evidence, not a replay), `fixtures/v3/`, `fixtures/v2/`, `fixtures/v1/` (history), and two **synthetic** fixtures used by tests only. Public signatures are replaced by `ed25519:REDACTED-PUBLIC-SIGNATURE` in the v2/v3 fixtures.
+- `invoices/` — `v32/` (current), `v31/`, `v3/`, `v2/`, `v1/` and `examples/INV-0001.json` (the frozen test vector); none contain secrets.
+- `scripts/` — `demo.sh`, `demo-token.sh`, the `record-*.sh` recorders that were run, helpers (`plain-transfer.ts`, `plain-ft-transfer.ts`, `race-v32.ts`, `race-v31.ts`, …) and `judge-offline.sh` (one-command offline check).
+- `docs/` — `HISTORY.md` (v1/v2/v3/v3.1/v3.2 and the older replays), `RUN-ON-TESTNET.md` (the keyed walkthrough), `SPIKES.md` (live tx hashes and measurements), `ARCHITECTURE.md`, `STABLECOIN.md` (the v3 interface spec), `SUBMISSION.md` (human checklist), `plan/` (the frozen plan and byte-level interfaces).
 
 ## Try it offline in 2 minutes (no keys, no network) — do X, see Y
 
@@ -79,62 +81,62 @@ Every command below was run in this checkout, with no `.env` (`npm ci --include=
    `near-api-js` 7.4.0 for one encoder-parity test. The flag matters: with `NODE_ENV=production` a plain `npm ci`
    skips devDependencies and the parity test cannot import `near-api-js`.
 
-2. `npm test` → 209 tests, all pass (byte vectors from nearcore 2.14 and the frozen examples, units, deployments, `/1` and `/2` documents, encoder parity with near-api-js 7.4.0,
+2. `npm test` → 218 tests, all pass (byte vectors from nearcore 2.14 and the frozen examples, units, deployments, `/1` and `/2` documents, encoder parity with near-api-js 7.4.0,
    outcome/replay/CLI/dashboard tests, the recorded fixtures of every version, each with tamper tests):
 
    ```
-   # tests 209
-   # pass 209
+   # tests 218
+   # pass 218
    # fail 0
    # skipped 0
    ```
 
 3. `npm run zi -- vectors` → 8 lines, all `PASS` (`crockford-kat-1..4`, `wallet-0u`, `wallet-0s`, `example-0u`, `example-0s`).
 
-4. `npm run zi -- replay fixtures/v31/demo-run.json` → the **v3.1** NEAR demo, recorded live on the current contract (invoice ids `INV-1111-V31-A/B/C`, 1 NEAR), all
+4. `npm run zi -- replay fixtures/v32/demo-run.json` → the **v3.2** NEAR demo, recorded live on the current contract (invoice ids `INV-1111-V32-A/B/C`, 1 NEAR), all
    `PASS`, exit 0; among the checks:
 
    ```
-   INFO deployment v3.1 (current, deployed on testnet: v3 plus the token-sweep race fix) 2prMzXHZVWdeHfmdqqxzb5ahLy2pWBWZjuE25EDJDaYX
-   PASS before-unknown-account INV-1111-V31-A NONEXISTENT
-   PASS pay-tx-success INV-1111-V31-A 8gYZVNFT9DBk9PTZ7jqbe7w2iz4Fnewo4fudVYAzAwFF []
-   PASS invoice-paid-after-callback INV-1111-V31-A
-   PASS split-merchant INV-1111-V31-A 0.92
-   PASS split-vault INV-1111-V31-A 0.08
-   PASS transfer-path-uninitialized INV-1111-V31-B 1
-   PASS sweep-tx-result INV-1111-V31-B CNoLGGbaUAaYZKcCyrATmU6SHgY9hzWUJx2uykBSLVgR result=PAID
+   INFO deployment v3.2 (current, deployed on testnet: v3.1 plus the audit fixes, the token-sweep race closed on every rejection path) 6YtW5oJ8UtCrzUePQf14zqKMb9G3DUtMynEnZvMCNHJ
+   PASS before-unknown-account INV-1111-V32-A NONEXISTENT
+   PASS pay-tx-success INV-1111-V32-A 5429mVJRFRoocYM8NoWMgzwJvF5Bm9SV8q1DudCPikTV []
+   PASS invoice-paid-after-callback INV-1111-V32-A
+   PASS split-merchant INV-1111-V32-A 0.92
+   PASS split-vault INV-1111-V32-A 0.08
+   PASS transfer-path-uninitialized INV-1111-V32-B 1
+   PASS sweep-tx-result INV-1111-V32-B EYnZsmvDFywiKGbsYgisxoo3RtA6qaSVpu9gpt3jS6RD result=PAID
    ```
 
-5. `npm run zi -- replay fixtures/v31/token-demo-run.json` → a **tUSDC** invoice (mock token): the payer first **registers the invoice id on the token** (one `storage_deposit` transaction, 0.00125 NEAR; an exchange
+5. `npm run zi -- replay fixtures/v32/token-demo-run.json` → a **tUSDC** invoice (mock token): the payer first **registers the invoice id on the token** (one `storage_deposit` transaction, 0.00125 NEAR; an exchange
    would not do this, so for tokens someone must), then sends a plain `ft_transfer` (the part an exchange does), then anyone sweeps it in one transaction (state init + fund + sweep):
 
    ```
-   PASS register-tx-success TOK-1111-V31-A A3LGRoPeaWNXb6oC4UW1eo7v413E5ahftLoB4qJkKuFV []
-   PASS plain-transfer-tx-success TOK-1111-V31-A 6bj1B77NHBnK8jwfRfKvVEqNw9HMUpnQQmPrqfRgBXCM []
-   PASS ft-parked-balance TOK-1111-V31-A 1
-   PASS sweep-tx-result TOK-1111-V31-A HnN8YwYDG9R8rap34fuTibAVEDcdUpc8xa7jrouY7efK result=PAID
-   PASS ft-split-merchant TOK-1111-V31-A 0.92
-   PASS ft-split-vault TOK-1111-V31-A 0.08
+   PASS register-tx-success TOK-1111-V32-A 5D2YNnw2JK3M6yitqyLDnSscfdCEP6t4DbRM7ic4H5W9 []
+   PASS plain-transfer-tx-success TOK-1111-V32-A 81AaAHTuKnXVTX5D5NYv8RgcXKsqajhmFoJiEXPfTiKd []
+   PASS ft-parked-balance TOK-1111-V32-A 1
+   PASS sweep-tx-result TOK-1111-V32-A 49CH4p2wTbiauGgW91nu6XwBBg7vHVsrRZmTQYW1SxRn result=PAID
+   PASS ft-split-merchant TOK-1111-V32-A 0.92
+   PASS ft-split-vault TOK-1111-V32-A 0.08
    ```
 
-   `npm run zi -- replay fixtures/v31/race.json` is the **F1 race** (a token sweep while an `ft_transfer_call` is in flight; details in `docs/HISTORY.md` "v3 → v3.1"):
+   `npm run zi -- replay fixtures/v32/race.json` is the **race on the `bad_msg` rejection path** (a token sweep while an `ft_transfer_call` with a wrong `msg` is in flight, the path v3.1 did not cover; details in `docs/HISTORY.md` "v3.1 → v3.2"):
 
    ```
-   PASS sweep-tx-result RACE-V31-4 8vtV5twiaxVdUvTUopcs2eUAG2hzANxdeMWSSqoYJZ9Y result=CONCURRENT_PAYMENT
-   PASS concurrent-payment-plans-nothing RACE-V31-4 0 payout(s), 0 event(s), 0 failure(s)
-   PASS ft-rejected-busy RACE-V31-4 used 0, 1000000 of 1000000 returned to sm1110-zi3-payer.testnet
+   PASS sweep-tx-result RACE-V32-1 4yJfVi5u7xovrd4oS9oRogzsGQ6bZQjYUqjY7MpMH18H result=CONCURRENT_PAYMENT
+   PASS concurrent-payment-plans-nothing RACE-V32-1 0 payout(s), 0 event(s), 0 failure(s)
+   PASS ft-rejected-bad_msg RACE-V32-1 used 0, 1000000 of 1000000 returned to sm1110-zi3-payer.testnet
    ```
 
-   The other v3.1 recordings replay the same way: `tokens.json` (init, one `ft_transfer_call` that settles, a second one that is returned) and `late.json` (a missing merchant, then the sweep after the account was created).
-   The v3, v2 and v1 recordings replay under their own hashes: `docs/HISTORY.md` "Replaying the earlier recordings".
+   The other v3.2 recording, `tokens.json`, is the one-step path (init, one `ft_transfer_call` that settles, a second one that is returned). The v3.1 recordings (the busy-rejection race `fixtures/v31/race.json`, `late.json`, …), and the v3, v2 and v1 recordings replay
+   under their own hashes: `docs/HISTORY.md` "Replaying the earlier recordings".
 
-One command for the whole judge path: `bash scripts/judge-offline.sh` → `npm ci --include=dev`, `npm test`, `vectors`, the five v3.1 replays, the seven v3 replays, the three
-v2 replays, the two v1 replays and an offline `verify` of every v3.1, v3, v2 and v1 invoice; its last line is `JUDGE-OFFLINE: ALL PASS`. (The judge-offline run in our sandbox mapped
+One command for the whole judge path: `bash scripts/judge-offline.sh` → `npm ci --include=dev`, `npm test`, `vectors`, the four v3.2 replays, the five v3.1 replays, the seven v3 replays, the three
+v2 replays, the two v1 replays and an offline `verify` of every v3.2, v3.1, v3, v2 and v1 invoice; its last line is `JUDGE-OFFLINE: ALL PASS`. (The judge-offline run in our sandbox mapped
 `npm run -s zi --` to `node src/cli.ts`, because `npm run` printed none of the CLI output there.)
 
 ## Check the live testnet claims (read-only, no keys)
 
-The invoices under `invoices/v31/` (current contract v3.1, NEAR and tUSDC) and the older folders were paid on testnet (protocol 88). These commands only read RPC; they work from a clean clone with no `.env`.
+The invoices under `invoices/v32/` (current contract v3.2, NEAR and tUSDC) and the older folders were paid on testnet (protocol 88). These commands only read RPC; they work from a clean clone with no `.env`.
 The default endpoint is `https://rpc.testnet.fastnear.com` (`https://rpc.testnet.near.org` started answering HTTP 429 "endpoint is deprecated" on 2026-11-10; set `ZI_RPC_URL` to use another one).
 
 **The default RPC is not archival.** It keeps about 1.5 days of transactions (its `status` reported `earliest_block_time` 2026-11-10T01:01Z on 2026-11-11): the v1 deploy tx `DSXd2Sjq…` is already `UNKNOWN_TRANSACTION` there, and every
@@ -142,55 +144,55 @@ transaction cited in this repo (all sent 2026-11-10) will be too before judging 
 For a transaction lookup use the archival endpoint, `ZI_ARCHIVAL_RPC_URL=https://archival-rpc.testnet.fastnear.com` (a `curl` of `tx` / `EXPERIMENTAL_tx_status` there; `zi receipt --tx <hash>` falls back to it by itself
 on the default RPC), or nearblocks; the recorded fixtures under `fixtures/` are the durable evidence.
 
-1. `npm run zi -- verify INV-1111-V31-A` → the address and the state-init bytes are recomputed from the terms and the pinned code hash (`ZI_CODE_HASH`, default v3.1
-   `2prMzXHZ…DaYX`, never the invoice file's own `code_hash`), then compared with the chain. It also says which deployment the invoice uses. Any `FAIL` makes the command exit 1
-   (run on 2026-11-10 for all 8 invoices of `invoices/v31/`: no `FAIL`):
+1. `npm run zi -- verify INV-1111-V32-A` → the address and the state-init bytes are recomputed from the terms and the pinned code hash (`ZI_CODE_HASH`, default v3.2
+   `6YtW5oJ8…vMCNHJ`, never the invoice file's own `code_hash`), then compared with the chain. It also says which deployment the invoice uses. Any `FAIL` makes the command exit 1
+   (run on 2026-11-11 for all 6 invoices of `invoices/v32/`: exit 0, no `FAIL`):
 
    ```
-   PASS code-hash-trusted 2prMzXHZVWdeHfmdqqxzb5ahLy2pWBWZjuE25EDJDaYX
-   INFO deployment v3.1 (current, deployed on testnet: v3 plus the token-sweep race fix)
+   PASS code-hash-trusted 6YtW5oJ8UtCrzUePQf14zqKMb9G3DUtMynEnZvMCNHJ
+   INFO deployment v3.2 (current, deployed on testnet: v3.1 plus the audit fixes, the token-sweep race closed on every rejection path)
    PASS format-matches-deployment zeroinit-invoice/2
-   PASS id-from-terms 0u6c0024qear4qp5f447xvkjsgmz5mrq5x1c1kjjr0ddp3eer9s1t0
+   PASS id-from-terms 0ue8ts6vvgpqqwf2gtqweyv67pk6hjdj8z3hmfhzjmqvmf9qazs62g
    PASS raw-from-terms
    PASS doc-fields-from-terms
-   PASS code-hash-onchain 2prMzXHZVWdeHfmdqqxzb5ahLy2pWBWZjuE25EDJDaYX
+   PASS code-hash-onchain 6YtW5oJ8UtCrzUePQf14zqKMb9G3DUtMynEnZvMCNHJ
    PASS terms-onchain
    PASS no-access-keys
    INFO status=PAID
    ```
 
-   `npm run zi -- verify TOK-1111-V31-A` does the same for the tUSDC invoice and adds `PASS token-allowed tUSDC sm1110-tusdc.testnet` and `PASS token-metadata-onchain tUSDC 6`. `verify` of a v2 or v1 invoice
+   `npm run zi -- verify TOK-1111-V32-A` does the same for the tUSDC invoice and adds `PASS token-allowed tUSDC sm1110-tusdc.testnet` and `PASS token-metadata-onchain tUSDC 6`. `verify` of a v2 or v1 invoice
    (`INV-1111-V2-A`, `INV-1111-A`) checks it against its own historical hash; `zi pay`, `zi sweep` and `zi init` refuse historical invoices.
 
-2. Open `https://testnet.nearblocks.io/txns/8gYZVNFT9DBk9PTZ7jqbe7w2iz4Fnewo4fudVYAzAwFF` → one transaction with exactly two actions, `UniversalStateInit` + `pay`,
-   receiver `0u6c0024qear4qp5f447xvkjsgmz5mrq5x1c1kjjr0ddp3eer9s1t0`, result `PAID`, and transfers of `0.92` NEAR to `sm1110-zi3-sweeper.testnet` (the merchant in the demo) and
+2. Open `https://testnet.nearblocks.io/txns/5429mVJRFRoocYM8NoWMgzwJvF5Bm9SV8q1DudCPikTV` → one transaction with exactly two actions, `UniversalStateInit` + `pay`,
+   receiver `0ue8ts6vvgpqqwf2gtqweyv67pk6hjdj8z3hmfhzjmqvmf9qazs62g`, result `PAID`, and transfers of `0.92` NEAR to `sm1110-zi3-sweeper.testnet` (the merchant in the demo) and
    `0.08` NEAR to `sm1110-zi3-taxvault.testnet`, with `invoice_paid` logged by the `on_settled` callback. If nearblocks renders `0u…` ids poorly, the RPC `tx` method on the **archival** endpoint returns the same JSON
    while it is still on the default one, and `zi replay` checks it offline.
 
-3. `npm run zi -- status INV-1111-V31-B` → the invoice that was paid by a plain transfer (no state init) and later swept:
+3. `npm run zi -- status INV-1111-V32-B` → the invoice that was paid by a plain transfer (no state init) and later swept:
 
    ```
    STATE INITIALIZED status=PAID paid_by=null balance=0 storage=399
    ```
 
-   Plain-transfer tx `AzASJAvoViqMhFcUX38MtJvMGijdwAc3xCi2rtA3qujd`; sweep tx `CNoLGGbaUAaYZKcCyrATmU6SHgY9hzWUJx2uykBSLVgR`. `paid_by=null` is expected on this path:
-   `sweep()` does not know who transferred the funds. `npm run zi -- status TOK-1111-V31-A` shows the tUSDC one; its register tx is `A3LGRoPeaWNXb6oC4UW1eo7v413E5ahftLoB4qJkKuFV`, its plain `ft_transfer` `6bj1B77NHBnK8jwfRfKvVEqNw9HMUpnQQmPrqfRgBXCM`, the sweep `HnN8YwYDG9R8rap34fuTibAVEDcdUpc8xa7jrouY7efK` (0.92 / 0.08 tUSDC).
+   Plain-transfer tx `9uDgwNmgD7GhnvLiCVjqfSSb65j62pqJLi5ntQEdGDfb`; sweep tx `EYnZsmvDFywiKGbsYgisxoo3RtA6qaSVpu9gpt3jS6RD`. `paid_by=null` is expected on this path:
+   `sweep()` does not know who transferred the funds. `npm run zi -- status TOK-1111-V32-A` shows the tUSDC one; its register tx is `5D2YNnw2JK3M6yitqyLDnSscfdCEP6t4DbRM7ic4H5W9`, its plain `ft_transfer` `81AaAHTuKnXVTX5D5NYv8RgcXKsqajhmFoJiEXPfTiKd`, the sweep `49CH4p2wTbiauGgW91nu6XwBBg7vHVsrRZmTQYW1SxRn` (0.92 / 0.08 tUSDC).
 
-4. Contract integrity: `shasum -a 256 contract/res/zeroinit_invoice.wasm` → `1b1dcc7515f2b9d6bada0540ed20833dd3050d074e155fb8d489ac2afe01e278` (163,771 bytes). That digest
-   is the base58 code hash `2prMzXHZVWdeHfmdqqxzb5ahLy2pWBWZjuE25EDJDaYX`; `zi verify` checks that the invoice account's on-chain `global_contract_hash` equals it, and the on-chain bytes (`view_global_contract_code`) equal the committed
+4. Contract integrity: `shasum -a 256 contract/res/zeroinit_invoice.wasm` → `016bf5ba27ae4e10022458d158cc070167b8b7eabc84cdd35ab2bd7c69f5e63d` (164,040 bytes). That digest
+   is the base58 code hash `6YtW5oJ8UtCrzUePQf14zqKMb9G3DUtMynEnZvMCNHJ`; `zi verify` checks that the invoice account's on-chain `global_contract_hash` equals it, and the on-chain bytes (`view_global_contract_code`) equal the committed
    file. That proves the committed wasm *is* the deployed code; it does **not** prove which source it was built from (next section). Older deploy txs and burns: `docs/HISTORY.md` "Deploy transactions and burns".
 
 ### Is the wasm built from the source? (a trust assumption)
 
-- **Deployed v3.1:** the committed wasm equals the on-chain bytes (checked above). That it was built from `contract/src` at commit `49ec835` rests on **trust in the operator's local build**: it is not a reproducible build and
-  nobody has rebuilt and compared it. The current `contract/src` is the v3.2 source and builds to a *different* wasm.
+- **Deployed v3.2:** the committed wasm equals the on-chain bytes (checked above, also by us on 2026-11-11 with `view_global_contract_code`). That it was built from this tree's `contract/src` (`npm run contract:build`) rests on **trust in the operator's local build**: it is not a reproducible build and
+  nobody has rebuilt and compared it. (Older wasm builds are in git history; v3.1 was built from commit `49ec835`.)
 - **No reproducible build exists for any version.** `[package.metadata.near.reproducible_build]` in `contract/Cargo.toml` and `contract-v2/Cargo.toml` names the image tag `sourcescan/cargo-near:0.23.0-rust-1.95.0`, which is not in
   Docker Hub's tag list (checked 2026-11-10), and `image_digest = "UNSET"`, so `cargo near build reproducible-wasm` cannot be repeated as committed. A byte-identical v2 rebuild was reported to us by a judge-side run; **we did not re-run it**,
   so treat it as unverified (`docs/HISTORY.md`). To make this real: set an existing image and its digest, run one reproducible build of the contract, and publish the digest.
 
 ## Run it yourself on testnet
 
-`docs/RUN-ON-TESTNET.md` has the full keyed walkthrough (four accounts, issue, pay, plain transfer + sweep, refund, tUSDC, the local dashboard). In short: `cp .env.example .env` (prefilled with the v3.1 hash and the FastNEAR RPC), fill in the payer and
+`docs/RUN-ON-TESTNET.md` has the full keyed walkthrough (four accounts, issue, pay, plain transfer + sweep, refund, tUSDC, the local dashboard). In short: `cp .env.example .env` (prefilled with the v3.2 hash and the FastNEAR RPC), fill in the payer and
 sweeper accounts and keys (`.env` is gitignored: never commit it), then `npm run zi -- invoice new …`, `zi pay <id>` (one transaction), or `scripts/plain-transfer.ts` + `zi sweep <id>`. Testnet only: `src/config.ts` refuses any other network and any
 RPC URL containing `mainnet`, and every command also asserts `chain_id == testnet` over RPC before it uses a key. Token invoices: `zi pay <id> --plain` registers the id and sends a plain `ft_transfer`; `zi pay <id>` is the one-step path and **refuses when tokens are
 already parked** (run `zi sweep` then; see Limits).
@@ -235,7 +237,7 @@ NONEXISTENT ──── plain Transfer (any wallet/exchange) ────► UN
   INITIALIZED, status OPEN → pay() splits → PAID      INITIALIZED, status OPEN → sweep() splits → PAID
 ```
 
-Contract methods (deployed v3.1; args are `{}` unless noted; there is no init method, no owner and no key):
+Contract methods (deployed v3.2; args are `{}` unless noted; there is no init method, no owner and no key):
 
 | Method | Payable | What it does |
 |---|---|---|
@@ -248,7 +250,7 @@ Contract methods (deployed v3.1; args are `{}` unless noted; there is no init me
 | `on_settled`, `on_token_balance` | private | callbacks: `on_settled` checks every payout, records failures per recipient (`owed_*`), emits `transfer_failed` and is the **only** place `invoice_paid` is emitted |
 
 Statuses: `OPEN`, `PAID` (every share delivered), `EXPIRED`, `SETTLING` (money accepted, shares in flight or failed), `REFUNDED` (the payer got the undelivered shares back).
-An invoice that expired untouched stays `OPEN` until some call (a late `pay`, a late `ft_transfer_call`) sets `EXPIRED`.
+An invoice that expired untouched stays `OPEN` in storage until some call (a late `pay`, a late `ft_transfer_call`) sets `EXPIRED`; since v3.2 `sweep` treats an `OPEN` invoice past its expiry as `EXPIRED` by itself (Rust-tested, not run live).
 
 `pay()` rules (NEAR invoices), checked in this order (`d` = attached deposit, `now` = block timestamp, `parked` = free balance − `d` − owed):
 
@@ -291,26 +293,26 @@ callback. If one fails (a missing account, an unregistered token receiver), NEAR
 | Claim | Verify with | Expected |
 |---|---|---|
 | Issuing an invoice needs no transaction | `npm run zi -- invoice new --id TEST-1 --merchant example-zi-merchant.testnet --tax-vault example-zi-taxvault.testnet --tax-bps 800 --amount 0.1 --expires-in 2h --offline` (the deployed code hash is built in, so no `.env` is needed; without `--offline` it also checks over RPC that merchant and tax vault exist on testnet) | `INVOICE`/`ACCOUNT`/`PAY`/`FILE` lines; no RPC call |
-| The address commits to the terms and code | `npm run zi -- verify INV-1111-V31-A --offline` | `PASS code-hash-trusted 2prMzXHZ…`, `INFO deployment v3.1 (current…`, `PASS id-from-terms 0u6c0024…s1t0`, `PASS raw-from-terms` |
-| One tx creates + pays + splits (NEAR) | `npm run zi -- replay fixtures/v31/demo-run.json` (or the nearblocks link in the previous section) | `PASS pay-tx-success INV-1111-V31-A 8gYZVNFT… []`, `PASS split-merchant INV-1111-V31-A 0.92`, `PASS split-vault INV-1111-V31-A 0.08`, `PASS invoice-paid-after-callback INV-1111-V31-A` |
-| Plain transfers are safe before init | `npm run zi -- replay fixtures/v31/demo-run.json` | `PASS transfer-path-uninitialized INV-1111-V31-B 1`, `PASS sweep-tx-result INV-1111-V31-B CNoLGGba… result=PAID` |
-| A stablecoin invoice (tUSDC, a testnet mock) is paid by a plain `ft_transfer` and swept by anyone | `npm run zi -- replay fixtures/v31/token-demo-run.json` | `PASS ft-parked-balance TOK-1111-V31-A 1`, `PASS ft-split-merchant TOK-1111-V31-A 0.92`, `PASS ft-split-vault TOK-1111-V31-A 0.08` |
-| A token `sweep` that races an in-flight `ft_transfer_call` plans nothing (F1, fixed in v3.1) | `npm run zi -- replay fixtures/v31/race.json` | `PASS sweep-tx-result RACE-V31-4 8vtV5twi… result=CONCURRENT_PAYMENT`, `PASS concurrent-payment-plans-nothing RACE-V31-4 0 payout(s), 0 event(s), 0 failure(s)`, `PASS ft-rejected-busy RACE-V31-4 used 0, 1000000 of 1000000 returned …`, then the retry settles (`PASS ft-split-merchant RACE-V31-4 0.92`) |
+| The address commits to the terms and code | `npm run zi -- verify INV-1111-V32-A --offline` | `PASS code-hash-trusted 6YtW5oJ8…`, `INFO deployment v3.2 (current…`, `PASS id-from-terms 0ue8ts6v…s62g`, `PASS raw-from-terms` |
+| One tx creates + pays + splits (NEAR) | `npm run zi -- replay fixtures/v32/demo-run.json` (or the nearblocks link in the previous section) | `PASS pay-tx-success INV-1111-V32-A 5429mVJR… []`, `PASS split-merchant INV-1111-V32-A 0.92`, `PASS split-vault INV-1111-V32-A 0.08`, `PASS invoice-paid-after-callback INV-1111-V32-A` |
+| Plain transfers are safe before init | `npm run zi -- replay fixtures/v32/demo-run.json` | `PASS transfer-path-uninitialized INV-1111-V32-B 1`, `PASS sweep-tx-result INV-1111-V32-B EYnZsmvD… result=PAID` |
+| A stablecoin invoice (tUSDC, a testnet mock) is paid by a plain `ft_transfer` and swept by anyone | `npm run zi -- replay fixtures/v32/token-demo-run.json` | `PASS ft-parked-balance TOK-1111-V32-A 1`, `PASS ft-split-merchant TOK-1111-V32-A 0.92`, `PASS ft-split-vault TOK-1111-V32-A 0.08` |
+| A token `sweep` that races an in-flight `ft_transfer_call` plans nothing, whatever the rejection reason (F1 busy: v3.1; every reason: v3.2) | `npm run zi -- replay fixtures/v32/race.json` (bad_msg, v3.2) and `fixtures/v31/race.json` (busy, v3.1) | `PASS sweep-tx-result RACE-V32-1 4yJfVi5u… result=CONCURRENT_PAYMENT`, `PASS concurrent-payment-plans-nothing RACE-V32-1 0 payout(s), 0 event(s), 0 failure(s)`, `PASS ft-rejected-bad_msg RACE-V32-1 used 0, 1000000 of 1000000 returned …`, then the retry settles (`PASS ft-split-merchant RACE-V32-1 0.92`). One run each, not a rate: the block alignment is chance |
 | A missing NEAR merchant: owed, then paid after the account exists (L3) | `npm run zi -- replay fixtures/v31/late.json` and `fixtures/v3/late-resweep.json` | `PASS owed-after-failure LATE-V31 …`, `PASS owed-resent LATE-V31 late.sm1110-zi3-merchant.testnet 92000000000000000000000`; the same for the v3 invoice `LATE-V3` |
 | A token payment through `ft_transfer_call` settles, or is returned whole with a reason | `npm run zi -- replay fixtures/v3/tokens.json` and `fixtures/v3/failures.json` | `PASS ft-excess-refunded TOK-V3-C …`, `PASS ft-rejected-underpaid TOK-V3-D used 0, 500000 of 500000 returned …`, `ft-rejected-expired`, `ft-rejected-not_open`, `ft-rejected-wrong_token`, `ft-rejected-bad_msg`, `ft-rejected-low_gas` |
 | `invoice_paid` is never emitted before the payouts succeeded (v2 residual fixed) | `npm run zi -- replay fixtures/v3/fixes.json` and `failures.json` | `PASS invoice-paid-after-callback TAX-V3`; for `LATE-V3` and `UNREG-V3` a failed payout gives `PAYOUT_PENDING` and no `invoice_paid` (`test/live-v3.test.ts`) |
 | A failed payout is owed, retried to its own recipient, or refunded to the payer after the grace period (v2 residual fixed) | `npm run zi -- replay fixtures/v3/failures.json`, `fixes.json`, `tokens.json` | `PASS owed-resent UNREG-V3 sm1110-zi3-unreg.testnet 920000`, `PASS refund-payer-to-paid-by REFUND-V3 sm1110-zi3-payer.testnet`, `owed-after-failure …` |
 | A partly parked amount is taxed too (v2 residual fixed) | `npm run zi -- replay fixtures/v3/fixes.json` | `TAX-V3`: vault 0.008 + 0.004 (`extra_swept`), `PASS split-matches-terms TAX-V3 …` |
 | The tax split is the invoice's own rule | any v3 replay | `PASS split-matches-terms <id> 0.1 -> merchant 0.092, tax 0.008` |
-| Nobody holds keys to **invoice** accounts (other accounts do hold keys: see "Who holds keys") | `npm run zi -- verify INV-1111-V31-A` (RPC `view_access_key_list`) | `PASS no-access-keys` |
+| Nobody holds keys to **invoice** accounts (other accounts do hold keys: see "Who holds keys") | `npm run zi -- verify INV-1111-V32-A` (RPC `view_access_key_list`) | `PASS no-access-keys` |
 | A `pay()` that underpays, is late or hits a paid invoice is refunded to the payer (NEAR; not for plain transfers) | `npm run zi -- replay fixtures/v3/near.json` | `PASS refund-event INV-V3-C REFUNDED_UNDERPAID`, `PASS refund-event INV-V3-D REFUNDED_EXPIRED`, `PASS refund-event INV-V3-E REFUNDED_NOT_OPEN`: each checks the `payment_refunded` event, its reason, and a `Transfer` of exactly the deposit to the payer (since the audit round; mutation tests in `test/replay-v3-hardening.test.ts`). A plain-transfer underpay is **not** refunded: it stays parked and, after expiry, is released to merchant and vault |
-| The deployed code is the committed wasm (built from the v3.1 source of commit `49ec835`: a trust assumption, see "Is the wasm built from the source?") | `shasum -a 256 contract/res/zeroinit_invoice.wasm` and `npm run zi -- verify INV-1111-V31-A` | digest `1b1dcc75…e278` = base58 `2prMzXHZ…DaYX`; `PASS code-hash-onchain` |
+| The deployed code is the committed wasm (built from this tree's v3.2 source: a trust assumption, see "Is the wasm built from the source?") | `shasum -a 256 contract/res/zeroinit_invoice.wasm` and `npm run zi -- verify INV-1111-V32-A` | digest `016bf5ba…5e63d` = base58 `6YtW5oJ8…vMCNHJ`; `PASS code-hash-onchain` |
 | A one-step token payment on top of parked tokens is refused by the client (a contract limit, see Limits) | `node --test test/cli-token.test.ts test/server-token.test.ts` | the `claims-3` tests pass; `zi pay` prints `run \`zi sweep\` instead` |
 | The v2/v1 fixes (contract-1/2/3 on v2) and the v1/v2 history replays | `docs/HISTORY.md` → "Older claims" | the same `PASS` lines as before |
 
 ## Limits (honest)
 
-- **Nothing here is audited by a third party; the contract source and the deployed contract differ.** The deployed v3.1 contract still has the findings that the v3.2 source fixes (`docs/HISTORY.md` "v3.1 → v3.2"); the audit rounds were AI reviews.
+- **Nothing here is audited by a third party.** The audit rounds were AI reviews; the deployed v3.2 contract is the source after the fixes for that audit, and those fixes were checked by unit tests and, for the race on the `bad_msg` path, by one live run (`docs/HISTORY.md` "v3.1 → v3.2"). A residual stays open: a sweep that lands in the same block as an already-executed rejected `ft_transfer_call` (no lock held yet) can still read a balance the token is about to take back; a payer's single call cannot produce it (`docs/STABLECOIN.md` §5.3).
 - **tUSDC is a testnet mock, not a stablecoin, and its key holder is trusted.** The token `sm1110-tusdc.testnet` is a copy of the `test-usdc` mock (6 decimals, owner-only mint) with a full-access key held by the operator ("Who holds keys"): it has no value and no
   issuer behind it. The contract does not know tUSDC; each invoice names one NEP-141 token in its terms (so in its address), the contract accepts only that token, and the
   client allow-list (`src/config.ts`, `ZI_TUSDC_ACCOUNT`) pins symbol, decimals and account. On mainnet the allow-list would name a real issuer's NEP-141 contract with its real decimals, checked against `ft_metadata`; that was not tried.
@@ -330,18 +332,18 @@ callback. If one fails (a missing account, an unregistered token receiver), NEAR
   `TRANSFER_FAILED` lines) when a transfer failed downstream. `zi pay` exits 1 on `SETTLING`/`PAYOUT_PENDING` (it says `NOT PAID (yet)` and to run `zi sweep`),
   a token `zi pay` exits 0 only when `invoice_paid` was seen, the dashboard answers 202 with `paid:false, pending:true`, and a token sweep exits 1 on `UNDERPAID`,
   `NOTHING_TO_SWEEP`, `NEEDS_YOCTO`, `BALANCE_UNAVAILABLE`, `CONCURRENT_PAYMENT`.
-- **Contract limits that stay (v3.1, deployed).** The contract cannot reject a bad merchant/tax vault at pay time: `zi invoice new` and the dashboard check that both exist (and, for
+- **Contract limits that stay (v3.2, deployed).** The contract cannot reject a bad merchant/tax vault at pay time: `zi invoice new` and the dashboard check that both exist (and, for
   tokens, are registered) at issue time (`--offline` skips the check). A failed payout is recorded and the share stays owed (`SETTLING`, no `invoice_paid`): it is
   retried by `sweep` to that recipient only, or returned to the payer by `refund_payer` after the grace period. If the merchant never exists and the payer is unknown (a
   settlement made from a plain transfer), the share stays owed forever; it is never given to anyone else. A callback that never runs would leave the 5-minute payout lock
   stale and the failure unrecorded; a second failed refund to a different payer while the payer slot is taken is not protected. An invoice that expired untouched stays `OPEN`
-  until a late call sets `EXPIRED`. **Partly parked funds followed by a full payment still charge the payer twice** (the tax is right, the double payment is not refunded), for NEAR; for tokens even a *full* parked amount does (above).
+  in storage until a call sets `EXPIRED` (`sweep` does it itself since v3.2). **Partly parked funds followed by a full payment still charge the payer twice** (the tax is right, the double payment is not refunded), for NEAR; for tokens even a *full* parked amount does (above).
   A plain-transfer underpay is never refunded: it stays parked, and after expiry is released to merchant and vault.
 - **`0s` exists too.** Deterministic accounts (NEP-616, live since protocol 82) can do a similar flow; `0u` is
   the canonical scheme and adds the uninitialized state and batched creation. The CLI keeps `--scheme 0s` as a
   fallback, but every result in this README is `0u`.
-- **The payer pays for the first touch.** Gas plus the protocol's 0.007 NEAR account-creation charge: measured **0.0075610 NEAR** of tokens burnt for a v3.1 NEAR `pay` (v3: 0.0075600, v2: 0.0077197, v1: 0.0073617847981195 NEAR).
-  A token invoice costs about 0.0072530 NEAR to initialize, 0.0011780 NEAR for the settling `ft_transfer_call` and 0.00125 NEAR for each NEP-145 registration (kept by the token). One-time deploy burn of v3.1: about 16.38 NEAR. Issuing costs nothing.
+- **The payer pays for the first touch.** Gas plus the protocol's 0.007 NEAR account-creation charge: measured **0.0075620 NEAR** of tokens burnt for a v3.2 NEAR `pay` (v3.1: 0.0075610, v3: 0.0075600, v2: 0.0077197, v1: 0.0073617847981195 NEAR).
+  A token invoice costs about 0.0072540 NEAR to initialize, 0.0011810 NEAR for the settling `ft_transfer_call` and 0.00125 NEAR for each NEP-145 registration (kept by the token). One-time deploy burn of v3.2: about 16.41 NEAR (v3.1: about 16.38). Issuing costs nothing.
 - **Plain-transfer overpayments go to the merchant side (taxed).** `sweep()` cannot know the payer, so everything parked above `amount` is split like the price
   (92/8 at 800 bps) and not refunded. With `pay()` / `ft_transfer_call` the excess is refunded to the payer.
 - **No checksum.** A mistyped `0u…` address is still a valid address for different bytes; funds sent to a wrong
@@ -355,7 +357,7 @@ callback. If one fails (a missing account, an unregistered token receiver), NEAR
 
 ## History
 
-`docs/HISTORY.md` has what v2, v3 and v3.1 each fixed with their live evidence ("v1 → v2", "v2 → v3", "v3 → v3.1"), the v3.2 source note, the older claims table, the history replays and every deploy tx and burn.
+`docs/HISTORY.md` has what v2, v3, v3.1 and v3.2 each fixed with their live evidence ("v1 → v2", "v2 → v3", "v3 → v3.1", "v3.1 → v3.2"), the older claims table, the history replays and every deploy tx and burn.
 
 ## Pre-hackathon code
 
@@ -370,7 +372,7 @@ before it. Task T02 (`9c4faf7`, "scaffold the repo from reference/") copied it v
 starts after `38fc3f0` therefore does not see the reference code. Because every commit is inside the hackathon window there is no earlier baseline to compare against, so this README gives no
 compare link; use `git log --reverse` (or `git diff 38fc3f0^..HEAD` for the whole history). The `hackathon-submission` tag the rules suggest (Q-003) does not exist yet: it is a human item above.
 What was added after the reference: the scaffold and toolchain, the live testnet spikes and fixtures, the replay and dashboard extensions, the scripts, the extra tests, the docs, the review and audit fixes, the v2 work,
-v3 (NEP-141 tokens), v3.1 and the audit rounds' fixes. Test vectors are copied from nearcore (MIT/Apache-2.0), cited inline.
+v3 (NEP-141 tokens), v3.1, v3.2 and the audit rounds' fixes. Test vectors are copied from nearcore (MIT/Apache-2.0), cited inline.
 
 ## AI use disclosure
 
@@ -382,10 +384,11 @@ Everything in this repository was written with AI assistance; the human (Erhan) 
   a spec that **Claude Sonnet 5.5** designed (`docs/STABLECOIN.md`).
 - **Claude Sonnet 5.5, earlier rounds:** the daily code reviews and fixes, the v2 work (contract v2, known-deployments client changes, re-recorded fixtures and live audit scenarios), the review of v3 and its fixes (four bugs, `docs/STABLECOIN.md` "Review round"),
   the live v3 and v3.1 runs and recordings, the F1 race, L3, S-F4, and the client/test/doc updates for v3.1.
-- **Claude Opus 5.5, earlier rounds:** the operator role: testnet accounts and funding, the tUSDC mock and its registrations, **the global contract deploys** (v2, v3, v3.1), the **reveals and the m3 lifecycle runs** it was asked for, the earlier final reviews and audits,
+- **Claude Opus 5.5, earlier rounds:** the operator role: testnet accounts and funding, the tUSDC mock and its registrations, **the global contract deploys** (v2, v3, v3.1, v3.2), the **reveals and the m3 lifecycle runs** it was asked for, the earlier final reviews and audits,
   and the **browser screenshots** in `docs/img/` (Chrome, 2026-11-10, v2 dashboard).
-- **This round (2026-11-11), the final audit and its fixes:** **Claude Fable 5.2** audited the repository; **Claude Sonnet 5.5** fixed the findings (contract v3.2 source, client, tests, and this documentation) with a test for each code fix. Nothing in this round deployed,
-  signed or sent a transaction, called NEAR AI or touched a secret; the deployed contract is unchanged.
+- **The final audit and its fixes (2026-11-11):** **Claude Fable 5.2** audited the repository; **Claude Sonnet 5.5** fixed the findings (contract v3.2 source, client, tests, and the documentation) with a test for each code fix.
+- **The v3.2 round (2026-11-11):** **Claude Opus 5.5** did the operator work (built the v3.2 wasm, deployed it as a global contract from `sm1110-zi32-deployer.testnet`) and the re-check; **Claude Sonnet 5.5** ran the live flows on v3.2 with the operator's accounts
+  (NEAR pay, tUSDC plain transfer + sweep, one-step `ft_transfer_call`, the `bad_msg` race), recorded and replayed them, and updated the client, tests and docs. Those testnet transactions were signed with the repo's own encoder using the `.env` keys (never printed or committed).
 - Every protocol claim is meant to be checked by a test, a replay or an on-chain read listed above; AI reviews are not an independent audit.
 
 ## Libraries

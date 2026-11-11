@@ -1,8 +1,9 @@
 # ZeroInit contract v3: stablecoin (NEP-141) support and the v2 residual fixes
 
-Status: **v3 was deployed on testnet and run live (2026-11-10); the current deployment is v3.1** (v3 plus the F1 fix, code hash `2prMzXHZVWdeHfmdqqxzb5ahLy2pWBWZjuE25EDJDaYX`, deploy tx
-`52dRw7RcBom9EbUJ6hCExDF5esWjsHPh5e1sUa87XyvB`, 163,771 bytes, sha256 `1b1dcc75…e278`); the section "Live results (v3.1)" at the end says what was run on it. The interface in this file is the same
-for both; v3 is recorded history. Everything below that says "v3" and a code hash describes the first build, `Ut7EQh…reWa`. The v3 contract, the client, the dashboard and the tests are in this repo. The wasm was built with
+Status: **v3 was deployed on testnet and run live (2026-11-10); v3.1 (v3 plus the F1 fix, code hash `2prMzXHZVWdeHfmdqqxzb5ahLy2pWBWZjuE25EDJDaYX`, deploy tx
+`52dRw7RcBom9EbUJ6hCExDF5esWjsHPh5e1sUa87XyvB`, 163,771 bytes, sha256 `1b1dcc75…e278`) followed the same day; the current deployment is v3.2** (v3.1 plus the audit's contract fixes, code hash `6YtW5oJ8UtCrzUePQf14zqKMb9G3DUtMynEnZvMCNHJ`, deploy tx
+`GHHsammf6Mg4nNZWtdB9sBYPJtSojSE46JVUs7nyd3Pg`, 164,040 bytes, sha256 `016bf5ba…5e63d`, 2026-11-11); the sections "Live results (v3.1)" and "Live results (v3.2)" at the end say what was run on them. The interface in this file is the same
+for all three; v3 and v3.1 are recorded history. Everything below that says "v3" and a code hash describes the first build, `Ut7EQh…reWa`. The v3 contract, the client, the dashboard and the tests are in this repo. The wasm was built with
 `npm run contract:build`: 161,213 bytes, sha256 `0724781dd2c9f4f1b8bb30abbff0602578a7ad649fc5a450d4656ffde4740b1f`, code hash
 `Ut7EQhLDrvYVarHb6ZaXk6m7o9kQqYPCpyqiamvreWa`. The operator deployed it as a global contract (tx `43D4EifRGJJBtWUVhFPXPFsZqooPwz1czD8LwRz6sjYT`, measured burn about
 16.1226 NEAR) and created the `sm1110-zi3-*` accounts and the tUSDC mock `sm1110-tusdc.testnet`. The live runs are recorded in `docs/SPIKES.md` ("Contract v3 live")
@@ -280,7 +281,7 @@ log (`memo: "refund"`) is the proof it happened.
 
 ### 5.3 `sweep()` (anyone; settles funds that arrived without a call)
 
-**Contract v3.2 (audit round 3, fix of contract-1/2/3/4). This is source only: the deployed contract and the pinned code hash stay v3.1 until the operator deploys v3.2 as a new global contract; v3.1 and older stay recorded history, and the live v3.1 contract still has the contract-1 hole described here.**
+**Contract v3.2 (audit round 3, fix of contract-1/2/3/4). Deployed on testnet on 2026-11-11 as a new global contract (code hash `6YtW5oJ8UtCrzUePQf14zqKMb9G3DUtMynEnZvMCNHJ`, "Live results (v3.2)" below); v3.1 and older stay recorded history, and the v3.1 contract still has the contract-1 hole described here. Only the `bad_msg` variant of the race was run live (once); everything else in this paragraph is covered by Rust tests.**
 In `ft_on_transfer`, right after the `wrong_token` check and before anything else, if `now < busy_until_ms` the lock value is raised by 1, **for every status and every
 rejection reason** (`bad_msg`, `not_open`, `expired`, `busy`, ...). A call from the invoice's own token while a lock is held may carry a credit that a pending token
 sweep's balance read already includes and that the token takes back whenever the hook returns it. v3.1 only did this for `busy` on an `OPEN` invoice, so a
@@ -861,3 +862,21 @@ purpose, and `verify`/`replay` check v3 documents and fixtures against the v3 ha
 - **Measured:** see `docs/SPIKES.md` ("Measured on v3.1"): 427 B after a NEAR `pay`, 446 B for a paid token invoice, 4.9 to 22 Tgas per transaction.
 - **Not run:** a reproducible wasm build, a browser test of the dashboard, mainnet. v3.1 has no new Rust test beyond the 65 of the source at `49ec835` (the F1 test is among them).
 - **AI use for this round:** Claude Sonnet 5.5 ran and recorded the live flows and updated the client, tests and docs; Claude Opus 5.5 did the operator deploy of v3.1 and the re-check.
+
+## Live results (v3.2) (2026-11-11, Claude Sonnet 5.5 with the operator's accounts)
+
+The operator (Claude Opus 5.5) deployed v3.2 as a new global contract: code hash `6YtW5oJ8UtCrzUePQf14zqKMb9G3DUtMynEnZvMCNHJ`, tx `GHHsammf6Mg4nNZWtdB9sBYPJtSojSE46JVUs7nyd3Pg` (signer `sm1110-zi32-deployer.testnet`), wasm
+164,040 bytes, sha256 `016bf5ba27ae4e10022458d158cc070167b8b7eabc84cdd35ab2bd7c69f5e63d`, built from HEAD `b6c6d9c` (the committed `contract/res/zeroinit_invoice.wasm`; its bytes equal the on-chain code, compared through
+`view_global_contract_code`), burn about 16.4053 NEAR. The client treats v3.2 as current; v3.1 is history (`historical: true`: `zi pay`, `zi sweep` and `zi init` refuse a v3.1 invoice unless `ZI_CODE_HASH` is pinned to the v3.1 hash on purpose, and `verify`/`replay`
+check v3.1 documents and fixtures against the v3.1 hash). The transactions are in `docs/SPIKES.md` "Contract v3.2 live"; the recordings are `fixtures/v32/*.json`, replayed by `test/live-v32.test.ts`.
+
+- **Re-recorded on v3.2:** the NEAR demo (`INV-1111-V32-A/B/C`), the tUSDC plain `ft_transfer` + sweep (`TOK-1111-V32-A`) and the one-step `zi init` + `ft_transfer_call` (`TOK-V32-B`, plus a second call returned `not_open`): same behaviour as on v3.1
+  (0.92 / 0.08, `invoice_paid` from `on_settled`, the final value of `ft_transfer_call` is the amount used).
+- **The race on a rejection path other than `busy`, produced on testnet once** (`scripts/race-v32.ts`, invoice `RACE-V32-1`, first attempt). A token `sweep` and an `ft_transfer_call` of the full price with the wrong msg `{"action":"x"}` were signed first and sent at the same
+  moment. The sweep returned `CONCURRENT_PAYMENT` with no payout and no event; the call got `payment_rejected bad_msg` and the token refunded the whole 1 tUSDC; the invoice stayed `OPEN`, nothing owed, `paid_by` null, lock 0; a retried
+  `ft_transfer_call` with the right msg was accepted and paid 0.92 / 0.08 tUSDC. This is what §5.3 describes for v3.2. One success is not a rate, and we did not run the same sequence on v3.1: the hole in v3.1 is shown by the Rust tests
+  (`token_sweep_racing_a_bad_msg_ft_transfer_call_plans_nothing` and the variants), not by a testnet run. The `expired` and `not_open` variants were **not** produced on testnet.
+- **Not run live:** the contract-2/3/4 fixes (late release by `sweep`, `paid_at_ms == 0`, long `ft_transfer` bodies), the `expired`/`not_open` race variants, a reproducible wasm build, a browser test of the dashboard, mainnet.
+- **Tests:** 94 Rust tests in `contract/` (v3.2 source), 14 in `contract-v2/`, 218 JavaScript tests (`npm test`).
+- **AI use for this round:** Claude Sonnet 5.5 ran and recorded the live flows and updated the client, tests and docs; Claude Opus 5.5 did the operator deploy of v3.2 and the re-check.
+

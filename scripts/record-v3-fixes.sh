@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# HISTORY: this recorder ran against contract v3 (Ut7EQhLD…reWa) on 2026-11-10. The client default is v3.1 now, so re-running it records v3.1 invoices; use the record-v31-*.sh scripts for v3.1.
+# HISTORY: this recorder ran against contract v3 (Ut7EQhLD…reWa) on 2026-11-10. The client default is v3.2 now, so re-running it records v3.2 invoices; use the record-v32-*.sh scripts (and demo.sh / demo-token.sh) for v3.2.
 # LIVE v3 runs L2-L5 (docs/STABLECOIN.md §11.4): the three v2 residuals and the new tax rule.
 # Run against the deployed v3 with the operator's sm1110-zi3-* accounts (see docs/SPIKES.md "Contract v3 live").
 #   L2  a merchant that does not exist yet (late.sm1110-zi3-merchant.testnet is NOT created): pay => SETTLING,

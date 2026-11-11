@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# HISTORY: this recorder ran against contract v3.1 (2prMzXHZ…DaYX) on 2026-11-10. The client default is v3.2 now: pay/sweep/init refuse a v3.1 invoice unless ZI_CODE_HASH is pinned to the v3.1 hash, and a re-run records v3.2 invoices (use record-v32-*.sh).
 # LIVE L3 (docs/STABLECOIN.md §11.4), on v3.1 and on the recorded v3 invoice LATE-V3.
 #  1. v3.1: LATE-V31 names late.sm1110-zi3-merchant.testnet (does not exist yet): pay => PAYOUT_PENDING, SETTLING, no invoice_paid (fixtures/v31/late.json)
 #  2. the parent sm1110-zi3-merchant creates late.sm1110-zi3-merchant.testnet (scripts/create-late-merchant.ts)

@@ -3,12 +3,12 @@ import { base58 } from '@scure/base';
 
 /** The invoice-contract deployments this client knows. All are global contracts on testnet, identified by the sha256 (base58) of the wasm. */
 export interface Deployment {
-  version: 'v1' | 'v2' | 'v3' | 'v3.1';
+  version: 'v1' | 'v2' | 'v3' | 'v3.1' | 'v3.2';
   hash: string;
   label: string;
   /** Contract-level findings this deployment fixes (see README "v1 → v2" and "v2 → v3"). */
   fixes: readonly string[];
-  /** State layout the deployment's invoices use: 1 (v1, v2) or 3 (v3, v3.1); decides the document format (/1 or /2). */
+  /** State layout the deployment's invoices use: 1 (v1, v2) or 3 (v3, v3.1, v3.2); decides the document format (/1 or /2). */
   layout: 1 | 3;
   /** true: only for verifying/replaying recorded history; never used to issue or sign. */
   historical: boolean;
@@ -17,10 +17,13 @@ export const V1_CODE_HASH = 'Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k';
 export const V2_CODE_HASH = '4bQ61AgHWWmYXp5c3fwj9NJxS79D9R3cGZAZxHyx9zEA';
 /** v3 wasm built from this repo, 161,213 bytes, sha256 0724781d…0b1f. Deployed on testnet as a global contract (docs/SPIKES.md "Contract v3 live"). History since v3.1: it has the token-sweep race (final-review F1). */
 export const V3_CODE_HASH = 'Ut7EQhLDrvYVarHb6ZaXk6m7o9kQqYPCpyqiamvreWa';
-/** v3.1 wasm (v3 plus the F1 fix: a token sweep racing an in-flight ft_transfer_call plans nothing), built from this repo, 163,771 bytes, sha256 1b1dcc75…e278. Deployed by the operator (tx 52dRw7RcBom9EbUJ6hCExDF5esWjsHPh5e1sUa87XyvB). */
+/** v3.1 wasm (v3 plus the F1 fix: a token sweep racing an in-flight ft_transfer_call plans nothing), built from this repo, 163,771 bytes, sha256 1b1dcc75…e278. Deployed by the operator (tx 52dRw7RcBom9EbUJ6hCExDF5esWjsHPh5e1sUa87XyvB). History since v3.2: the race stays open on every rejection path except `busy`. */
 export const V31_CODE_HASH = '2prMzXHZVWdeHfmdqqxzb5ahLy2pWBWZjuE25EDJDaYX';
+/** v3.2 wasm (v3.1 plus the audit fixes contract-1 HIGH on every rejection path, contract-2/3/4), built from this repo, 164,040 bytes, sha256 016bf5ba…5e63d. Deployed by the operator (tx GHHsammf6Mg4nNZWtdB9sBYPJtSojSE46JVUs7nyd3Pg, deployer sm1110-zi32-deployer.testnet). */
+export const V32_CODE_HASH = '6YtW5oJ8UtCrzUePQf14zqKMb9G3DUtMynEnZvMCNHJ';
 export const KNOWN_DEPLOYMENTS: readonly Deployment[] = [
-  { version: 'v3.1', hash: V31_CODE_HASH, label: 'v3.1 (current, deployed on testnet: v3 plus the token-sweep race fix)', fixes: ['contract-1', 'contract-2', 'contract-3', 'settling', 'owed-ledger', 'tax-extras', 'tokens', 'token-sweep-race'], layout: 3, historical: false },
+  { version: 'v3.2', hash: V32_CODE_HASH, label: 'v3.2 (current, deployed on testnet: v3.1 plus the audit fixes, the token-sweep race closed on every rejection path)', fixes: ['contract-1', 'contract-2', 'contract-3', 'settling', 'owed-ledger', 'tax-extras', 'tokens', 'token-sweep-race', 'token-sweep-race-all-rejections', 'late-release-by-sweep', 'paid-at-ms-first-settlement', 'status-from-promise'], layout: 3, historical: false },
+  { version: 'v3.1', hash: V31_CODE_HASH, label: 'v3.1 (history, frozen: v3 plus the token-sweep race fix for the busy rejection only; verify and replay only)', fixes: ['contract-1', 'contract-2', 'contract-3', 'settling', 'owed-ledger', 'tax-extras', 'tokens', 'token-sweep-race'], layout: 3, historical: true },
   { version: 'v3', hash: V3_CODE_HASH, label: 'v3 (history, frozen: NEP-141, SETTLING, owed ledger; has the token-sweep race; verify and replay only)', fixes: ['contract-1', 'contract-2', 'contract-3', 'settling', 'owed-ledger', 'tax-extras', 'tokens'], layout: 3, historical: true },
   { version: 'v2', hash: V2_CODE_HASH, label: 'v2 (history, frozen: fixes contract-1/2/3; verify and replay only)', fixes: ['contract-1', 'contract-2', 'contract-3'], layout: 1, historical: true },
   { version: 'v1', hash: V1_CODE_HASH, label: 'v1 (history, frozen: known limitations contract-1/2/3; verify only, never pay)', fixes: [], layout: 1, historical: true },
@@ -30,9 +33,9 @@ export const deploymentOf = (hash: string): Deployment | null => KNOWN_DEPLOYMEN
 /** Human label of a code hash: the known deployment's label, else "custom". */
 export const deploymentLabel = (hash: string): string => deploymentOf(hash)?.label ?? 'custom (not a known ZeroInit deployment)';
 
-/** The current ZeroInit invoice contract (v3.1), built from this repo and deployed on testnet. */
-export const DEPLOYED_CODE_HASH = V31_CODE_HASH;
-/** The code hash a payer trusts: ZI_CODE_HASH when set (own deployment), else the current deployed hash (v3.1). Never the invoice file's own value. */
+/** The current ZeroInit invoice contract (v3.2), built from this repo and deployed on testnet. */
+export const DEPLOYED_CODE_HASH = V32_CODE_HASH;
+/** The code hash a payer trusts: ZI_CODE_HASH when set (own deployment), else the current deployed hash (v3.2). Never the invoice file's own value. */
 export const trustedCodeHash = (cfg: { codeHashB58: string | null }): string => cfg.codeHashB58 ?? DEPLOYED_CODE_HASH;
 /**
  * The hash to verify a document against: the trusted hash, or (read-only checks only) the hash of a historical known deployment

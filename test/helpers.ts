@@ -9,10 +9,11 @@ import { ed25519 } from '@noble/curves/ed25519.js';
 import { base58 } from '@scure/base';
 import { parseNear } from '../src/bytes.ts';
 import { createInvoiceDoc, saveDoc, isV3Doc, docToken, docGraceMs, type InvoiceDoc } from '../src/invoice.ts';
-import { V1_CODE_HASH, V2_CODE_HASH, V3_CODE_HASH, V31_CODE_HASH } from '../src/config.ts';
+import { V1_CODE_HASH, V2_CODE_HASH, V3_CODE_HASH, V31_CODE_HASH, V32_CODE_HASH } from '../src/config.ts';
 
-/** The current (v3.1) build hash, the default trusted hash. v3, v2 and v1 are the frozen history deployments. */
-export const DEPLOYED = V31_CODE_HASH;
+/** The current (v3.2) build hash, the default trusted hash. v3.1, v3, v2 and v1 are the frozen history deployments. */
+export const DEPLOYED = V32_CODE_HASH;
+export const V31 = V31_CODE_HASH;
 export const V3 = V3_CODE_HASH;
 export const V2 = V2_CODE_HASH;
 export const V1 = V1_CODE_HASH;
