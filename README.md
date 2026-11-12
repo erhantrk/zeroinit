@@ -37,13 +37,15 @@ No keys, no network after install (`npm ci` needs the npm registry once; Node 22
 
 ```bash
 npm ci --include=dev
-npm test                                              # 218 tests, all pass
+npm test                                              # 234 tests, all pass
 npm run zi -- replay fixtures/v32/demo-run.json       # a recorded live testnet run: every line PASS, exit 0
 ```
 
 You should see `PASS split-merchant INV-1111-V32-A 0.92` and `PASS split-vault INV-1111-V32-A 0.08`. The whole offline check in one command: `bash scripts/judge-offline.sh` (last line `JUDGE-OFFLINE: ALL PASS`).
 
-- **218** offline tests pass, plus **94** Rust unit tests on the contract.
+**For AI agents:** an MCP server in [`mcp/`](mcp/README.md) (stdio, one bundled file) lets an agent issue invoices, read their live testnet status and verify them; it is read-only, never signs, and issuing sends no transaction.
+
+- **234** offline tests pass, plus **94** Rust unit tests on the contract.
 - **1** transaction creates the invoice account, pays and splits the money.
 - **0** access keys on an invoice account (`zi verify` prints `PASS no-access-keys`).
 - **0.0075620 NEAR**: measured cost of that one transaction to the payer on the deployed contract (v3.2; gas plus account creation).
@@ -63,12 +65,12 @@ Every command below was run in this checkout, with no `.env` (`npm ci --include=
    `near-api-js` 7.4.0 for one encoder-parity test. The flag matters: with `NODE_ENV=production` a plain `npm ci`
    skips devDependencies and the parity test cannot import `near-api-js`.
 
-2. `npm test` → 218 tests, all pass (byte vectors from nearcore 2.14 and the frozen examples, units, deployments, `/1` and `/2` documents, encoder parity with near-api-js 7.4.0,
+2. `npm test` → 234 tests, all pass (byte vectors from nearcore 2.14 and the frozen examples, units, deployments, `/1` and `/2` documents, encoder parity with near-api-js 7.4.0,
    outcome/replay/CLI/dashboard tests, the recorded fixtures of every version, each with tamper tests):
 
    ```
-   # tests 218
-   # pass 218
+   # tests 234
+   # pass 234
    # fail 0
    # skipped 0
    ```

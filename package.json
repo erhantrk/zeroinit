@@ -8,11 +8,13 @@
   "scripts": {
     "zi": "node src/cli.ts",
     "test": "node --test test/*.test.ts",
+    "build:mcp": "node scripts/build-mcp.mjs",
+    "mcp": "node mcp/main.ts",
     "contract:test": "cd contract && cargo test",
     "contract:test:v2": "cd contract-v2 && cargo test",
     "contract:build": "cd contract && cargo near build non-reproducible-wasm && cp target/near/zeroinit_invoice.wasm res/zeroinit_invoice.wasm",
     "contract:build:v2": "cd contract-v2 && cargo near build non-reproducible-wasm && cp target/near/zeroinit_invoice.wasm res/zeroinit_invoice.wasm"
   },
   "dependencies": { "@noble/hashes": "2.2.0", "@noble/curves": "2.2.0", "@scure/base": "2.2.0" },
-  "devDependencies": { "near-api-js": "7.4.0" }
+  "devDependencies": { "near-api-js": "7.4.0", "@modelcontextprotocol/sdk": "1.29.0", "zod": "3.25.76", "esbuild": "0.25.12" }
 }
