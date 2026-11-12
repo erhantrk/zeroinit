@@ -99,7 +99,7 @@ memo: <span class="dim">none needed</span></pre>
       <div class="wrap story-head">
         <p class="label">How it works</p>
         <h2 id="how-h" class="rv">Two invoices, two ways to pay.</h2>
-        <p class="lead">The states shown are the ones recorded in the demo run. The map is only a surface for the dots, and the places mean nothing. Each payment is 25 dots: 23 for the merchant and 2 for the tax vault.</p>
+        <p class="lead">Invoice A is paid with one contract call. Invoice B gets a plain wallet transfer, and a sweep settles it. Both end in the same 92 / 8 split.</p>
       </div>
       <div class="story-driver">
         <div class="story-stage">
@@ -290,11 +290,7 @@ STATE INITIALIZED status=PAID paid_by=null balance=0 storage=399</code></pre>
             <code id="cmd">{replayCmd}</code>
             <button class="copy on-ink" type="button" data-copy={replayCmd} aria-label="Copy the command" hidden>Copy</button>
           </div>
-          <p class="note muted">
-            {repoUrl
-              ? <a href={repoUrl}>Source on GitHub</a>
-              : <span>The repository is private for now. The link will go here once it is public.</span>}
-          </p>
+          {repoUrl && <p class="note muted"><a href={repoUrl}>Source on GitHub</a></p>}
         </div>
       </div>
     </section>
