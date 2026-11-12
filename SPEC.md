@@ -3,8 +3,7 @@
 The byte layouts, method names, arguments, JSON fields and CLI flags of ZeroInit v1. They are frozen: a change needs a
 version bump (v2 and v3 are specified in [`docs/STABLECOIN.md`](docs/STABLECOIN.md) and [`docs/HISTORY.md`](docs/HISTORY.md)).
 Every byte-level claim below is checked by a test (`test/vectors.test.ts`, the contract's unit tests); the first
-versions of those tests ran on 2026-11-09 in the planning-phase reference implementation (see the README's
-"Pre-hackathon code").
+versions of those tests ran on 2026-11-09 in the planning-phase reference implementation (see [AI_USE.md "Code provenance"](AI_USE.md#code-provenance)).
 
 Sources for every protocol fact were listed in an internal sources file (not published). Short tags used here:
 `[NC]` = nearcore tag `2.14.0-rc.5` (the exact build testnet runs), `[NEP655]`, `[NEP616]`, `[DOCS-UA]` = docs.near.org
@@ -42,7 +41,7 @@ NONEXISTENT ──── plain Transfer (any wallet/exchange) ────► UN
   INITIALIZED, status OPEN → pay() splits → PAID      INITIALIZED, status OPEN → sweep() splits → PAID
 ```
 
-Facts this relies on (all verified in source / official tests; Day-0 spikes re-prove them on testnet):
+Facts this relies on (all verified in source / official tests; the first live testnet checks in docs/SPIKES.md re-prove them):
 
 1. RPC `view_account` on a never-touched `0u` id returns error `UNKNOWN_ACCOUNT` (checked live 2026-11-09).
 2. A plain `Transfer` to a nonexistent `0u` id creates it **uninitialized**. It holds the balance and nothing else.
@@ -221,7 +220,7 @@ Note: the account id hashes `raw` only, never the length-prefixed form ([NC] `co
 | (external) PLAIN TRANSFER | any wallet | invoice `0u` id | `[Transfer{amount}]`, sent by the payer's own wallet, not by us |
 
 `deposit:0` on UniversalStateInit is correct while storage ≤ 770 bytes. The estimate is ~312 bytes before `pay()` and ~329 after;
-spike S-E measures the real number. If a spike shows `LackBalanceForState`, set it to `10000000000000000000000` (0.01 NEAR);
+the first live storage measurement (docs/SPIKES.md) gives the real number. If a run shows `LackBalanceForState`, set it to `10000000000000000000000` (0.01 NEAR);
 the unused part is refunded to the signer.
 
 ### 4.4 Signed PAY vector (FROZEN test vector, passes against near-api-js parity test)
@@ -403,7 +402,7 @@ Common: exit code 0 = success, 1 = check failed / business failure, 2 = usage er
 | `zi vectors` | — | no | no | `PASS crockford-kat` …, `PASS wallet-0u`, `PASS wallet-0s`, `PASS example-0u`, `PASS example-0s`; exit 1 if any FAIL |
 | `zi invoice new` | `--id <ID> --merchant <acct> --tax-vault <acct> --tax-bps <n> --amount <NEAR> (--expires-in <Nh\|Nm> \| --expires-at <ISO>) [--salt <u64>] [--scheme 0u\|0s] [--code-hash <b58>]` | no | no | `INVOICE <ID>`, `ACCOUNT <0u…>`, `PAY <amount> NEAR before <ISO>`, `FILE invoices/<ID>.json` |
 | `zi status <ID>` | — | yes | no | `STATE NONEXISTENT` \| `STATE UNINITIALIZED balance=<NEAR>` \| `STATE INITIALIZED status=<OPEN\|PAID\|EXPIRED> paid_by=<acct\|null> balance=<NEAR> storage=<bytes>` |
-| `zi pay <ID>` | `[--amount <NEAR>]` (default = invoice amount) `[--no-init]` (omit the state-init action; for spike S-C fallback) | yes | payer | `TX <hash>`, `RESULT <PAID\|REFUNDED_…>`, `EVENT <event> …`, `TRANSFER <to> <NEAR>` per outgoing transfer, `LINK https://testnet.nearblocks.io/txns/<hash>` |
+| `zi pay <ID>` | `[--amount <NEAR>]` (default = invoice amount) `[--no-init]` (omit the state-init action; a fallback in case the one-transaction batch failed) | yes | payer | `TX <hash>`, `RESULT <PAID\|REFUNDED_…>`, `EVENT <event> …`, `TRANSFER <to> <NEAR>` per outgoing transfer, `LINK https://testnet.nearblocks.io/txns/<hash>` |
 | `zi init <ID>` | — | yes | sweeper | sends only `[UniversalStateInit]` (fallback flow) → `TX <hash>`, `STATE INITIALIZED …` |
 | `zi sweep <ID>` | — | yes | sweeper | same lines as `pay` |
 | `zi verify <ID>` | `[--offline]` | yes unless `--offline` | no | `PASS id-from-terms`, `PASS raw-from-terms`, (online) `PASS code-hash-onchain`, `PASS terms-onchain`, `INFO status=<…>`; exit 1 on any FAIL |
