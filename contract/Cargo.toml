@@ -25,12 +25,6 @@ debug = false
 panic = "abort"
 overflow-checks = true
 
-[package.metadata.near.reproducible_build]
-image = "sourcescan/cargo-near:0.23.0-rust-1.95.0"
-image_digest = "UNSET"
-passed_env = []
-container_build_command = ["cargo", "near", "build", "non-reproducible-wasm", "--locked"]
-
 # Reproducible build (cargo near build reproducible-wasm): anyone can rebuild the deployed wasm from this commit.
 [package.metadata.near.reproducible_build]
 image = "sourcescan/cargo-near:0.23.0-rust-1.99.1"
