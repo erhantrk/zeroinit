@@ -268,6 +268,7 @@ code, pre, .mono { font-family: var(--font-mono); font-size: 0.875rem; font-feat
 .term .ok { color: var(--paid-on-ink); }
 .replay-list > li { padding: 0; border-radius: 6px; }
 .replay-line { display: block; font: inherit; color: inherit; text-align: left; background: none; border: 0; padding: 0.55rem 0.75rem; overflow-wrap: anywhere; border-radius: 6px; }
+.replay-line .inv { white-space: nowrap; }
 .replay-line .rest { display: block; color: rgba(246, 245, 241, 0.56); padding-left: 5ch; }
 button.replay-line { cursor: pointer; width: 100%; transition: background-color 200ms var(--ease); }
 button.replay-line:hover { background: rgba(246, 245, 241, 0.07); }

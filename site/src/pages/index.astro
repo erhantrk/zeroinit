@@ -268,7 +268,7 @@ STATE INITIALIZED status=PAID paid_by=null balance=0 storage=400</code></pre>
           <ol class="term replay-list" aria-label="Recorded checks, in order">
             {steps.map((st) => (
               <li data-state={st.state}>
-                <span class="replay-line"><span class="ok">PASS</span> {st.name} {st.inv}{st.rest ? ' ' : ''}{st.rest ? <span class="rest">{st.rest}</span> : null}</span>
+                <span class="replay-line"><span class="ok">PASS</span> {st.name} <span class="inv">{st.inv}</span>{st.rest ? ' ' : ''}{st.rest ? <span class="rest">{st.rest}</span> : null}</span>
               </li>
             ))}
           </ol>
