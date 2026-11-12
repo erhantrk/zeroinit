@@ -4,11 +4,12 @@ import '../styles/global.css';
 import { BEATS } from '../story-beats';
 import replayData from '../replay-data.json';
 
-const repoUrl = import.meta.env.PUBLIC_REPO_URL as string | undefined;
-const account = '0ue8ts6vvgpqqwf2gtqweyv67pk6hjdj8z3hmfhzjmqvmf9qazs62g';
-const accountShort = '0ue8ts6vvgpq…qazs62g';
-const codeHash = '6YtW5oJ8UtCrzUePQf14zqKMb9G3DUtMynEnZvMCNHJ';
-const replayCmd = 'npm run zi -- replay fixtures/v32/demo-run.json';
+const repoUrl = (import.meta.env.PUBLIC_REPO_URL as string | undefined) || 'https://github.com/erhantrk/zeroinit';
+const mcpUrl = repoUrl + '/tree/main/mcp#readme';
+const account = '0u7hdnprw7z1gfz4b6qj8pn683cnhwp4ges18hfbsk03nmdees4ppg';
+const accountShort = '0u7hdnprw7z1…ees4ppg';
+const codeHash = 'BQLSk5carin64UMreToJHT15gvow6wqZSyKqDz7zCFry';
+const replayCmd = 'npm run zi -- replay fixtures/v32r/demo-run.json';
 
 const steps = replayData.steps;
 ---
@@ -52,7 +53,7 @@ const steps = replayData.steps;
           </p>
         </div>
         <aside class="hero-card" aria-label="The demo invoice" data-hc>
-          <div class="hc-head"><span class="mono">INV-1111-V32-A</span><span class="status-chip" data-hc-chip data-s="NONEXISTENT"><i></i><b>NONEXISTENT</b></span></div>
+          <div class="hc-head"><span class="mono">INV-1111-V32R-A</span><span class="status-chip" data-hc-chip data-s="NONEXISTENT"><i></i><b>NONEXISTENT</b></span></div>
           <p class="hc-addr mono"><span class="sr-only">{accountShort}</span><span aria-hidden="true" data-hc-addr data-final={accountShort}>{accountShort}</span></p>
           <dl class="hc-rows">
             <div><dt>Chain says</dt><dd class="mono" data-hc-chain>UNKNOWN_ACCOUNT</dd></div>
@@ -68,7 +69,7 @@ const steps = replayData.steps;
         <div><dt>transactions to issue an invoice</dt><dd>0</dd></div>
         <div><dt>transaction to pay it</dt><dd>1</dd></div>
         <div><dt>demo split to merchant and tax vault</dt><dd>92 / 8</dd></div>
-        <div><dt>tests pass</dt><dd>218</dd></div>
+        <div><dt>tests pass</dt><dd>242</dd></div>
       </dl>
     </div>
 
@@ -106,7 +107,7 @@ memo: <span class="dim">none needed</span></pre>
           <canvas aria-hidden="true"></canvas>
           <div class="story-shade" aria-hidden="true"></div>
           <div class="wrap story-hud" aria-hidden="true">
-            <p class="story-chip mono"><span data-story-inv>INV-1111-V32-A</span><span class="status-chip" data-story-chip data-s="NONEXISTENT"><i></i><b>NONEXISTENT</b></span></p>
+            <p class="story-chip mono"><span data-story-inv>INV-1111-V32R-A</span><span class="status-chip" data-story-chip data-s="NONEXISTENT"><i></i><b>NONEXISTENT</b></span></p>
             <p class="story-bars"><span></span><span></span><span></span><span></span></p>
           </div>
           <div class="wrap story-text">
@@ -153,7 +154,7 @@ memo: <span class="dim">none needed</span></pre>
     --tax-bps 800 --amount 0.1 --expires-in 2h --offline</code></pre>
                 </div>
                 <div class="card">
-                  <p class="label">Terms of INV-1111-V32-A, the demo invoice</p>
+                  <p class="label">Terms of INV-1111-V32R-A, the demo invoice</p>
                   <dl class="kv">
                     <div><dt>merchant</dt><dd class="mono">sm1110-zi3-sweeper.testnet</dd></div>
                     <div><dt>tax_vault</dt><dd class="mono">sm1110-zi3-taxvault.testnet</dd></div>
@@ -171,7 +172,7 @@ memo: <span class="dim">none needed</span></pre>
             <div class="more-body">
               <div class="m-text">
                 <p>The transaction has two actions. The first installs the contract at the address. The second calls <span class="mono">pay</span> with the deposit. The contract sends the tax share to the vault and the rest to the merchant.</p>
-                <p>The payer covers gas and the protocol's account-creation charge. For a v3.2 NEAR payment that measured <span class="mono">0.0075620</span> NEAR.</p>
+                <p>The payer covers gas and the protocol's account-creation charge. For a v3.2r NEAR payment that measured <span class="mono">0.0075612</span> NEAR.</p>
               </div>
               <div class="m-visual">
                 <div class="code">
@@ -180,7 +181,7 @@ memo: <span class="dim">none needed</span></pre>
 <span class="k">receiver </span> {accountShort}
 <span class="k">actions  </span> UniversalStateInit {'{'}raw{'}'}
           FunctionCall {'{'}"pay", "{'{}'}", 100 Tgas, deposit = 1 NEAR{'}'}
-<span class="k">tx       </span> 5429mVJRFRoocYM8NoWMgzwJvF5Bm9SV8q1DudCPikTV</code></pre>
+<span class="k">tx       </span> GwnQFSjpCqcPZeSHiTmiu6t5ZMkhM6NQ8vh4NjDzDpWE</code></pre>
                 </div>
                 <div class="card">
                   <p class="label">Where the 1 NEAR went</p>
@@ -212,8 +213,8 @@ memo: <span class="dim">none needed</span></pre>
                 </div>
                 <div class="code">
                   <div class="code-head"><span>the invoice paid by a plain transfer</span></div>
-<pre><code><span class="p">$</span> npm run zi -- status INV-1111-V32-B
-STATE INITIALIZED status=PAID paid_by=null balance=0 storage=399</code></pre>
+<pre><code><span class="p">$</span> npm run zi -- status INV-1111-V32R-B
+STATE INITIALIZED status=PAID paid_by=null balance=0 storage=400</code></pre>
                 </div>
               </div>
             </div>
@@ -224,24 +225,28 @@ STATE INITIALIZED status=PAID paid_by=null balance=0 storage=399</code></pre>
             <div class="more-body">
               <div class="m-text">
                 <p>The contract is a global contract published by its hash. It has no owner and no admin call.</p>
+                <p>The deployed code is a reproducible build. Rebuilding the source at commit <span class="mono">4116e69</span> gives the same hash.</p>
               </div>
               <div class="m-visual">
                 <div class="code">
-                  <div class="code-head"><span>zi verify INV-1111-V32-A</span></div>
-<pre><code><span class="ok">PASS</span> code-hash-trusted 6YtW5oJ8UtCrzUePQf14zqKMb9G3DUtMynEnZvMCNHJ
-<span class="ok">PASS</span> id-from-terms 0ue8ts6vvgpqqwf2gtqweyv67pk6hjdj8z3hmfhzjmqvmf9qazs62g
+                  <div class="code-head"><span>zi verify INV-1111-V32R-A</span></div>
+<pre><code><span class="ok">PASS</span> code-hash-trusted BQLSk5carin64UMreToJHT15gvow6wqZSyKqDz7zCFry
+<span class="p">INFO</span> deployment v3.2r (current, deployed on testnet: the v3.2 source built reproducibly, rebuild commit 4116e69)
+<span class="ok">PASS</span> format-matches-deployment zeroinit-invoice/2
+<span class="ok">PASS</span> id-from-terms 0u7hdnprw7z1gfz4b6qj8pn683cnhwp4ges18hfbsk03nmdees4ppg
 <span class="ok">PASS</span> raw-from-terms
-<span class="ok">PASS</span> code-hash-onchain 6YtW5oJ8UtCrzUePQf14zqKMb9G3DUtMynEnZvMCNHJ
+<span class="ok">PASS</span> doc-fields-from-terms
+<span class="ok">PASS</span> code-hash-onchain BQLSk5carin64UMreToJHT15gvow6wqZSyKqDz7zCFry
 <span class="ok">PASS</span> terms-onchain
 <span class="ok">PASS</span> no-access-keys
 <span class="p">INFO</span> status=PAID</code></pre>
                 </div>
                 <div class="card flush">
                   <dl class="facts">
-                    <div><dt>Contract (v3.2)</dt><dd><span class="mono val">{codeHash}</span><button class="copy" type="button" data-copy={codeHash} aria-label="Copy the contract hash" hidden>Copy</button></dd></div>
+                    <div><dt>Contract (v3.2r)</dt><dd><span class="mono val">{codeHash}</span><button class="copy" type="button" data-copy={codeHash} aria-label="Copy the contract hash" hidden>Copy</button></dd></div>
                     <div><dt>Demo account</dt><dd><span class="mono val">{account}</span><button class="copy" type="button" data-copy={account} aria-label="Copy the demo invoice account" hidden>Copy</button></dd></div>
                     <div><dt>Address kind</dt><dd><span class="val">0u…, NEP-655, protocol 88</span></dd></div>
-                    <div><dt>Tests</dt><dd><span class="val">218 pass. The recorded demo replays offline.</span></dd></div>
+                    <div><dt>Tests</dt><dd><span class="val">242 pass. The recorded demo replays offline.</span></dd></div>
                     <div><dt>License</dt><dd><span class="val">MIT</span></dd></div>
                   </dl>
                 </div>
@@ -257,13 +262,13 @@ STATE INITIALIZED status=PAID paid_by=null balance=0 storage=399</code></pre>
         <div class="sec-head">
           <p class="label">Replay</p>
           <h2 id="replay-h" class="rv">The recorded demo run, check by check.</h2>
-          <p class="lead">These are the checks the CLI makes on <span class="mono">fixtures/v32/demo-run.json</span>. Each value is read from that recording. Nothing here uses a wallet, keys or the network.</p>
+          <p class="lead">These are the checks the CLI makes on <span class="mono">fixtures/v32r/demo-run.json</span>. Each value is read from that recording. Nothing here uses a wallet, keys or the network.</p>
         </div>
         <div class="replay" data-replay>
           <ol class="term replay-list" aria-label="Recorded checks, in order">
             {steps.map((st) => (
               <li data-state={st.state}>
-                <span class="replay-line"><span class="ok">PASS</span> {st.name} {st.inv}{st.rest ? ' ' : ''}{st.rest ? <span class="rest">{st.rest}</span> : null}</span>
+                <span class="replay-line"><span class="ok">PASS</span> {st.name} <span class="inv">{st.inv}</span>{st.rest ? ' ' : ''}{st.rest ? <span class="rest">{st.rest}</span> : null}</span>
               </li>
             ))}
           </ol>
@@ -290,7 +295,7 @@ STATE INITIALIZED status=PAID paid_by=null balance=0 storage=399</code></pre>
             <code id="cmd">{replayCmd}</code>
             <button class="copy on-ink" type="button" data-copy={replayCmd} aria-label="Copy the command" hidden>Copy</button>
           </div>
-          {repoUrl && <p class="note muted"><a href={repoUrl}>Source on GitHub</a></p>}
+          <p class="note muted"><a href={repoUrl}>Source on GitHub</a>. The repository also has an <a href={mcpUrl}>MCP server</a> for AI agents. It is read-only and never signs.</p>
         </div>
       </div>
     </section>
