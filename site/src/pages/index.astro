@@ -1,0 +1,348 @@
+---
+import Base from '../layouts/Base.astro';
+import '../styles/global.css';
+import { BEATS } from '../story-beats';
+import replayData from '../replay-data.json';
+
+const repoUrl = import.meta.env.PUBLIC_REPO_URL as string | undefined;
+const account = '0ue8ts6vvgpqqwf2gtqweyv67pk6hjdj8z3hmfhzjmqvmf9qazs62g';
+const accountShort = '0ue8ts6vvgpq…qazs62g';
+const codeHash = '6YtW5oJ8UtCrzUePQf14zqKMb9G3DUtMynEnZvMCNHJ';
+const replayCmd = 'npm run zi -- replay fixtures/v32/demo-run.json';
+
+const steps = replayData.steps;
+---
+<Base
+  title="ZeroInit: invoice addresses that cost nothing until paid"
+  description="An invoice gets its own NEAR address without any transaction; the first payment creates the account and splits the money. NEAR testnet only, not audited."
+>
+  <aside class="status" aria-label="Project status">
+    <div class="wrap"><strong>NEAR testnet only.</strong> Not audited. tUSDC, the test token, is a mock with no value.</div>
+  </aside>
+
+  <header class="site-head">
+    <div class="wrap bar">
+      <a class="name" href="/">ZeroInit</a>
+      <nav aria-label="Sections">
+        <a href="#how">How it works</a>
+        <a class="nav-opt" href="#details">Details</a>
+        <a href="#replay">Replay</a>
+        <a href="#trust">Trust and limits</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero" aria-labelledby="h1" data-hero>
+      <div class="hero-map" aria-hidden="true">
+        <picture>
+          <source media="(max-width: 47.99rem)" srcset="/assets/hero-poster-mobile.webp" width="390" height="963" />
+          <img class="poster" src="/assets/hero-poster.webp" width="1440" height="774" alt="" decoding="async" fetchpriority="high" />
+        </picture>
+        <canvas></canvas>
+      </div>
+      <canvas class="hero-fx" aria-hidden="true"></canvas>
+      <div class="wrap hero-grid">
+        <div class="hero-copy">
+          <h1 id="h1" class="rv">An invoice gets its own address before it costs anything.</h1>
+          <p class="sub">ZeroInit derives a NEAR address from the invoice terms, with no transaction. The first payment creates the account and splits the money.</p>
+          <p class="actions">
+            <a class="btn btn-primary" href="#how">See how it works</a>
+            <a class="btn btn-ghost" href="#replay">Replay the demo run</a>
+          </p>
+        </div>
+        <aside class="hero-card" aria-label="The demo invoice" data-hc>
+          <div class="hc-head"><span class="mono">INV-1111-V32-A</span><span class="status-chip" data-hc-chip data-s="NONEXISTENT"><i></i><b>NONEXISTENT</b></span></div>
+          <p class="hc-addr mono"><span class="sr-only">{accountShort}</span><span aria-hidden="true" data-hc-addr data-final={accountShort}>{accountShort}</span></p>
+          <dl class="hc-rows">
+            <div><dt>Chain says</dt><dd class="mono" data-hc-chain>UNKNOWN_ACCOUNT</dd></div>
+            <div><dt>Invoice</dt><dd>1 NEAR, 8% tax</dd></div>
+            <div><dt>Transactions</dt><dd class="mono" data-hc-tx>0</dd></div>
+          </dl>
+        </aside>
+      </div>
+    </section>
+
+    <div class="wrap strip-wrap">
+      <dl class="strip">
+        <div><dt>transactions to issue an invoice</dt><dd>0</dd></div>
+        <div><dt>transaction to pay it</dt><dd>1</dd></div>
+        <div><dt>demo split to merchant and tax vault</dt><dd>92 / 8</dd></div>
+        <div><dt>tests pass</dt><dd>218</dd></div>
+      </dl>
+    </div>
+
+    <section class="sec" id="problem" aria-labelledby="problem-h">
+      <div class="wrap">
+        <div class="sec-head">
+          <p class="label">The problem</p>
+          <h2 id="problem-h" class="rv">A payment has to be matched to an invoice.</h2>
+        </div>
+        <div class="two even">
+          <div class="card">
+            <h3>Shared address</h3>
+            <p>Payments to one address are told apart by a memo. If the memo is dropped on the way, the payment matches no invoice.</p>
+            <pre class="mini mono" aria-hidden="true">to:   shared-address.near
+memo: INV-1042   <span class="dim">&lt;- dropped, payment unmatched</span></pre>
+          </div>
+          <div class="card">
+            <h3>ZeroInit</h3>
+            <p>Each invoice has its own address, derived from its terms. A payment to that address is a payment of that invoice.</p>
+            <pre class="mini mono" aria-hidden="true">to:   {accountShort}
+memo: <span class="dim">none needed</span></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="story" id="how" aria-labelledby="how-h" data-story>
+      <div class="wrap story-head">
+        <p class="label">How it works</p>
+        <h2 id="how-h" class="rv">Two invoices, two ways to pay.</h2>
+        <p class="lead">The states shown are the ones recorded in the demo run. The map is only a surface for the dots, and the places mean nothing. Each payment is 25 dots: 23 for the merchant and 2 for the tax vault.</p>
+      </div>
+      <div class="story-driver">
+        <div class="story-stage">
+          <canvas aria-hidden="true"></canvas>
+          <div class="story-shade" aria-hidden="true"></div>
+          <div class="wrap story-hud" aria-hidden="true">
+            <p class="story-chip mono"><span data-story-inv>INV-1111-V32-A</span><span class="status-chip" data-story-chip data-s="NONEXISTENT"><i></i><b>NONEXISTENT</b></span></p>
+            <p class="story-bars"><span></span><span></span><span></span><span></span></p>
+          </div>
+          <div class="wrap story-text">
+            <ol class="story-steps">
+              {BEATS.map((b, i) => (
+                <li class:list={[{ settled: b.settled }]}>
+                  <figure class="story-still">
+                    <picture>
+                      <source media="(max-width: 47.99rem)" srcset={`/assets/story-m${i}.webp`} width="600" height="700" />
+                      <img src={`/assets/story-${i}.webp`} width="1280" height="720" alt="" loading="lazy" decoding="async" />
+                    </picture>
+                  </figure>
+                  <p class="state mono">{b.state}</p>
+                  <h3 class="cap">{b.caption}</h3>
+                  <p class="detail">{b.detail}</p>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" id="details" aria-labelledby="details-h">
+      <div class="wrap">
+        <div class="sec-head">
+          <p class="label">Details</p>
+          <h2 id="details-h" class="rv">What each step does.</h2>
+        </div>
+        <div class="more-list">
+          <details class="more">
+            <summary><span class="m-title">Issue an invoice</span><span class="m-sum">The merchant computes the address on their own machine. No transaction is sent.</span><span class="m-cta">Learn more</span></summary>
+            <div class="more-body">
+              <div class="m-text">
+                <p>The address is <span class="mono">0u</span> followed by the Crockford base32 of a SHA3-256 hash. The hash covers the contract's code hash and the invoice terms. With <span class="mono">--offline</span> the command makes no RPC call.</p>
+                <p>The account has no access keys. Its key list is empty and the terms are part of the address.</p>
+              </div>
+              <div class="m-visual">
+                <div class="code">
+                  <div class="code-head"><span>issue an invoice, offline</span></div>
+<pre><code><span class="p">$</span> npm run zi -- invoice new --id INV-2001 \
+    --merchant example-zi-merchant.testnet \
+    --tax-vault example-zi-taxvault.testnet \
+    --tax-bps 800 --amount 0.1 --expires-in 2h --offline</code></pre>
+                </div>
+                <div class="card">
+                  <p class="label">Terms of INV-1111-V32-A, the demo invoice</p>
+                  <dl class="kv">
+                    <div><dt>merchant</dt><dd class="mono">sm1110-zi3-sweeper.testnet</dd></div>
+                    <div><dt>tax_vault</dt><dd class="mono">sm1110-zi3-taxvault.testnet</dd></div>
+                    <div><dt>tax_bps</dt><dd class="mono">800</dd></div>
+                    <div><dt>amount</dt><dd class="mono">1 NEAR</dd></div>
+                    <div><dt>address</dt><dd class="mono">{account}</dd></div>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <details class="more">
+            <summary><span class="m-title">Pay</span><span class="m-sum">One transaction from the payer installs the contract and calls pay.</span><span class="m-cta">Learn more</span></summary>
+            <div class="more-body">
+              <div class="m-text">
+                <p>The transaction has two actions. The first installs the contract at the address. The second calls <span class="mono">pay</span> with the deposit. The contract sends the tax share to the vault and the rest to the merchant.</p>
+                <p>The payer covers gas and the protocol's account-creation charge. For a v3.2 NEAR payment that measured <span class="mono">0.0075620</span> NEAR.</p>
+              </div>
+              <div class="m-visual">
+                <div class="code">
+                  <div class="code-head"><span>the payment, as recorded</span><span class="mono ok">PAID</span></div>
+<pre><code><span class="k">signer   </span> sm1110-zi3-payer.testnet
+<span class="k">receiver </span> {accountShort}
+<span class="k">actions  </span> UniversalStateInit {'{'}raw{'}'}
+          FunctionCall {'{'}"pay", "{'{}'}", 100 Tgas, deposit = 1 NEAR{'}'}
+<span class="k">tx       </span> 5429mVJRFRoocYM8NoWMgzwJvF5Bm9SV8q1DudCPikTV</code></pre>
+                </div>
+                <div class="card">
+                  <p class="label">Where the 1 NEAR went</p>
+                  <div class="split" role="img" aria-label="92 percent to the merchant, 8 percent to the tax vault"><span style="flex:92"></span><span style="flex:8"></span></div>
+                  <dl class="kv">
+                    <div><dt>0.92 NEAR</dt><dd class="mono">sm1110-zi3-sweeper.testnet <span class="muted">(merchant)</span></dd></div>
+                    <div><dt>0.08 NEAR</dt><dd class="mono">sm1110-zi3-taxvault.testnet <span class="muted">(tax vault)</span></dd></div>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <details class="more">
+            <summary><span class="m-title">Pay from a wallet</span><span class="m-sum">A plain transfer waits in an uninitialized account until someone calls sweep.</span><span class="m-cta">Learn more</span></summary>
+            <div class="more-body">
+              <div class="m-text">
+                <p>Money sent to the address with no call lands in an account that has no code. <span class="mono">sweep</span> installs the contract and settles with the same split. It does not know who sent the money, so <span class="mono">paid_by</span> is null.</p>
+                <p>Token invoices need one more step: the <span class="mono">0u</span> id must be registered on the token first, with a <span class="mono">storage_deposit</span> of 0.00125 NEAR that anyone can send.</p>
+              </div>
+              <div class="m-visual">
+                <div class="card">
+                  <p class="label">Account states</p>
+                  <ol class="states">
+                    <li><span class="mono">NONEXISTENT</span><small>address computed, nothing on chain</small></li>
+                    <li><span class="mono">UNINITIALIZED</span><small>holds money, no code</small></li>
+                    <li class="settled"><span class="mono">INITIALIZED, PAID</span><small>after pay or sweep</small></li>
+                  </ol>
+                </div>
+                <div class="code">
+                  <div class="code-head"><span>the invoice paid by a plain transfer</span></div>
+<pre><code><span class="p">$</span> npm run zi -- status INV-1111-V32-B
+STATE INITIALIZED status=PAID paid_by=null balance=0 storage=399</code></pre>
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <details class="more">
+            <summary><span class="m-title">Verify</span><span class="m-sum">zi verify recomputes the address from the terms and compares it with the chain.</span><span class="m-cta">Learn more</span></summary>
+            <div class="more-body">
+              <div class="m-text">
+                <p>The contract is a global contract published by its hash. It has no owner and no admin call.</p>
+              </div>
+              <div class="m-visual">
+                <div class="code">
+                  <div class="code-head"><span>zi verify INV-1111-V32-A</span></div>
+<pre><code><span class="ok">PASS</span> code-hash-trusted 6YtW5oJ8UtCrzUePQf14zqKMb9G3DUtMynEnZvMCNHJ
+<span class="ok">PASS</span> id-from-terms 0ue8ts6vvgpqqwf2gtqweyv67pk6hjdj8z3hmfhzjmqvmf9qazs62g
+<span class="ok">PASS</span> raw-from-terms
+<span class="ok">PASS</span> code-hash-onchain 6YtW5oJ8UtCrzUePQf14zqKMb9G3DUtMynEnZvMCNHJ
+<span class="ok">PASS</span> terms-onchain
+<span class="ok">PASS</span> no-access-keys
+<span class="p">INFO</span> status=PAID</code></pre>
+                </div>
+                <div class="card flush">
+                  <dl class="facts">
+                    <div><dt>Contract (v3.2)</dt><dd><span class="mono val">{codeHash}</span><button class="copy" type="button" data-copy={codeHash} aria-label="Copy the contract hash" hidden>Copy</button></dd></div>
+                    <div><dt>Demo account</dt><dd><span class="mono val">{account}</span><button class="copy" type="button" data-copy={account} aria-label="Copy the demo invoice account" hidden>Copy</button></dd></div>
+                    <div><dt>Address kind</dt><dd><span class="val">0u…, NEP-655, protocol 88</span></dd></div>
+                    <div><dt>Tests</dt><dd><span class="val">218 pass. The recorded demo replays offline.</span></dd></div>
+                    <div><dt>License</dt><dd><span class="val">MIT</span></dd></div>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" id="replay" aria-labelledby="replay-h">
+      <div class="wrap">
+        <div class="sec-head">
+          <p class="label">Replay</p>
+          <h2 id="replay-h" class="rv">The recorded demo run, check by check.</h2>
+          <p class="lead">These are the checks the CLI makes on <span class="mono">fixtures/v32/demo-run.json</span>. Each value is read from that recording. Nothing here uses a wallet, keys or the network.</p>
+        </div>
+        <div class="replay" data-replay>
+          <ol class="term replay-list" aria-label="Recorded checks, in order">
+            {steps.map((st) => (
+              <li data-state={st.state}>
+                <span class="replay-line"><span class="ok">PASS</span> {st.name} {st.inv}{st.rest ? ' ' : ''}{st.rest ? <span class="rest">{st.rest}</span> : null}</span>
+              </li>
+            ))}
+          </ol>
+          <div class="replay-ctl" hidden>
+            <button type="button" class="btn btn-ghost" data-prev>Previous</button>
+            <button type="button" class="btn btn-ghost" data-next>Next</button>
+            <span class="muted" data-count aria-live="polite"></span>
+          </div>
+          <div class="replay-panels">
+            {steps.map((st, i) => (
+              <div class="rp-panel card" id={`rp-${i}`}>
+                <p class="rp-head"><span class="rp-inv">{st.inv}</span> <span class="chip" data-s={st.state}>{st.state}</span></p>
+                <h3 class="rp-title">{st.title}</h3>
+                <p class="rp-text">{st.text}</p>
+                <dl class="rp-facts">{st.facts.map(([k, v]) => (<div><dt>{k}</dt><dd>{v}</dd></div>))}</dl>
+              </div>
+            ))}
+          </div>
+        </div>
+        <p class="note muted">Transaction lookups need an archival RPC, <span class="mono">https://archival-rpc.testnet.fastnear.com</span>. The default RPC keeps about a day and a half.</p>
+        <div class="run">
+          <p class="label">Run it locally</p>
+          <div class="cmd-card">
+            <code id="cmd">{replayCmd}</code>
+            <button class="copy on-ink" type="button" data-copy={replayCmd} aria-label="Copy the command" hidden>Copy</button>
+          </div>
+          <p class="note muted">
+            {repoUrl
+              ? <a href={repoUrl}>Source on GitHub</a>
+              : <span>The repository is private for now. The link will go here once it is public.</span>}
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" id="trust" aria-labelledby="trust-h">
+      <div class="wrap">
+        <div class="sec-head">
+          <p class="label">Trust and limits</p>
+          <h2 id="trust-h" class="rv">What can be changed, and what was not tested.</h2>
+        </div>
+        <div class="two wide-left">
+          <div class="card">
+            <table class="trust">
+              <thead><tr><th scope="col">Part</th><th scope="col">Who can change it</th></tr></thead>
+              <tbody>
+                <tr><th scope="row">Invoice contract</th><td>No one: no owner, no admin call.</td></tr>
+                <tr><th scope="row">Invoice account</th><td>No one: it has no access keys.</td></tr>
+                <tr><th scope="row">tUSDC mock token</th><td>The operator, with a full-access key. A token invoice trusts whoever controls the token contract.</td></tr>
+                <tr><th scope="row">Deployer accounts</th><td>The operator, with full-access keys.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="card">
+            <ul class="limits">
+              <li>NEAR testnet only. No mainnet use was tried.</li>
+              <li>Not audited. The audit rounds were AI reviews.</li>
+              <li>The v3.2 race fixes other than the <span class="mono">bad_msg</span> path were not run live.</li>
+              <li>The wallet path is a plain transfer from a wallet. No exchange was tested.</li>
+              <li>Token (NEP-141) invoices need the <span class="mono">0u</span> id registered on the token first: one <span class="mono">storage_deposit</span> of 0.00125 NEAR, sent by anyone. “Costs nothing until paid” describes issuing.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <p>ZeroInit. MIT license. Built at the NEAR hackathon, November 2026.</p>
+      <p>NEAR testnet only. Not audited. tUSDC is a mock token.</p>
+    </div>
+  </footer>
+
+  <script>
+    import '../scripts/hero.ts';
+    import '../scripts/hero-fx.ts';
+    import '../scripts/story.ts';
+    import '../scripts/replay.ts';
+    import '../scripts/ui.ts';
+  </script>
+</Base>

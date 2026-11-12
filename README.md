@@ -397,6 +397,7 @@ callback. If one fails (a missing account, an unregistered token receiver), NEAR
 - `invoices/` — `v32/` (current), `v31/`, `v3/`, `v2/`, `v1/` and `examples/INV-0001.json` (the frozen test vector); none contain secrets.
 - `scripts/` — `demo.sh`, `demo-token.sh`, the `record-*.sh` recorders that were run, helpers (`plain-transfer.ts`, `plain-ft-transfer.ts`, `race-v32.ts`, `race-v31.ts`, …) and `judge-offline.sh` (one-command offline check).
 - `docs/` — `HISTORY.md` (v1/v2/v3/v3.1/v3.2 and the older replays), `RUN-ON-TESTNET.md` (the keyed walkthrough), `SPIKES.md` (live tx hashes and measurements), `ARCHITECTURE.md`, `STABLECOIN.md` (the v3 interface spec), `plan/` (the byte-level interfaces and the planning-phase reference implementation).
+- `site/` — the landing page (Astro; Node ≥ 22.23.4): `cd site && npm ci && npm run build`, output in `site/dist/`. Its replay data comes from `fixtures/v32/demo-run.json` (`python3 -I site/scripts/extract-replay.py`).
 
 ## Libraries
 
