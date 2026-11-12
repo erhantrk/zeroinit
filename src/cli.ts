@@ -11,6 +11,8 @@ import { checkNetwork, viewAccount, viewInvoice, setRecordInvoice, recordInvoice
 import { sendActions } from './send.ts';
 import { createInvoiceDoc, loadDoc, saveDoc, checkDoc, assertDocTrusted, assertAccountsUsable, stateInitAction, termsMatchOnchain, docProblem, onchainProblem, randomSalt,
   isV3Doc, docAmountRaw, docAmountDisplay, docToken, docUnit, docDecimals, GRACE_DEFAULT_MS, GRACE_MIN_MS, GRACE_MAX_MS, type InvoiceDoc } from './invoice.ts';
+import { statusLine } from './status.ts';
+import { verifyDoc } from './verify.ts';
 import { runVectors } from './vectors.ts';
 import { replayFixture, fixturePin } from './replay.ts';
 import { parseTxStatus, type ParsedTx } from './outcome.ts';
@@ -99,37 +101,6 @@ function resolveTarget(cfg: Config, target: string): { account: string; doc: Inv
 /** Parse a failure's JSON for a contract panic message. */
 function failureText(p: ParsedTx): string {
   return JSON.stringify(p.failures);
-}
-
-/** NEP-141 balance for a status view: a failed view is reported as unknown, never as zero. */
-async function tokenBalanceOrError(cfg: Config, token: string | null, account: string): Promise<{ raw: bigint | null; error: string | null }> {
-  if (token === null) return { raw: 0n, error: null };
-  try { return { raw: await ftBalanceOf(cfg, token, account), error: null }; } catch (e) { return { raw: null, error: e instanceof Error ? e.message : String(e) }; }
-}
-
-async function statusLine(cfg: Config, doc: InvoiceDoc, label?: string): Promise<{ line: string; obj: any }> {
-  // A status is only shown for a document that is the invoice its own terms derive: a forged file must not borrow another account's PAID state.
-  const pin = pinForVerification(trustedCodeHash(cfg), doc.code_hash);
-  const bad = docProblem(doc, pin, cfg.allowedTokens);
-  if (bad) return { line: `STATE UNVERIFIED ${bad}`, obj: { state: 'UNVERIFIED', reason: bad } };
-  const s = await viewAccount(cfg, doc.account_id, label);
-  const token = docToken(doc);
-  const unit = docUnit(doc);
-  const dec = docDecimals(doc);
-  const bal = await tokenBalanceOrError(cfg, token, doc.account_id);
-  const tokens = bal.raw;
-  const tokenFields = { token_balance_raw: tokens === null ? null : tokens.toString(), ...(bal.error ? { token_balance_error: bal.error } : {}) };
-  const tokensText = tokens === null ? `UNKNOWN (${bal.error})` : `${formatUnits(tokens, dec)} ${unit}`;
-  const parked = tokens === null ? ` tokens=${tokensText}` : tokens > 0n ? ` tokens_parked=${tokensText}` : '';
-  if (s.kind === 'NONEXISTENT') return { line: `STATE NONEXISTENT${parked}`.trim(), obj: { ...s, ...tokenFields } };
-  if (s.kind === 'UNINITIALIZED') return { line: `STATE UNINITIALIZED balance=${formatNear(s.amount)}${parked}`, obj: { ...s, ...tokenFields } };
-  const inv = await viewInvoice(cfg, doc.account_id, label ? label.replace('view_account', 'get_invoice') : undefined);
-  const mismatch = onchainProblem(doc, pin, s.globalContractHash, inv);
-  if (mismatch) return { line: `STATE UNVERIFIED ${mismatch}`, obj: { state: 'UNVERIFIED', reason: mismatch, onchain: s.kind } };
-  const extra = token === null ? ''
-    : ` tokens=${tokensText} owed_merchant=${formatUnits(BigInt(inv.owed_merchant ?? '0'), dec)} owed_tax=${formatUnits(BigInt(inv.owed_tax ?? '0'), dec)} owed_payer=${formatUnits(BigInt(inv.owed_payer ?? '0'), dec)}`;
-  return { line: `STATE INITIALIZED status=${inv.status} paid_by=${inv.paid_by ?? 'null'} balance=${formatNear(s.amount)} storage=${s.storageUsage}${extra}`,
-    obj: { ...s, ...tokenFields, invoice: inv } };
 }
 
 async function main(argv: string[]): Promise<number> {
@@ -232,53 +203,7 @@ async function main(argv: string[]): Promise<number> {
   setRecordInvoice(doc.invoice_id);
 
   if (cmd === 'verify') {
-    const trusted = pinForVerification(trustedCodeHash(cfg), doc.code_hash);   // v1/v2 history docs verify against their own hash (read-only); the rest against the trusted hash
-    const c = checkDoc(doc, trusted, cfg.allowedTokens);
-    const token = docToken(doc);
-    const entry = token ? tokenBySymbol(cfg.allowedTokens, isV3Doc(doc) && doc.asset.kind === 'ft' ? doc.asset.symbol : '') : null;
-    const tokenAllowed = token === null || (entry !== null && entry.accountId === token);
-    const lines = [`${c.codeHashTrusted ? 'PASS' : 'FAIL'} code-hash-trusted ${doc.code_hash}${c.codeHashTrusted ? '' : ` (trusted ${trusted})`}`,
-      `INFO deployment ${c.codeHashTrusted ? deploymentLabel(trusted) : 'none: the invoice uses a code hash that is not trusted'}`,
-      `${c.formatMatchesDeployment ? 'PASS' : 'FAIL'} format-matches-deployment ${doc.format}`,
-      `${c.idFromTerms ? 'PASS' : 'FAIL'} id-from-terms ${c.expectedId}`, `${c.rawFromTerms ? 'PASS' : 'FAIL'} raw-from-terms`,
-      `${c.fieldsConsistent ? 'PASS' : 'FAIL'} doc-fields-from-terms`];
-    if (token !== null) lines.push(`${tokenAllowed ? 'PASS' : 'FAIL'} token-allowed ${docUnit(doc)} ${token}${tokenAllowed ? '' : ' (set ZI_TUSDC_ACCOUNT / use a token on the allow-list)'}`);
-    let ok = c.codeHashTrusted && c.formatMatchesDeployment && c.idFromTerms && c.rawFromTerms && c.fieldsConsistent && tokenAllowed;
-    if (!v.offline) {
-      await checkNetwork(cfg);
-      const s = await viewAccount(cfg, doc.account_id);
-      if (s.kind === 'INITIALIZED') {
-        const codeOk = s.globalContractHash === trusted;   // the pinned hash, never the doc's own
-        const inv = await viewInvoice(cfg, doc.account_id);
-        const termsOk = termsMatchOnchain(doc, inv);
-        const keys = await rpcCall(cfg, 'query', { request_type: 'view_access_key_list', finality: 'final', account_id: doc.account_id });
-        const noKeys = !keys.error && Array.isArray(keys.result?.keys) && keys.result.keys.length === 0;
-        lines.push(`${codeOk ? 'PASS' : 'FAIL'} code-hash-onchain ${s.globalContractHash}`, `${termsOk ? 'PASS' : 'FAIL'} terms-onchain`,
-          `${noKeys ? 'PASS' : 'FAIL'} no-access-keys`, `INFO status=${inv.status}`);
-        if (token !== null && entry) {
-          try {
-            const meta = await ftMetadata(cfg, token);
-            const metaOk = meta.symbol === entry.symbol && meta.decimals === entry.decimals;
-            lines.push(`${metaOk ? 'PASS' : 'FAIL'} token-metadata-onchain ${meta.symbol} ${meta.decimals}`);
-            ok = ok && metaOk;
-          } catch (e) {
-            lines.push(`FAIL token-metadata-onchain ${e instanceof Error ? e.message : String(e)}`);
-            ok = false;
-          }
-        }
-        if (token !== null && entry) {
-          const bal = await ftBalanceOf(cfg, token, doc.account_id);
-          lines.push(`INFO token-balance ${formatUnits(bal, entry.decimals)} ${entry.symbol}`);
-        }
-        ok = ok && codeOk && termsOk && noKeys;
-      } else {
-        lines.push(`INFO state=${s.kind}`);
-        if (token !== null && entry) {
-          const bal = await ftBalanceOf(cfg, token, doc.account_id);
-          lines.push(`INFO token-balance ${formatUnits(bal, entry.decimals)} ${entry.symbol}`);
-        }
-      }
-    }
+    const { ok, lines } = await verifyDoc(cfg, doc, !!v.offline);
     out(json, { ok, lines }, lines);
     return ok ? 0 : 1;
   }

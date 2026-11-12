@@ -23,6 +23,13 @@ Every invoice gets its own NEAR address, and issuing it needs no transaction.<br
 
 **Every invoice gets its own NEAR address, and issuing it needs no transaction.** The payer's one transaction creates the account, pays the merchant and sets the tax aside (92/8 in the demo). Nobody ever holds a key to that account.
 
+**Why it is new:** the usual way to give each invoice (or NFT, or job) its own NEAR account is to create that account
+up front, which costs a transaction and a storage deposit per item. ZeroInit derives the address from the invoice
+terms with NEAR's deterministic account ids (protocol 88), so **issuing is free and sends nothing**; the account only
+comes into existence when someone pays. The contract behind every invoice is a reproducible build published as a
+global contract (code hash `BQLSk5ca…`), and no one holds a key to it or to any invoice account. AI agents can issue
+and check invoices through the [MCP server](mcp/README.md).
+
 NEAR HACKATHON 2026 · Tracks (proposed, confirmed at submission): **Open Innovation** (primary), **Real-World Money** · Testnet only, mock token only, not audited, written with AI help (["AI use disclosure"](#ai-use-disclosure)).
 Also by the same submitter: [ProvenExit](https://github.com/erhantrk/provenexit) (hackathon rule Q-015). Site: <https://zeroinit.vercel.app>.
 
@@ -37,13 +44,15 @@ No keys, no network after install (`npm ci` needs the npm registry once; Node 22
 
 ```bash
 npm ci --include=dev
-npm test                                              # 226 tests, all pass
+npm test                                              # 242 tests, all pass
 npm run zi -- replay fixtures/v32r/demo-run.json       # a recorded live testnet run: every line PASS, exit 0
 ```
 
 You should see `PASS split-merchant INV-1111-V32R-A 0.92` and `PASS split-vault INV-1111-V32R-A 0.08`. The whole offline check in one command: `bash scripts/judge-offline.sh` (last line `JUDGE-OFFLINE: ALL PASS`).
 
-- **226** offline tests pass, plus **94** Rust unit tests on the contract.
+**For AI agents:** an MCP server in [`mcp/`](mcp/README.md) (stdio, one bundled file) lets an agent issue invoices, read their live testnet status and verify them; it is read-only, never signs, and issuing sends no transaction.
+
+- **242** offline tests pass, plus **94** Rust unit tests on the contract.
 - **1** transaction creates the invoice account, pays and splits the money.
 - **0** access keys on an invoice account (`zi verify` prints `PASS no-access-keys`).
 - **0.0075612 NEAR**: measured cost of that one transaction to the payer on the deployed contract (v3.2r; gas plus account creation).
@@ -64,12 +73,12 @@ Every command below was run in this checkout, with no `.env` (`npm ci --include=
    `near-api-js` 7.4.0 for one encoder-parity test. The flag matters: with `NODE_ENV=production` a plain `npm ci`
    skips devDependencies and the parity test cannot import `near-api-js`.
 
-2. `npm test` → 226 tests, all pass (byte vectors from nearcore 2.14 and the frozen examples, units, deployments, `/1` and `/2` documents, encoder parity with near-api-js 7.4.0,
+2. `npm test` → 242 tests, all pass (byte vectors from nearcore 2.14 and the frozen examples, units, deployments, `/1` and `/2` documents, encoder parity with near-api-js 7.4.0,
    outcome/replay/CLI/dashboard tests, the recorded fixtures of every version, each with tamper tests):
 
    ```
-   # tests 226
-   # pass 226
+   # tests 242
+   # pass 242
    # fail 0
    # skipped 0
    ```
