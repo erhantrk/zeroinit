@@ -2,7 +2,7 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/img/logo-dark.png">
-  <img alt="ZeroInit" src="docs/img/logo-light.png" width="344">
+  <img alt="ZeroInit" src="docs/img/logo-light.png" width="320">
 </picture>
 
 ### Invoice addresses that cost nothing until they are paid.
