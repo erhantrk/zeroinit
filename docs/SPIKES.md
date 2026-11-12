@@ -415,7 +415,7 @@ final well before that and the UI refresh is 3 s.
 
 ## T19 buffer pass (day-3 review)
 
-Supersedes commit `ea3f9d4` ("T19: buffer pass, no failures found"). T19 has no dependencies, so the scheduler
+Supersedes commit `37131e8` ("T19: buffer pass, no failures found"). T19 has no dependencies, so the scheduler
 started it on day 0, before T06–T18 had produced anything: there were no fixtures, README, demo script or
 dashboard to break, so "no failures found" was vacuous. The real buffer work is in the `fix: day0 review`,
 `fix: day1 review`, `fix: day2 review` and this `fix: day3 review` commits. This section is the actual buffer
@@ -472,7 +472,7 @@ Claude sessions or reviewed by a human, which did not match the run record or th
 
 ## Contract v2 build (audit contract-1/2/3)
 
-- wasm: `contract-v2/res/zeroinit_invoice.wasm` (moved from `contract/res/` by the v3 rename; v1 is in git history, `git show e5581e8:contract/res/zeroinit_invoice.wasm`)
+- wasm: `contract-v2/res/zeroinit_invoice.wasm` (moved from `contract/res/` by the v3 rename; v1 is in git history, `git show bd1bf1b:contract/res/zeroinit_invoice.wasm`)
 - size: 82,942 bytes
 - sha256 hex: `3562e978e6924a2c538e9906fc42d15a652947891f18f7816e3c7807d20f622f`
 - code hash (base58): `4bQ61AgHWWmYXp5c3fwj9NJxS79D9R3cGZAZxHyx9zEA`
