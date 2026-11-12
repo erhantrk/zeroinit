@@ -1,4 +1,25 @@
-# ZeroInit: invoice addresses that cost nothing until they are paid
+<div align="center">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/logo-dark.png">
+  <img alt="ZeroInit" src="docs/img/logo-light.png" width="344">
+</picture>
+
+### Invoice addresses that cost nothing until they are paid.
+
+Every invoice gets its own NEAR address, and issuing it needs no transaction.<br>
+**[zeroinit.vercel.app](https://zeroinit.vercel.app)** · NEAR **testnet only** · mock token only · MIT
+
+[![live](https://img.shields.io/badge/live-zeroinit.vercel.app-111110?style=flat-square)](https://zeroinit.vercel.app)
+[![network](https://img.shields.io/badge/network-NEAR%20testnet%20only-555?style=flat-square)](#limits-honest)
+[![tests](https://github.com/erhantrk/zeroinit/actions/workflows/tests.yml/badge.svg)](https://github.com/erhantrk/zeroinit/actions/workflows/tests.yml)
+[![license](https://img.shields.io/badge/license-MIT-555?style=flat-square)](LICENSE)
+
+[Try it](#try-it-offline-in-2-minutes) · [What NEAR does](#what-near-does-here) · [Judge path](#offline-judge-path-do-x-see-y) · [Live claims](#check-the-live-testnet-claims-read-only-no-keys) · [How it works](#how-it-works) · [Limits](#limits-honest) · [AI use](#ai-use-disclosure)
+
+</div>
+
+---
 
 **Every invoice gets its own NEAR address, and issuing it needs no transaction.** The payer's one transaction creates the account, pays the merchant and sets the tax aside (92/8 in the demo). Nobody ever holds a key to that account.
 
