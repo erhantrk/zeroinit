@@ -1,12 +1,12 @@
 # Run ZeroInit yourself on testnet
 
-Moved out of the README to keep it short. Everything here signs real testnet transactions with **your** accounts and keys (testnet NEAR only; nothing here was run by the audit-fix round).
-Offline checks that need no keys are in the README ("Try it offline in 2 minutes").
+Everything here signs real testnet transactions with **your** accounts and keys (testnet NEAR only).
+The checks that need no keys are in [VERIFY.md](VERIFY.md).
 
 ## Run it yourself on testnet
 
 This walkthrough was recorded on **v3** (`fixtures/v3/`, NEAR then tUSDC); the same commands run on the current **v3.2r** deployment,
-whose re-recorded runs are in `fixtures/v32/` (v3.1: `fixtures/v31/`). The recorded runs in `fixtures/v3/` were made with the project's own CLI and the operator's
+whose re-recorded runs are in `fixtures/v32r/` (v3.2: `fixtures/v32/`, v3.1: `fixtures/v31/`). The recorded runs in `fixtures/v3/` were made with the project's own CLI and the operator's
 accounts, exactly the commands below; the account-creation commands in step 1 are the near-cli-rs form the operator used for the earlier accounts and are not part of the
 recorded v3 runs.
 
@@ -60,7 +60,7 @@ creation uses near-cli-rs. The steps below assume you are in the repo root.
    STATE NONEXISTENT
    ```
 
-5. Pay it in one transaction (signs with `ZI_PAYER_KEY`; the expected shape is from our recorded run, the tx hash
+5. Pay it in one transaction (signs with `ZI_PAYER_KEY`; the expected shape is from the recorded run, the tx hash
    and account id are yours):
 
    ```bash
@@ -81,7 +81,7 @@ creation uses near-cli-rs. The steps below assume you are in the repo root.
 
    ```bash
    npm run zi -- verify INV-RUN-1
-   # PASS code-hash-trusted / INFO deployment v3.2r (current… / PASS format-matches-deployment / PASS id-from-terms 0u… / PASS raw-from-terms / PASS doc-fields-from-terms / PASS code-hash-onchain 6YtW5oJ8… / PASS terms-onchain /
+   # PASS code-hash-trusted / INFO deployment v3.2r (current… / PASS format-matches-deployment / PASS id-from-terms 0u… / PASS raw-from-terms / PASS doc-fields-from-terms / PASS code-hash-onchain BQLSk5ca… / PASS terms-onchain /
    # PASS no-access-keys / INFO status=PAID
 
    npm run zi -- invoice new --id INV-RUN-2 --merchant example-zi-merchant.testnet \
@@ -97,7 +97,7 @@ creation uses near-cli-rs. The steps below assume you are in the repo root.
    ```
 
    On a real TTY, `near tokens example-zi-payer.testnet send-near "$ACC" '0.1 NEAR' network-config testnet
-   sign-with-legacy-keychain send` sends the same plain transfer. In our headless runs near-cli-rs printed
+   sign-with-legacy-keychain send` sends the same plain transfer. In the recorded headless runs near-cli-rs printed
    `does not exist on testnet` and then needed an interactive confirmation, so the scripts use
    `scripts/plain-transfer.ts` (same single `Transfer` action, signed with the payer key).
 
@@ -140,4 +140,4 @@ creation uses near-cli-rs. The steps below assume you are in the repo root.
 
    ![ZeroInit dashboard on the v2 build (2026-11-10): INV-SHOT-1 paid on testnet](img/dashboard-pay.png)
 
-   *This screenshot is from the **v2** dashboard. The v3.2 dashboard (token selector, `SETTLING`/`REFUNDED` badges, Refund payer) has not been opened in a browser; its invoice file `INV-SHOT-1.json` is not in the repo (`invoices/` root is gitignored), so `zi status INV-SHOT-1` cannot be run from a clone.*
+   *This screenshot is from the **v2** dashboard. The current dashboard (token selector, `SETTLING`/`REFUNDED` badges, Refund payer) has not been opened in a browser; its invoice file `INV-SHOT-1.json` is not in the repo (`invoices/` root is gitignored), so `zi status INV-SHOT-1` cannot be run from a clone.*

@@ -1,7 +1,7 @@
 # ZeroInit history: v1, v2, v3, v3.1, v3.2 and v3.2r
 
-This file holds what used to be the long middle of the README: what each contract version fixed, the live evidence, and how to replay the older
-recordings. The README keeps only what a judge needs for the **deployed v3.2r** contract. Everything here is recorded history on testnet:
+What each contract version fixed, the live evidence, and how to replay the older recordings. The current contract, **v3.2r**, is checked in
+[VERIFY.md](VERIFY.md). Everything here is recorded history on testnet:
 v1, v2, v3, v3.1 and v3.2 stay deployed, keep replaying under their own code hashes, and are never used by `zi pay` / `zi sweep` / `zi init` (the client refuses them).
 
 Sections: [Replaying the earlier recordings](#replaying-the-earlier-recordings) · [v1 → v2](#v1--v2) · [v2 → v3](#v2--v3) · [v3 → v3.1](#v3--v31) · [v3.1 → v3.2](#v31--v32) · [v3.2 → v3.2r](#v32--v32r) ·
@@ -14,7 +14,7 @@ offline (`zi replay fixtures/…`), which never needs a network.
 ## Replaying the earlier recordings
 
    The v3.2r recordings in `fixtures/v32r/` (`demo-run.json`, `token-demo-run.json`, `tokens.json`, `race.json`) replay under the current hash. The v3.2 recordings in `fixtures/v32/` (same file names; history since v3.2r; their first line says `INFO deployment v3.2 (history, frozen: …)`) replay under their own hash. The v3.1 recordings in `fixtures/v31/` (history since v3.2; their first line says `INFO deployment v3.1 (history, frozen: …)`) other than the demos replay the same way: `tokens.json` (init, then one `ft_transfer_call` that settles, then a second one that is returned) and `late.json` (a missing
-   merchant, then the L3 sweep after the account was created). The v3 recordings, made earlier the same day on the previous contract, replay under their own hash (history):
+   merchant, then the sweep after the account was created). The v3 recordings, made earlier the same day on the previous contract, replay under their own hash (history):
    `near.json` (pay, plain transfer + sweep, underpay, expired, double pay), `fixes.json` (a missing merchant gives `SETTLING` and no `invoice_paid`; `refund_payer`; a parked part is
    taxed), `tokens.json` (tUSDC plain path, one-step pay, overpay, underpay, expiry, token `refund_payer`, wrong asset), `failures.json` (an unregistered receiver that is retried to
    success, a wrong token, a wrong msg, little gas, a call to a never-initialized id), `demo-run.json`, `token-demo-run.json` and `late-resweep.json`, each under `fixtures/v3/`; their
@@ -46,7 +46,7 @@ offline (`zi replay fixtures/…`), which never needs a network.
    PASS sweep-underpaid-reverted REF-SWEEPLOW-V2 2pw7QeQG8JFvzZNQ1hKGwXTwWohnsiE6Rm8Fp8bRoXJR
    ```
 
-- `npm run zi -- replay fixtures/v2/audit-scenarios.json` → the three audit findings re-run live on v2, plus the AUD2-V2 re-sweep, all `PASS`:
+- `npm run zi -- replay fixtures/v2/audit-scenarios.json` → the three audit findings re-run live on v2, plus the second sweep of `AUD2-V2`, all `PASS`:
 
    ```
    PASS before-parked-account AUD1-V2 0.1
@@ -80,10 +80,11 @@ the same terms give a different address under v2 (the v2 invoices are new, `-V2`
 
 | | v1 limit (audit) | v2 fix | Live evidence on v2 (replay offline: `fixtures/v2/audit-scenarios.json`) |
 |---|---|---|---|
-| **contract-1** (medium) | A payer's plain transfer is parked before expiry; after `expires_at_ms` anyone sends the PAY shape with a 0 deposit, `pay()` sets `EXPIRED`, and the later `sweep()` forwards everything to the merchant as `EXTRA_SWEPT`: the tax vault gets 0 and the record shows `paid_amount 0`. | `sweep()` treats `EXPIRED` with `paid_amount == 0` like `OPEN`: `avail ≥ amount` settles 92/8 (`PAID`, `late: true`); less than `amount` is released pro rata (`tax_bps` to the vault). The merchant never receives the tax share of funds that arrived before a payment. | `AUD1-V2`: plain transfer `5CuBjV7tkVt5U6kCrmvjikvgKKcwdKwsqVED2Wyy7arH`, zero-deposit pay after expiry `678rsqwkrqP6af9EKywJqJzYPKyU9oaFqd9YmRDmjsqm` (`REFUNDED_EXPIRED`, the 0.1 NEAR stays parked), sweep `8WQr2GUmH5ojoB1zniD2G4Q6V7PiRk2zjLUyYLpB4GNg` → `PAID`, 0.092 to the merchant and **0.008 to the tax vault**, record `tax_amount` 0.008. |
-| **contract-3** (low) | `pay()` looks only at the attached deposit: a payer who first sent a plain transfer and then paid is charged twice, and the first amount reaches the merchant untaxed. | `pay()` on an `OPEN`, unexpired invoice whose free balance minus the deposit already covers `amount` settles the parked funds like `sweep()` and refunds the whole deposit (`payment_refunded`, reason `already_funded`). | `AUD3-V2`: plain transfer `4Eon125bA7ujoLgku6DYoQ6XjgrvMd1aVq4hZGfkwysK`, then pay `3YPLdAp58fc8Fz6kTinRpQfXyT28ExmVY3NGXjL3p4WX` → `PAID`, 0.1 NEAR back to the payer, one 92/8 split (0.092 / 0.008), 0 left on the invoice. |
-| **contract-2** (low) | A failed merchant/tax transfer (a valid id of a missing account) bounces to the invoice account while the record already says PAID; a bounced tax share later went to the merchant. | Merchant and tax transfers carry an `on_transfer` callback: a failure emits `transfer_failed`, the tax share is tracked as owed (`OWED_TAX`, outside the frozen state; view `get_owed_tax()`), and a later `sweep()` re-sends it to the tax vault (`tax_resent`, `TAX_RESENT`) and never to the merchant. | `AUD2-V2` (tax vault `unregistered.sm1110-zi-taxvault.testnet`, a nonexistent subaccount that only our own tax-vault account could ever create): pay `ARgzUkMKTZE46DkHVrjjHMqEQUWNMRqJ4QvTT1JaRYeg` → `PAID` + `transfer_failed` (role tax, 0.008) and 0.008 back on the invoice; sweep `7z45ySFYduzwEDAQVneYZHHyjyV9gkGYHQqTe2szgRqj` → `TAX_RESENT`: `tax_resent` 0.008 to the vault, no `extra_swept` to the merchant. This retry bounced again because the vault did not exist. **Later (2026-11-10)** the vault account was created by its parent (`unregistered.sm1110-zi-taxvault.testnet`, tx `FWBnYH6K5J2YzB7aLUNrzT8DNjRTeoqeJvuPaPFhot6x`) and `AUD2-V2` was swept again: tx `HECqnmtEyo7nK7stnh9VoxPHLsmTJyJY3qX3ATUtpife` → `TAX_RESENT`, `tax_resent` 0.008 to the vault, no failed receipt, the invoice account back at 0 NEAR (appended to `fixtures/v2/audit-scenarios.json`, pinned by `test/audit-scenarios.test.ts`). |
+| **Tax skipped after expiry** (medium) | A payer's plain transfer is parked before expiry; after `expires_at_ms` anyone sends the PAY shape with a 0 deposit, `pay()` sets `EXPIRED`, and the later `sweep()` forwards everything to the merchant as `EXTRA_SWEPT`: the tax vault gets 0 and the record shows `paid_amount 0`. | `sweep()` treats `EXPIRED` with `paid_amount == 0` like `OPEN`: `avail ≥ amount` settles 92/8 (`PAID`, `late: true`); less than `amount` is released pro rata (`tax_bps` to the vault). The merchant never receives the tax share of funds that arrived before a payment. | `AUD1-V2`: plain transfer `5CuBjV7tkVt5U6kCrmvjikvgKKcwdKwsqVED2Wyy7arH`, zero-deposit pay after expiry `678rsqwkrqP6af9EKywJqJzYPKyU9oaFqd9YmRDmjsqm` (`REFUNDED_EXPIRED`, the 0.1 NEAR stays parked), sweep `8WQr2GUmH5ojoB1zniD2G4Q6V7PiRk2zjLUyYLpB4GNg` → `PAID`, 0.092 to the merchant and **0.008 to the tax vault**, record `tax_amount` 0.008. |
+| **Charged twice after a plain transfer** (low) | `pay()` looks only at the attached deposit: a payer who first sent a plain transfer and then paid is charged twice, and the first amount reaches the merchant untaxed. | `pay()` on an `OPEN`, unexpired invoice whose free balance minus the deposit already covers `amount` settles the parked funds like `sweep()` and refunds the whole deposit (`payment_refunded`, reason `already_funded`). | `AUD3-V2`: plain transfer `4Eon125bA7ujoLgku6DYoQ6XjgrvMd1aVq4hZGfkwysK`, then pay `3YPLdAp58fc8Fz6kTinRpQfXyT28ExmVY3NGXjL3p4WX` → `PAID`, 0.1 NEAR back to the payer, one 92/8 split (0.092 / 0.008), 0 left on the invoice. |
+| **Bounced tax share reaches the merchant** (low) | A failed merchant/tax transfer (a valid id of a missing account) bounces to the invoice account while the record already says PAID; a bounced tax share later went to the merchant. | Merchant and tax transfers carry an `on_transfer` callback: a failure emits `transfer_failed`, the tax share is tracked as owed (`OWED_TAX`, outside the frozen state; view `get_owed_tax()`), and a later `sweep()` re-sends it to the tax vault (`tax_resent`, `TAX_RESENT`) and never to the merchant. | `AUD2-V2` (tax vault `unregistered.sm1110-zi-taxvault.testnet`, a nonexistent subaccount that only the project's own tax-vault account could ever create): pay `ARgzUkMKTZE46DkHVrjjHMqEQUWNMRqJ4QvTT1JaRYeg` → `PAID` + `transfer_failed` (role tax, 0.008) and 0.008 back on the invoice; sweep `7z45ySFYduzwEDAQVneYZHHyjyV9gkGYHQqTe2szgRqj` → `TAX_RESENT`: `tax_resent` 0.008 to the vault, no `extra_swept` to the merchant. This retry bounced again because the vault did not exist. **Later (2026-11-10)** the vault account was created by its parent (`unregistered.sm1110-zi-taxvault.testnet`, tx `FWBnYH6K5J2YzB7aLUNrzT8DNjRTeoqeJvuPaPFhot6x`) and `AUD2-V2` was swept again: tx `HECqnmtEyo7nK7stnh9VoxPHLsmTJyJY3qX3ATUtpife` → `TAX_RESENT`, `tax_resent` 0.008 to the vault, no failed receipt, the invoice account back at 0 NEAR (appended to `fixtures/v2/audit-scenarios.json`, pinned by `test/audit-scenarios.test.ts`). |
 
+The client's deployment labels and some test names use the audit's numbering: `contract-1` is the tax skipped after expiry, `contract-2` the bounced tax share, `contract-3` the double charge (so replay output prints `fixes contract-1/2/3`).
 The v1 behaviour above comes from the audit and the v1 code; v1 invoices were not re-run live (they stay as the recorded
 history). The six `audit_contract_*` unit tests are in `contract-v2/src/lib.rs` (`npm run contract:test:v2`: 14 tests, all pass); `contract/src/lib.rs` is the later v3.x source and has none of them. Each one replays an audit scenario step by step;
 the v1 behaviour they guard against is what the audit traced in the v1 code (`git show 14fb120:contract/src/lib.rs`)
@@ -100,13 +101,13 @@ checking that both accounts exist. v2 costs a little more gas: the pay tx burns 
 for v1 (both from the recorded demo runs, 15.5 vs 11.5 Tgas over all receipts), and storage after a normal `pay()` is
 358 B (v1: 352 B), 429 B while a tax share is owed, all below the 770 B zero-balance limit.
 
-How the client handles the five deployments: `src/config.ts` keeps a list of known deployments — **v3.2** is the trusted
-build (labelled "current, deployed on testnet"; `ZI_CODE_HASH` overrides it), **v3.1**, **v3**, **v2** and **v1** are historical. They are
-accepted **only to verify recorded history**: `zi verify`, `zi receipt` and `zi replay` check a v1/v2/v3/v3.1 invoice or fixture
+How the client handles the deployments: `src/config.ts` keeps a list of known deployments — **v3.2r** is the trusted
+build (labelled "current, deployed on testnet"; `ZI_CODE_HASH` overrides it), **v3.2**, **v3.1**, **v3**, **v2** and **v1** are historical. They are
+accepted **only to verify recorded history**: `zi verify`, `zi receipt` and `zi replay` check an older invoice or fixture
 against its own hash, and `zi verify` prints which deployment an invoice uses; `pay`, `sweep` and `init` refuse
 a historical or foreign invoice. A foreign hash is never accepted. The v1 mitigation in `zi pay` (refuse to pay when a
-plain transfer already parked funds, `--allow-parked` overrides) stays for any hash that is not known to fix contract-3,
-and is off for v2, v3, v3.1 and v3.2. To operate a v3 (or v3.1) invoice that is still owed money (the L3 sweep of `LATE-V3`), pin its hash on purpose: `ZI_CODE_HASH=<v3 hash> zi sweep LATE-V3`.
+plain transfer already parked funds, `--allow-parked` overrides) stays for any hash that is not known to fix the charged-twice finding,
+and is off for v2 and later. To operate a v3 (or v3.1) invoice that is still owed money (the late-merchant sweep of `LATE-V3`), pin its hash on purpose: `ZI_CODE_HASH=<v3 hash> zi sweep LATE-V3`.
 
 ## v2 → v3
 
@@ -120,7 +121,7 @@ nothing is migrated. `docs/STABLECOIN.md` is the interface spec ("Live results" 
 | v2 residual | v3 mechanism | Live evidence |
 |---|---|---|
 | `invoice_paid` is emitted before the transfers run | `pay`/`sweep` emit nothing; the private `on_settled` checks every payout and is the only emitter of `invoice_paid`; `SETTLING` in between | `fixes.json` `LATE-V3`, merchant `late.sm1110-zi3-merchant.testnet` does not exist: pay `Gp1zyoBYjd2T9NKUU8z68hQqCanFt7Agv3TWzjuTMXJ1` → `PAYOUT_PENDING`, `transfer_failed`, status `SETTLING`, no `invoice_paid`. Every settled payment's `invoice_paid` sits in an `on_settled` receipt (`invoice-paid-after-callback`) |
-| a missing merchant strands its share | `owed_merchant` (and `owed_tax`) record a failed payout; `sweep` retries it to that recipient only; after `grace_ms`, `refund_payer` returns the undelivered shares to `paid_by` and nobody else | `REFUND-V3` (merchant never created, grace 60 s): `refund_payer` at once fails `NOT_YET` (`B7CN44eo…`), after the window `EKXYxx7R…` → `REFUNDED`, 0.092 back to the payer. Tokens: `TOK-V3-G` (unregistered merchant) → `refund_payer` `5bPgAQZc…` → 0.92 tUSDC back. Retry to success: `UNREG-V3` (merchant not registered on tUSDC): pay `E7wFzkiE…` fails the merchant share, after `zi token register` the sweep `8bPrFWhh…` re-sends exactly 0.92 (`owed_resent`) and `invoice_paid` with `retried: true`. (The NEAR version of this retry, L3, was not run in that first round; it was run afterwards, see "v3 → v3.1".) |
+| a missing merchant strands its share | `owed_merchant` (and `owed_tax`) record a failed payout; `sweep` retries it to that recipient only; after `grace_ms`, `refund_payer` returns the undelivered shares to `paid_by` and nobody else | `REFUND-V3` (merchant never created, grace 60 s): `refund_payer` at once fails `NOT_YET` (`B7CN44eo…`), after the window `EKXYxx7R…` → `REFUNDED`, 0.092 back to the payer. Tokens: `TOK-V3-G` (unregistered merchant) → `refund_payer` `5bPgAQZc…` → 0.92 tUSDC back. Retry to success: `UNREG-V3` (merchant not registered on tUSDC): pay `E7wFzkiE…` fails the merchant share, after `zi token register` the sweep `8bPrFWhh…` re-sends exactly 0.92 (`owed_resent`) and `invoice_paid` with `retried: true`. (The NEAR version of this retry was not run in that first round; it was run afterwards, see "v3 → v3.1".) |
 | a partially parked transfer followed by a full `pay` reaches the merchant untaxed | every merchant-side amount goes through `split_of`: overpayments, extras and the pro-rata release are taxed too | `TAX-V3`: plain 0.05 `C1brBZRj…`, pay 0.1 `99naQTxX…` (0.092 / 0.008), sweep `EMaHjcPp…` splits the parked 0.05 as 0.046 / 0.004: the vault got 0.012 in total. `TOK-V3-I`: expired underpay released 0.46 / 0.04 tUSDC |
 | extra funds arriving while a tax transfer is in flight | a 5-minute payout lock (`busy_until_ms`): a second sweep panics `PAYOUT_IN_FLIGHT`, a pay refunds `REFUNDED_BUSY`; a stale lock is taken over | one run of two simultaneous token sweeps of `CONC-V3` (not a fixture): `Hkxwhtku…` paid, `D8rvD86f…` panicked `PAYOUT_IN_FLIGHT`. One run only; the Rust tests cover the rest (`sweep_while_busy_panics_in_flight`, `no_double_tax_during_flight`) |
 
@@ -148,7 +149,7 @@ is now documented.
 **Measured** (single runs; `docs/SPIKES.md` has the table): storage 393 to 472 B (limit 770 B), 0.00756 NEAR burnt for a NEAR `pay` that creates the account, 2 to 22 Tgas per
 transaction, 0.00125 NEAR per token registration.
 
-**Not done in that round.** L3 and S-F4 (both run later, see "v3 → v3.1"), a reproducible wasm build, a browser walk-through of the dashboard, wallet checks, an audit,
+**Not done in that round.** The NEAR late-merchant retry and the state-init deposit check (both run later, see "v3 → v3.1"), a reproducible wasm build, a browser walk-through of the dashboard, wallet checks, an audit,
 mainnet. Tests at the time of the v3 round: 64 Rust tests in `contract/`, 14 in `contract-v2/`, about 150 JavaScript tests (see the README for the current counts).
 
 **v3 limits that stay.** One token per invoice, `0u` only for tokens (`0s` is untested), testnet only, mock tUSDC; a NEAR plain transfer to a token invoice and a plain `ft_transfer`
@@ -160,10 +161,10 @@ partially parked transfer followed by a full `pay` still charges the payer twice
 
 Contract **v3.1** is a new wasm and a new code hash (`2prMzXHZVWdeHfmdqqxzb5ahLy2pWBWZjuE25EDJDaYX`, 163,771 bytes, sha256 `1b1dcc75…e278`, built from commit `d1c185a`), deployed by the
 operator as another global contract (tx `52dRw7RcBom9EbUJ6hCExDF5esWjsHPh5e1sUa87XyvB`, burn about 16.38 NEAR, from the deployer's balances before and after). The state layout and the interface did not
-change; the one difference is the final-review finding **F1**. The `invoice_paid` and payout rules are the v3 ones. v3 (`Ut7EQhLD…reWa`) stays on testnet as recorded history;
+change; the one difference is the fix for the **token-sweep race** found in the final review. The `invoice_paid` and payout rules are the v3 ones. v3 (`Ut7EQhLD…reWa`) stays on testnet as recorded history;
 because the code hash is part of the invoice address, the same terms give a different address under v3.1 (new ids end in `-V31`). Nothing is migrated.
 
-**F1 (the bug).** In v3 a token `sweep` reads `ft_balance_of(self)` in a callback. If an `ft_transfer_call` credit is already on the invoice but its `ft_on_transfer` has not run yet,
+**The token-sweep race (the bug).** In v3 a token `sweep` reads `ft_balance_of(self)` in a callback. If an `ft_transfer_call` credit is already on the invoice but its `ft_on_transfer` has not run yet,
 the balance includes that credit. `ft_on_transfer` then rejects it as `busy` (the sweep holds the payout lock) and the token returns it, so the sweep had planned payouts with
 tokens the invoice no longer held: the invoice went to `SETTLING` with `paid_by = None`, both payouts failed and were recorded as owed with nothing behind them, a retry was rejected
 `not_open` and `refund_payer` panicked `NO_PAYER`. `sweep` is permissionless, so anyone could trigger it. **The fix:** `sweep` hands the lock value it set to `on_token_balance`;
@@ -180,15 +181,15 @@ proof that the race can never happen; the Rust test covers the logic. The replay
 
 **Re-recorded on v3.1** (all with the operator's `sm1110-zi3-*` accounts; transactions in `docs/SPIKES.md` "Contract v3.1 live"): the NEAR demo (`INV-1111-V31-A/B/C`: pay, plain transfer +
 sweep, underpay), the tUSDC demo (`TOK-1111-V31-A`: plain `ft_transfer`, then a sweep by anyone), the one-step path (`TOK-V31-B`: `zi init`, one `ft_transfer_call` settles, a second is
-returned `not_open`), the race (`RACE-V31-4`) and L3.
+returned `not_open`), the race (`RACE-V31-4`) and the late-merchant run.
 
-**L3 (a missing merchant is paid once it exists), now run.** `late.sm1110-zi3-merchant.testnet` did not exist. `LATE-V31` (v3.1): pay `8FS68syB7ETYjMEXzRHRrePhyxcMEPnSFS5K1Nzo5jTC` →
+**A missing merchant is paid once it exists, now run.** `late.sm1110-zi3-merchant.testnet` did not exist. `LATE-V31` (v3.1): pay `8FS68syB7ETYjMEXzRHRrePhyxcMEPnSFS5K1Nzo5jTC` →
 `PAYOUT_PENDING`, `transfer_failed` for the merchant, status `SETTLING`, no `invoice_paid`, 0.092 NEAR kept on the invoice. The parent `sm1110-zi3-merchant.testnet` then created the account
 with its own key (`scripts/create-late-merchant.ts`, tx `6eX2vJwSSZ1n8wB7VtzUvzfADXPZhseik4uupNGpPq6v`), and `zi sweep LATE-V31` (`4nXzCkeCZxyvW5rN3kx55jG39RDj8VqSfyfPPxq647jJ`) delivered exactly 0.092 NEAR
 (`owed_resent`, `invoice_paid` with `retried: true`, `PAID`). The v3 invoice `LATE-V3`, whose 0.092 NEAR was owed on the v3 account, was swept the same way with the v3 hash pinned
 (`ZI_CODE_HASH=<v3 hash>`), tx `DracoGyTgSuxYAqHH35ySGbnRXmfETrt1Z5TuKTjF6y1`: `PAID`, recorded in `fixtures/v3/late-resweep.json` (the replay marks such a continued invoice as `resumed`).
 
-**S-F4 (is the state-init deposit credited?), now run: no.** `SF4-V31` was initialised with a 0.02 NEAR deposit on the `UniversalStateInit` action (tx `ENrFCa9DS1yUpPukQ6qSkAPcheNs3JH12DyEKnx5dXee`). The new account
+**Is the state-init deposit credited? Now run: no.** `SF4-V31` was initialised with a 0.02 NEAR deposit on the `UniversalStateInit` action (tx `ENrFCa9DS1yUpPukQ6qSkAPcheNs3JH12DyEKnx5dXee`). The new account
 held 0 NEAR afterwards and the system sent a `Transfer` of 0.02 NEAR back to the signer, so the signer lost only gas. That is why a token invoice gets its 1-yocto float with `fund`
 instead (`fixtures/v31/sf4.json`).
 
@@ -203,13 +204,13 @@ The state layout and the interface did not change; the same terms give a differe
 
 **The four contract findings of the final audit that v3.2 fixes** (details and the residual in `docs/STABLECOIN.md` §5.3):
 
-1. **contract-1 (HIGH), the sweep-vs-payment race on every rejection path.** v3.1 closed the race of v3's F1 only for the `busy` rejection on an `OPEN` invoice. A token `sweep` that read `ft_balance_of`
+1. **The sweep-vs-payment race on every rejection path (high).** v3.1 closed the token-sweep race only for the `busy` rejection on an `OPEN` invoice. A token `sweep` that read `ft_balance_of`
    while a rejected `ft_transfer_call` credit was still on the invoice (rejected as `bad_msg`, `not_open` or `expired`, not as `busy`) could still plan payouts with tokens the token was about to take back.
    v3.2 raises the lock value by 1 on **every** rejection while a lock is held, so `on_token_balance` sees the changed lock and answers `CONCURRENT_PAYMENT`. Rust tests:
    `token_sweep_racing_a_bad_msg_ft_transfer_call_plans_nothing`, `..._not_open_...`, `..._expired_...` and the parked-funds variant.
-2. **contract-2.** "Never settled" is `paid_at_ms == 0`, not `paid_amount == 0`, so a 1-unit release after expiry no longer blocks a later full payment from settling as `PAID`.
-3. **contract-3.** `on_settled` decides success from the promise status only: a token whose `ft_transfer` returns a body longer than 64 bytes is still a success.
-4. **contract-4.** An `OPEN` invoice past `expires_at_ms` is treated as `EXPIRED` by `sweep` itself, so parked partial tokens are released by one permissionless `sweep`.
+2. **"Never settled" is decided by `paid_at_ms`.** "Never settled" is `paid_at_ms == 0`, not `paid_amount == 0`, so a 1-unit release after expiry no longer blocks a later full payment from settling as `PAID`.
+3. **Payout success from the promise status only.** `on_settled` decides success from the promise status only: a token whose `ft_transfer` returns a body longer than 64 bytes is still a success.
+4. **An expired `OPEN` invoice is released by `sweep`.** An `OPEN` invoice past `expires_at_ms` is treated as `EXPIRED` by `sweep` itself, so parked partial tokens are released by one permissionless `sweep`.
 
 The Rust suite has 94 tests (65 at v3.1; the audit round added 29, among them mutation checks), 14 in `contract-v2/`; 218 JavaScript tests (169 at v3.1).
 
@@ -220,10 +221,10 @@ The Rust suite has 94 tests (65 at v3.1; the audit round added 29, among them mu
 **The race on the `bad_msg` path, produced on testnet once.** `scripts/race-v32.ts` signs the sweeper's `sweep` and the payer's `ft_transfer_call` of the full price with the wrong msg `{"action":"x"}` first and sends both at the same moment.
 The first attempt produced it: sweep `4yJfVi5u7xovrd4oS9oRogzsGQ6bZQjYUqjY7MpMH18H` returned `CONCURRENT_PAYMENT` with no payout and no event; the call `3mT71ThnrkXoMXqBVhrBwafTDJPNkzQiL4L5DL58jtag` got `payment_rejected bad_msg` and the token
 returned the whole 1 tUSDC; the invoice stayed `OPEN` with nothing owed and no payer recorded; the retry with the right msg `6GDR43PSW3XvrKvL2HEtFKeyd46g8ERnAEomtW4SM6HR` was accepted and paid 0.92 / 0.08 tUSDC. This is one run that hit
-the right block alignment, not a rate; we did not run the same sequence on v3.1 to show the old behaviour (the alignment is chance and v3.1 is history), so **the evidence that v3.1 had the hole is the Rust test, not a testnet run**.
+the right block alignment, not a rate; the same sequence was not run on v3.1 to show the old behaviour (the alignment is chance and v3.1 is history), so **the evidence that v3.1 had the hole is the Rust test, not a testnet run**.
 The replay rules `concurrent-payment-plans-nothing`, `concurrent-payment-nothing-owed` and `ft-rejected-bad_msg` check the recording offline.
 
-**Not run live:** the `expired` and `not_open` variants of the race, and the contract-2/3/4 fixes (Rust unit tests only). Also not done at that time: a reproducible wasm build (done afterwards, see v3.2r below), a browser walk-through of the dashboard, wallet checks, an independent audit, mainnet.
+**Not run live:** the `expired` and `not_open` variants of the race, and fixes 2 to 4 above (Rust unit tests only). Also not done at that time: a reproducible wasm build (done afterwards, see v3.2r below), a browser walk-through of the dashboard, wallet checks, an independent audit, mainnet.
 A residual that stays open (`docs/STABLECOIN.md` §5.3): a sweep that lands in the same block as an already-executed rejected `ft_transfer_call` (no lock held yet) can still read a balance the token is about to take back.
 
 ## v3.2 → v3.2r
@@ -231,29 +232,29 @@ A residual that stays open (`docs/STABLECOIN.md` §5.3): a sweep that lands in t
 **v3.2r is the same source as v3.2, built reproducibly and published as another global contract by hash.** No contract behaviour changed; the code hash changed because the wasm bytes did. `contract/Cargo.toml` now has a working
 `[package.metadata.near.reproducible_build]` (image `sourcescan/cargo-near:0.23.0-rust-1.99.1` pinned by digest `sha256:8013f039…2fcc`; commits `f19a604` and `4116e69`). `cd contract && cargo near build reproducible-wasm` at commit **`4116e69`** gives
 163,788 bytes, sha256 `9a8f368d406392f566d64293d148dcbbee016db8a4d6948c82f6996ce7775b92`, code hash **`BQLSk5carin64UMreToJHT15gvow6wqZSyKqDz7zCFry`**. The build records its commit in the contract metadata, so a build from a later commit gives a different hash even with unchanged source;
-only `4116e69` reproduces this one. We ran that build ourselves; no independent party repeated it.
+only `4116e69` reproduces this one. The operator ran that build; no independent party has repeated it ([REPRODUCE.md](REPRODUCE.md)).
 
 Published as a global contract by hash: tx `DYP9bS9hn7Laip759uTCZ1t3uVF9caWKGZxHM7SdUuNs`, signer `sm1110-zi-deployer.testnet`, funded by three transfers from the retired v2 accounts. We read the on-chain `view_global_contract_code` bytes of the new hash on 2026-11-12
-and they equal `contract/res/v3.2r/zeroinit_invoice.wasm` (163,788 bytes, same sha256). We did not compute a deploy burn.
+and they equal `contract/res/v3.2r/zeroinit_invoice.wasm` (163,788 bytes, same sha256). The deploy burn was not computed.
 
 **Client and files.** `KNOWN_DEPLOYMENTS` lists v3.2r first (`historical: false`, the same fixes and layout 3 as v3.2) and v3.2 as history (verify and replay only: `zi pay`, `zi sweep` and `zi init` refuse a v3.2 invoice unless `ZI_CODE_HASH` is pinned to its hash, `ZI_V32_CODE_HASH` in `.env`).
 The committed wasm files are versioned: `contract/res/v3.2/zeroinit_invoice.wasm` (016bf5ba…5e63d) and `contract/res/v3.2r/zeroinit_invoice.wasm` (9a8f368d…5b92); `test/wasm-files.test.ts` checks that each hashes to its code hash.
 `npm run contract:build` now runs the reproducible build (output in `contract/target/near/`; copy it where you want to compare). Invoice documents recorded on v3.2r are in `invoices/v32r/` (ids end in `-V32R`).
 
 **Re-recorded on v3.2r** (2026-11-12, the same accounts and recorders as for v3.2; transactions in `docs/SPIKES.md` "Contract v3.2r live"): the NEAR demo (`INV-1111-V32R-A/B/C`), the tUSDC demo (`TOK-1111-V32R-A`), the one-step path (`TOK-V32R-B`) and the `bad_msg` race (`RACE-V32R-1`, again produced on the first attempt).
-The pinned set of replay checks per invoice is identical to v3.2's (`test/v32r-check-names.json`). Same limits as v3.2: the `expired` / `not_open` race variants and the contract-2/3/4 fixes were not run live (Rust tests only); the race run is one run, not a rate.
+The pinned set of replay checks per invoice is identical to v3.2's (`test/v32r-check-names.json`). Same limits as v3.2: the `expired` / `not_open` race variants and fixes 2 to 4 of "v3.1 → v3.2" were not run live (Rust tests only); the race run is one run, not a rate.
 
 ## Older claims and how to verify them
 
-These rows used to sit in the README claims table. The v3 and v3.1 rows are checked on those versions' recordings (they replay under their own hashes); the current v3.2 claims are in the README.
+The v3 and v3.1 rows are checked on those versions' recordings (they replay under their own hashes); the current claims are in [VERIFY.md](VERIFY.md#all-claims).
 
 | Claim | Verify with | Expected |
 |---|---|---|
-| v2: the tax vault is not skipped after expiry (contract-1) | `npm run zi -- replay fixtures/v2/audit-scenarios.json` | `PASS refund-event AUD1-V2 REFUNDED_EXPIRED`, `PASS sweep-tx-success AUD1-V2 8WQr2GUm… result=PAID`, `PASS split-vault AUD1-V2 0.008` |
-| v2: a payer who already sent a plain transfer is not charged twice (contract-3) | same replay | `PASS refund-already-funded AUD3-V2 refunded 0.1 to sm1110-zi-payer.testnet`, `PASS split-vault AUD3-V2 0.008` |
-| v2: a failed transfer is recorded, the tax stays owed, and a later sweep delivers it (contract-2) | same replay | `PASS transfer-failures-recorded AUD2-V2 1 failed, 1 transfer_failed events`, `PASS sweep-tx-success AUD2-V2 HECqnmtE… result=TAX_RESENT` (the second sweep, after the vault account was created) |
+| v2: the tax vault is not skipped after expiry | `npm run zi -- replay fixtures/v2/audit-scenarios.json` | `PASS refund-event AUD1-V2 REFUNDED_EXPIRED`, `PASS sweep-tx-success AUD1-V2 8WQr2GUm… result=PAID`, `PASS split-vault AUD1-V2 0.008` |
+| v2: a payer who already sent a plain transfer is not charged twice | same replay | `PASS refund-already-funded AUD3-V2 refunded 0.1 to sm1110-zi-payer.testnet`, `PASS split-vault AUD3-V2 0.008` |
+| v2: a failed transfer is recorded, the tax stays owed, and a later sweep delivers it | same replay | `PASS transfer-failures-recorded AUD2-V2 1 failed, 1 transfer_failed events`, `PASS sweep-tx-success AUD2-V2 HECqnmtE… result=TAX_RESENT` (the second sweep, after the vault account was created) |
 | The v2 and v1 recordings still check out (history) | `npm run zi -- replay fixtures/v2/demo-run.json`, `fixtures/v1/demo-run.json` and `npm run zi -- verify INV-1111-A --offline` | `INFO deployment v2 (history…` / `v1 (history, frozen…`, all `PASS` |
-| A missing NEAR merchant: owed, then paid after the account exists (L3) | `npm run zi -- replay fixtures/v31/late.json` and `fixtures/v3/late-resweep.json` | `PASS owed-after-failure LATE-V31 …`, `PASS owed-resent LATE-V31 late.sm1110-zi3-merchant.testnet 92000000000000000000000`; the same for the v3 invoice `LATE-V3` |
+| A missing NEAR merchant: owed, then paid after the account exists | `npm run zi -- replay fixtures/v31/late.json` and `fixtures/v3/late-resweep.json` | `PASS owed-after-failure LATE-V31 …`, `PASS owed-resent LATE-V31 late.sm1110-zi3-merchant.testnet 92000000000000000000000`; the same for the v3 invoice `LATE-V3` |
 | A token payment through `ft_transfer_call` settles, or is returned whole with a reason | `npm run zi -- replay fixtures/v3/tokens.json` and `fixtures/v3/failures.json` | `PASS ft-excess-refunded TOK-V3-C …`, `PASS ft-rejected-underpaid TOK-V3-D used 0, 500000 of 500000 returned …`, `ft-rejected-expired`, `ft-rejected-not_open`, `ft-rejected-wrong_token`, `ft-rejected-bad_msg`, `ft-rejected-low_gas` |
 | `invoice_paid` is never emitted before the payouts succeeded (v2 residual fixed) | `npm run zi -- replay fixtures/v3/fixes.json` and `failures.json` | `PASS invoice-paid-after-callback TAX-V3`; for `LATE-V3` and `UNREG-V3` a failed payout gives `PAYOUT_PENDING` and no `invoice_paid` (`test/live-v3.test.ts`) |
 | A failed payout is owed, retried to its own recipient, or refunded to the payer after the grace period (v2 residual fixed) | `npm run zi -- replay fixtures/v3/failures.json`, `fixes.json`, `tokens.json` | `PASS owed-resent UNREG-V3 sm1110-zi3-unreg.testnet 920000`, `PASS refund-payer-to-paid-by REFUND-V3 sm1110-zi3-payer.testnet`, `owed-after-failure …` |
@@ -273,12 +274,12 @@ These rows used to sit in the README claims table. The v3 and v3.1 rows are chec
 
 ### What a first payment cost on each version
 
-Measured tokens burnt for a NEAR `pay` (gas plus the protocol account-creation charge): v3.2r 0.0075612 NEAR, v3.2 0.0075620 NEAR, v3.1 0.0075610, v3 0.0075600, v2 0.0077197, v1 0.0073617847981195 NEAR. One-time global-deploy burn: v3.2 about 16.41 NEAR, v3.1 about 16.38 (the README "Limits" keeps the v3.2 figures; the v3.2r publish burn was not computed).
+Measured tokens burnt for a NEAR `pay` (gas plus the protocol account-creation charge): v3.2r 0.0075612 NEAR, v3.2 0.0075620 NEAR, v3.1 0.0075610, v3 0.0075600, v2 0.0077197, v1 0.0073617847981195 NEAR. One-time global-deploy burn: v3.2 about 16.41 NEAR, v3.1 about 16.38 ([LIMITS.md "Costs"](LIMITS.md#costs); the v3.2r publish burn was not computed).
 
-### The v2 wasm rebuild (not re-run by us)
+### The v2 wasm rebuild (not re-run here)
 
-(The current v3.2r deployment does have a reproducible build that we ran ourselves: see "v3.2 → v3.2r". The text below is only about v2.)
+(The current v3.2r deployment does have a reproducible build: see "v3.2 → v3.2r" and [REPRODUCE.md](REPRODUCE.md). The text below is only about v2.)
 
-`contract-v2/` was built with `cargo near build reproducible-wasm` by a judge-side test run, reported as byte-identical (sha256 `3562e978…f622f`); **we did not re-run it**, and the committed settings cannot be
+`contract-v2/` was built with `cargo near build reproducible-wasm` by a judge-side test run, reported as byte-identical (sha256 `3562e978…f622f`); **it was not re-run here**, and the committed settings cannot be
 repeated as written: `[package.metadata.near.reproducible_build]` names the image tag `sourcescan/cargo-near:0.23.0-rust-1.95.0`, which is not in Docker Hub's tag list (checked 2026-11-10), and `image_digest` is `UNSET`.
 Treat the byte-identical v2 rebuild as an unverified report.

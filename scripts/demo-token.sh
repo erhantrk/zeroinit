@@ -2,7 +2,7 @@
 # The tUSDC demo (v3.2): an invoice in tUSDC paid by a PLAIN ft_transfer (what an exchange does), then swept by anyone.
 # Usage: scripts/demo-token.sh <suffix>     e.g. scripts/demo-token.sh 1111-V3   (invoice id TOK-<suffix>-A must be new each run)
 # The recorded run: ZI_RECORD=fixtures/v32/token-demo-run.json scripts/demo-token.sh 1111-V32 </dev/null (the v3.1 run is fixtures/v31/token-demo-run.json, suffix 1111-V31; the v3 run is fixtures/v3/token-demo-run.json, suffix 1111-V3)
-# tUSDC is a testnet mock token (see README "Stablecoins"); the payer needs tUSDC and the merchant and tax vault must be registered on it.
+# tUSDC is a testnet mock token (see docs/STABLECOIN.md and docs/LIMITS.md); the payer needs tUSDC and the merchant and tax vault must be registered on it.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 set -a; source .env; set +a
