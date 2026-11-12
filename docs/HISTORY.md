@@ -86,7 +86,7 @@ the same terms give a different address under v2 (the v2 invoices are new, `-V2`
 
 The v1 behaviour above comes from the audit and the v1 code; v1 invoices were not re-run live (they stay as the recorded
 history). The six `audit_contract_*` unit tests are in `contract-v2/src/lib.rs` (`npm run contract:test:v2`: 14 tests, all pass); `contract/src/lib.rs` is the later v3.x source and has none of them. Each one replays an audit scenario step by step;
-the v1 behaviour they guard against is what the audit traced in the v1 code (`git show 98d571d:contract/src/lib.rs`)
+the v1 behaviour they guard against is what the audit traced in the v1 code (`git show 1c2f9ff:contract/src/lib.rs`)
 and is not re-run as a test here.
 
 What v2 does **not** fix (residual): `invoice_paid` is still emitted before the transfers run, so the record can say PAID
@@ -158,7 +158,7 @@ partially parked transfer followed by a full `pay` still charges the payer twice
 
 ## v3 → v3.1
 
-Contract **v3.1** is a new wasm and a new code hash (`2prMzXHZVWdeHfmdqqxzb5ahLy2pWBWZjuE25EDJDaYX`, 163,771 bytes, sha256 `1b1dcc75…e278`, built from commit `49ec835`), deployed by the
+Contract **v3.1** is a new wasm and a new code hash (`2prMzXHZVWdeHfmdqqxzb5ahLy2pWBWZjuE25EDJDaYX`, 163,771 bytes, sha256 `1b1dcc75…e278`, built from commit `5b02e36`), deployed by the
 operator as another global contract (tx `52dRw7RcBom9EbUJ6hCExDF5esWjsHPh5e1sUa87XyvB`, burn about 16.38 NEAR, from the deployer's balances before and after). The state layout and the interface did not
 change; the one difference is the final-review finding **F1**. The `invoice_paid` and payout rules are the v3 ones. v3 (`Ut7EQhLD…reWa`) stays on testnet as recorded history;
 because the code hash is part of the invoice address, the same terms give a different address under v3.1 (new ids end in `-V31`). Nothing is migrated.
@@ -193,11 +193,11 @@ held 0 NEAR afterwards and the system sent a `Transfer` of 0.02 NEAR back to the
 instead (`fixtures/v31/sf4.json`).
 
 **Not done.** A reproducible wasm build, a browser walk-through of the dashboard, wallet checks, an audit, mainnet. The v3.1 deploy burn is derived from the deployer's balances before and after the deploy tx (17.8774031 → 1.4989866 NEAR, gas included): about 16.3784 NEAR.
-Tests at the time of the v3.1 round: 65 Rust tests in `contract/` (the v3.1 source, `git show 49ec835:contract/src/lib.rs`), 14 in `contract-v2/`, 169 JavaScript tests.
+Tests at the time of the v3.1 round: 65 Rust tests in `contract/` (the v3.1 source, `git show 5b02e36:contract/src/lib.rs`), 14 in `contract-v2/`, 169 JavaScript tests.
 
 ## v3.1 → v3.2
 
-Contract **v3.2** is a new wasm and a new code hash (`6YtW5oJ8UtCrzUePQf14zqKMb9G3DUtMynEnZvMCNHJ`, 164,040 bytes, sha256 `016bf5ba27ae4e10022458d158cc070167b8b7eabc84cdd35ab2bd7c69f5e63d`, built by the operator with `npm run contract:build` from HEAD `b6c6d9c`, the commit before this one), deployed by the operator as another global contract: tx `GHHsammf6Mg4nNZWtdB9sBYPJtSojSE46JVUs7nyd3Pg`, signer `sm1110-zi32-deployer.testnet`, burn about **16.4053 NEAR** (balance 17 → 0.5946814 NEAR, gas included; the
+Contract **v3.2** is a new wasm and a new code hash (`6YtW5oJ8UtCrzUePQf14zqKMb9G3DUtMynEnZvMCNHJ`, 164,040 bytes, sha256 `016bf5ba27ae4e10022458d158cc070167b8b7eabc84cdd35ab2bd7c69f5e63d`, built by the operator with `npm run contract:build` from HEAD `631e734`, the commit before this one), deployed by the operator as another global contract: tx `GHHsammf6Mg4nNZWtdB9sBYPJtSojSE46JVUs7nyd3Pg`, signer `sm1110-zi32-deployer.testnet`, burn about **16.4053 NEAR** (balance 17 → 0.5946814 NEAR, gas included; the
 tx's `tokens_burnt` read back from RPC on 2026-11-11 is 16.405318 NEAR). We also compared the on-chain `view_global_contract_code` bytes of that hash with the committed `contract/res/zeroinit_invoice.wasm`: identical (164,040 bytes, same sha256).
 The state layout and the interface did not change; the same terms give a different address under v3.2 (new ids end in `-V32`). v3.1 (`2prMzXHZ…DaYX`) stays on testnet as recorded history. Nothing is migrated.
 
@@ -247,10 +247,10 @@ These rows used to sit in the README claims table. The v3 and v3.1 rows are chec
 ## Deploy transactions and burns
 
 - **v3.2** (current): `GHHsammf6Mg4nNZWtdB9sBYPJtSojSE46JVUs7nyd3Pg` (signer `sm1110-zi32-deployer.testnet`), wasm sha256 `016bf5ba…5e63d`, 164,040 bytes, burn about 16.4053 NEAR (balance 17 → 0.5946814 NEAR across that tx, gas included; `tokens_burnt` 16.405318 NEAR read back from RPC).
-- **v3.1**: `52dRw7RcBom9EbUJ6hCExDF5esWjsHPh5e1sUa87XyvB`, burn about 16.3784 NEAR (deployer balance 17.8774031 → 1.4989866 NEAR across that tx, gas included), built from commit `49ec835`.
-- **v3** (`Ut7EQhLD…reWa`): `43D4EifRGJJBtWUVhFPXPFsZqooPwz1czD8LwRz6sjYT`, wasm digest `0724781d…0b1f`, 161,213 bytes, burn about 16.1226 NEAR (balance 27 → 10.8774031 NEAR, gas included). `git show 49ec835:contract/res/zeroinit_invoice.wasm` prints the v3 wasm (sha256 verified).
+- **v3.1**: `52dRw7RcBom9EbUJ6hCExDF5esWjsHPh5e1sUa87XyvB`, burn about 16.3784 NEAR (deployer balance 17.8774031 → 1.4989866 NEAR across that tx, gas included), built from commit `5b02e36`.
+- **v3** (`Ut7EQhLD…reWa`): `43D4EifRGJJBtWUVhFPXPFsZqooPwz1czD8LwRz6sjYT`, wasm digest `0724781d…0b1f`, 161,213 bytes, burn about 16.1226 NEAR (balance 27 → 10.8774031 NEAR, gas included). `git show 5b02e36:contract/res/zeroinit_invoice.wasm` prints the v3 wasm (sha256 verified).
 - **v2** (`4bQ61AgH…yx9zEA`): `DvNnUtvqMg5Q5e2Mn4fMx7GYBFNFhTo7z9wo64szAFKG` (signer `sm1110-zi-deployer.testnet`, burn 8.2949 NEAR). `shasum -a 256 contract-v2/res/zeroinit_invoice.wasm` → `3562e978e6924a2c538e9906fc42d15a652947891f18f7816e3c7807d20f622f` (82,942 bytes).
-- **v1** (`Amg4WXKy…GW6k`): `DSXd2Sjq59zRF2ZX9j3D8SMYd6GZ44XpsW1aJbKfpJ1h` (burn 7.8526 NEAR); wasm digest `912ae75e…c3c9`; `git show bd1bf1b:contract/res/zeroinit_invoice.wasm` prints it. This tx
+- **v1** (`Amg4WXKy…GW6k`): `DSXd2Sjq59zRF2ZX9j3D8SMYd6GZ44XpsW1aJbKfpJ1h` (burn 7.8526 NEAR); wasm digest `912ae75e…c3c9`; `git show a09b0e3:contract/res/zeroinit_invoice.wasm` prints it. This tx
   is already outside the default RPC's window (`UNKNOWN_TRANSACTION`); the archival endpoint still has it.
 
 ### What a first payment cost on each version

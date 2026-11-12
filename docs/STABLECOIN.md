@@ -65,7 +65,7 @@ lists the spikes that must run first.
   `.env` as `ZI_TUSDC_ACCOUNT` and into `src/config.ts` as the default once known. Minting is owner-only (`mint(account_id, amount)` after
   `storage_deposit`), so the operator mints the test balance for the payer.
 - **Repo layout:** `contract/` (v2 source, tests, wasm) moves to `contract-v2/` in a pure-rename commit first (like the v1 recordings did in
-  `70d4226`), so no v2 test is deleted and `cargo test` still runs there. `contract/` then holds v3. `npm run contract:test` runs v3;
+  `cb703d7`), so no v2 test is deleted and `cargo test` still runs there. `contract/` then holds v3. `npm run contract:test` runs v3;
   add `contract:test:v2`. Same for recordings: `fixtures/*.json` and `invoices/demo/` (v2) move to `fixtures/v2/` and `invoices/v2/`
   (`loadDoc` searches `invoices/v2/` too); new v3 recordings take the top-level names.
 - **Client deployments list (`KNOWN_DEPLOYMENTS`):** v3 current, v2 `historical: true` (verify and replay only, like v1). To keep operating a v2
@@ -841,7 +841,7 @@ Everything below was run on testnet; the transactions are listed in `docs/SPIKES
 ## Live results (v3.1) (2026-11-10, Claude Sonnet 5.5 with the operator's accounts)
 
 The operator (Claude Opus 5.5) deployed v3.1 as a new global contract: code hash `2prMzXHZVWdeHfmdqqxzb5ahLy2pWBWZjuE25EDJDaYX`, tx `52dRw7RcBom9EbUJ6hCExDF5esWjsHPh5e1sUa87XyvB`, wasm
-163,771 bytes, sha256 `1b1dcc7515f2b9d6bada0540ed20833dd3050d074e155fb8d489ac2afe01e278`, built from commit `49ec835` (the committed `contract/res/zeroinit_invoice.wasm`), burn about 16.38 NEAR
+163,771 bytes, sha256 `1b1dcc7515f2b9d6bada0540ed20833dd3050d074e155fb8d489ac2afe01e278`, built from commit `5b02e36` (the committed `contract/res/zeroinit_invoice.wasm`), burn about 16.38 NEAR
 (the operator's figure). The client treats v3.1 as current; v3 is history (`historical: true`, so `zi pay`, `zi sweep` and `zi init` refuse a v3 invoice unless `ZI_CODE_HASH` is pinned to the v3 hash on
 purpose, and `verify`/`replay` check v3 documents and fixtures against the v3 hash). The transactions are in `docs/SPIKES.md` "Contract v3.1 live"; the recordings are `fixtures/v31/*.json` and
 `fixtures/v3/late-resweep.json`, replayed by `test/live-v31.test.ts` and `test/live-v3.test.ts`.
@@ -860,13 +860,13 @@ purpose, and `verify`/`replay` check v3 documents and fixtures against the v3 ha
 - **S-F4, run: the `UniversalStateInit` deposit is not credited** to the new account. A 0.02 NEAR deposit came back to the signer as a system `Transfer`; the new account held 0. §5.6's reasoning (use `fund`,
   not the state-init deposit) is confirmed. Evidence: `fixtures/v31/sf4.json`.
 - **Measured:** see `docs/SPIKES.md` ("Measured on v3.1"): 427 B after a NEAR `pay`, 446 B for a paid token invoice, 4.9 to 22 Tgas per transaction.
-- **Not run:** a reproducible wasm build, a browser test of the dashboard, mainnet. v3.1 has no new Rust test beyond the 65 of the source at `49ec835` (the F1 test is among them).
+- **Not run:** a reproducible wasm build, a browser test of the dashboard, mainnet. v3.1 has no new Rust test beyond the 65 of the source at `5b02e36` (the F1 test is among them).
 - **AI use for this round:** Claude Sonnet 5.5 ran and recorded the live flows and updated the client, tests and docs; Claude Opus 5.5 did the operator deploy of v3.1 and the re-check.
 
 ## Live results (v3.2) (2026-11-11, Claude Sonnet 5.5 with the operator's accounts)
 
 The operator (Claude Opus 5.5) deployed v3.2 as a new global contract: code hash `6YtW5oJ8UtCrzUePQf14zqKMb9G3DUtMynEnZvMCNHJ`, tx `GHHsammf6Mg4nNZWtdB9sBYPJtSojSE46JVUs7nyd3Pg` (signer `sm1110-zi32-deployer.testnet`), wasm
-164,040 bytes, sha256 `016bf5ba27ae4e10022458d158cc070167b8b7eabc84cdd35ab2bd7c69f5e63d`, built from HEAD `b6c6d9c` (the committed `contract/res/zeroinit_invoice.wasm`; its bytes equal the on-chain code, compared through
+164,040 bytes, sha256 `016bf5ba27ae4e10022458d158cc070167b8b7eabc84cdd35ab2bd7c69f5e63d`, built from HEAD `631e734` (the committed `contract/res/zeroinit_invoice.wasm`; its bytes equal the on-chain code, compared through
 `view_global_contract_code`), burn about 16.4053 NEAR. The client treats v3.2 as current; v3.1 is history (`historical: true`: `zi pay`, `zi sweep` and `zi init` refuse a v3.1 invoice unless `ZI_CODE_HASH` is pinned to the v3.1 hash on purpose, and `verify`/`replay`
 check v3.1 documents and fixtures against the v3.1 hash). The transactions are in `docs/SPIKES.md` "Contract v3.2 live"; the recordings are `fixtures/v32/*.json`, replayed by `test/live-v32.test.ts`.
 

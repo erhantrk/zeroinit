@@ -177,7 +177,7 @@ Not done: a reproducible wasm build, a browser walk-through of the v3.2 dashboar
 ### Is the wasm built from the source? (a trust assumption)
 
 - **Deployed v3.2:** the committed wasm equals the on-chain bytes (checked above, also by us on 2026-11-11 with `view_global_contract_code`). That it was built from this tree's `contract/src` (`npm run contract:build`) rests on **trust in the operator's local build**: it is not a reproducible build and
-  nobody has rebuilt and compared it. (Older wasm builds are in git history; v3.1 was built from commit `49ec835`.)
+  nobody has rebuilt and compared it. (Older wasm builds are in git history; v3.1 was built from commit `5b02e36`.)
 - **No reproducible build exists for any version.** `[package.metadata.near.reproducible_build]` in `contract/Cargo.toml` and `contract-v2/Cargo.toml` names the image tag `sourcescan/cargo-near:0.23.0-rust-1.95.0`, which is not in
   Docker Hub's tag list (checked 2026-11-10), and `image_digest = "UNSET"`, so `cargo near build reproducible-wasm` cannot be repeated as committed. A byte-identical v2 rebuild was reported to us by a judge-side run; **we did not re-run it**,
   so treat it as unverified (`docs/HISTORY.md`). To make this real: set an existing image and its digest, run one reproducible build of the contract, and publish the digest.
@@ -267,16 +267,16 @@ Everything in this repository was written with AI assistance; the human (Erhan) 
 
 ## Pre-hackathon code
 
-There is no code from before the hackathon window. The repository's first commit (`045a5b2`, 2026-11-10) is the
+There is no code from before the hackathon window. The repository's first commit (`f2aa647`, 2026-11-10) is the
 frozen plan, and it contains `docs/plan/reference/`: a reference implementation (the TypeScript sources, tests and
 the contract) that was **drafted with Claude during the planning phase of this hackathon (2026-11-08/09)**, not
-before it. Task T02 (`3f18861`, "scaffold the repo from reference/") copied it verbatim into `src/` and
+before it. Task T02 (`1f8ccc6`, "scaffold the repo from reference/") copied it verbatim into `src/` and
 `contract/`. The v1 deployed contract was that reference contract; v2 is the same contract with the audit fixes.
-**Only `src/vectors.ts` is still identical to the reference** (`git diff 045a5b2:docs/plan/reference/ts/src/vectors.ts HEAD:src/vectors.ts` is empty).
+**Only `src/vectors.ts` is still identical to the reference** (`git diff f2aa647:docs/plan/reference/ts/src/vectors.ts HEAD:src/vectors.ts` is empty).
 `src/outcome.ts` and `src/tx.ts` were extended later for the v3 token work (outcome.ts about +42/−9 lines, tx.ts +7/−1);
 `bytes.ts`, `config.ts`, `rpc.ts`, `send.ts` and `stateinit.ts` were changed by the audit fixes (range checks, the pinned code hash, the testnet check). Anyone reading a diff that
-starts after `045a5b2` therefore does not see the reference code. Because every commit is inside the hackathon window there is no earlier baseline to compare against, so this README gives no
-compare link; use `git log --reverse` (or `git diff 045a5b2^..HEAD` for the whole history). The `hackathon-submission` tag the rules suggest (Q-003) does not exist yet: it is a human item above.
+starts after `f2aa647` therefore does not see the reference code. Because every commit is inside the hackathon window there is no earlier baseline to compare against, so this README gives no
+compare link; use `git log --reverse` (or `git diff f2aa647^..HEAD` for the whole history). The `hackathon-submission` tag the rules suggest (Q-003) does not exist yet: it is a human item above.
 What was added after the reference: the scaffold and toolchain, the live testnet spikes and fixtures, the replay and dashboard extensions, the scripts, the extra tests, the docs, the review and audit fixes, the v2 work,
 v3 (NEP-141 tokens), v3.1, v3.2 and the audit rounds' fixes. Test vectors are copied from nearcore (MIT/Apache-2.0), cited inline.
 Code comments cite "PLAN" and task numbers (T01…): those are the internal plan and task list, which are not published.

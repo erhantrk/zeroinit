@@ -415,7 +415,7 @@ final well before that and the UI refresh is 3 s.
 
 ## T19 buffer pass (day-3 review)
 
-Supersedes commit `37131e8` ("T19: buffer pass, no failures found"). T19 has no dependencies, so the scheduler
+Supersedes commit `ffad1c7` ("T19: buffer pass, no failures found"). T19 has no dependencies, so the scheduler
 started it on day 0, before T06–T18 had produced anything: there were no fixtures, README, demo script or
 dashboard to break, so "no failures found" was vacuous. The real buffer work is in the `fix: day0 review`,
 `fix: day1 review`, `fix: day2 review` and this `fix: day3 review` commits. This section is the actual buffer
@@ -472,7 +472,7 @@ Claude sessions or reviewed by a human, which did not match the run record or th
 
 ## Contract v2 build (audit contract-1/2/3)
 
-- wasm: `contract-v2/res/zeroinit_invoice.wasm` (moved from `contract/res/` by the v3 rename; v1 is in git history, `git show bd1bf1b:contract/res/zeroinit_invoice.wasm`)
+- wasm: `contract-v2/res/zeroinit_invoice.wasm` (moved from `contract/res/` by the v3 rename; v1 is in git history, `git show a09b0e3:contract/res/zeroinit_invoice.wasm`)
 - size: 82,942 bytes
 - sha256 hex: `3562e978e6924a2c538e9906fc42d15a652947891f18f7816e3c7807d20f622f`
 - code hash (base58): `4bQ61AgHWWmYXp5c3fwj9NJxS79D9R3cGZAZxHyx9zEA`
@@ -677,7 +677,7 @@ near-api-js 7.4.0), keys from `.env`, never printed. Recordings keep ids and tx 
 
 ### Build and deploy (operator)
 
-- wasm: `contract/res/zeroinit_invoice.wasm`, 163,771 bytes (local `npm run contract:build` from commit `49ec835`, **not** a reproducible build), sha256
+- wasm: `contract/res/zeroinit_invoice.wasm`, 163,771 bytes (local `npm run contract:build` from commit `5b02e36`, **not** a reproducible build), sha256
   `1b1dcc7515f2b9d6bada0540ed20833dd3050d074e155fb8d489ac2afe01e278`, code hash (base58) `2prMzXHZVWdeHfmdqqxzb5ahLy2pWBWZjuE25EDJDaYX`. This run re-checked the sha256 of the committed file
   (`sha256sum`: the same digest) and ran `zi verify`, which compares the on-chain `global_contract_hash` of every invoice below with that code hash (all `PASS code-hash-onchain`).
 - Global deploy: tx `52dRw7RcBom9EbUJ6hCExDF5esWjsHPh5e1sUa87XyvB`. Deployer burn **about 16.38 NEAR**: deployer balance 17.8774031 → 1.4989866 NEAR across the deploy tx, gas included (cross-checked on chain on 2026-11-11: 16.378417 NEAR).
@@ -753,7 +753,7 @@ near-api-js 7.4.0) and the keys from `.env`, never printed. In this sandbox Node
 
 ### Build and deploy (operator)
 
-- wasm: `contract/res/zeroinit_invoice.wasm`, 164,040 bytes (local `npm run contract:build` from HEAD `b6c6d9c`, **not** a reproducible build), sha256
+- wasm: `contract/res/zeroinit_invoice.wasm`, 164,040 bytes (local `npm run contract:build` from HEAD `631e734`, **not** a reproducible build), sha256
   `016bf5ba27ae4e10022458d158cc070167b8b7eabc84cdd35ab2bd7c69f5e63d`, code hash (base58) `6YtW5oJ8UtCrzUePQf14zqKMb9G3DUtMynEnZvMCNHJ`. In this run we re-computed the sha256 of the committed file and its base58 (same
   values), read the on-chain bytes with `view_global_contract_code` for that hash (164,040 bytes, **identical** to the committed file), and ran `zi verify` on every invoice below (all `PASS code-hash-onchain`).
 - Global deploy: tx `GHHsammf6Mg4nNZWtdB9sBYPJtSojSE46JVUs7nyd3Pg`, signer `sm1110-zi32-deployer.testnet` (one `DeployGlobalContract` action, status `SuccessValue`). Burn **about 16.4053 NEAR**: the operator reported the deployer balance 17 → 0.5946814 NEAR
