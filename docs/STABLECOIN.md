@@ -643,7 +643,7 @@ the 1,000 yocto float is enough and is not rejected; five minutes is long enough
 
 `README.md`: repo map (`contract/` is v3, `contract-v2/`, `fixtures/v2/`), the "NEAR only" limit (replace with the real token limits below), claims table, methods and rules tables, a "v2 → v3" section next to "v1 → v2",
 the test count and the offline output (only after running them), the cost lines, the allow-list note, the AI disclosure. `docs/ARCHITECTURE.md`: diagram, lifecycle, transaction shapes (`fund`, `ft_transfer_call`), costs and v3 section.
-`docs/SPIKES.md`: S-F1 to S-F6 and "Contract v3 live". `docs/SUBMISSION.md` and `docs/JUDGE-DRYRUN.md`: the new judge path. `.env.example`, `scripts/judge-offline.sh`, `package.json` scripts. `docs/plan/` stays frozen; this file is the v3 interface spec.
+`docs/SPIKES.md`: S-F1 to S-F6 and "Contract v3 live". `.env.example`, `scripts/judge-offline.sh`, `package.json` scripts. `docs/plan/` stays frozen; this file is the v3 interface spec.
 
 ## 14. Limits that stay (honest list)
 

@@ -1,6 +1,6 @@
 # reference/ — verified code to COPY (do not rewrite)
 
-Everything here was written and run on 2026-11-09 by the planner. Copy it into the submission repo as TASKS.md says.
+Everything here was written and run on 2026-11-09 by the planner. Task T02 copied it into this repository.
 
 | Path | What | Verified how |
 |---|---|---|
@@ -12,7 +12,7 @@ Everything here was written and run on 2026-11-09 by the planner. Copy it into t
 | `ts/fixtures/synthetic-demo.json` | SYNTHETIC fixture (`"synthetic": true`) shaped like a real EXPERIMENTAL_tx_status | built by `ts/scripts/make-synthetic-fixture.mjs`; replace with real recordings on Day 2–3 |
 
 NOT verified here (no keys, no transactions allowed for the planner): `pay`, `sweep`, `init`, `receipt` against the real chain.
-Those are the Day-0 spikes (TASKS.md T06–T09).
+Those are the Day-0 spikes (tasks T06–T09).
 
 Sandbox notes (irrelevant on a normal laptop): in the planning sandbox `npm test` could not spawn a shell, so tests were run
 with `node --test …` directly, and Node `fetch` needed `NODE_USE_ENV_PROXY=1` to reach the RPC through a proxy.

@@ -279,12 +279,13 @@ starts after `38fc3f0` therefore does not see the reference code. Because every 
 compare link; use `git log --reverse` (or `git diff 38fc3f0^..HEAD` for the whole history). The `hackathon-submission` tag the rules suggest (Q-003) does not exist yet: it is a human item above.
 What was added after the reference: the scaffold and toolchain, the live testnet spikes and fixtures, the replay and dashboard extensions, the scripts, the extra tests, the docs, the review and audit fixes, the v2 work,
 v3 (NEP-141 tokens), v3.1, v3.2 and the audit rounds' fixes. Test vectors are copied from nearcore (MIT/Apache-2.0), cited inline.
+Code comments cite "PLAN" and task numbers (T01…): those are the internal plan and task list, which are not published.
 
 ## Open items that only the humans can do (NOT done)
 
-These are required by the hackathon rules (`docs/plan/HACKATHON-RULES.md`: Q-012, Q-014, Q-015, the public-repo deadline 2026-11-14T23:59Z) and are **not done yet**; nothing here was faked:
+These are required by the hackathon rules (Q-012, Q-014, Q-015, the public-repo deadline 2026-11-14T23:59Z) and are **not done yet**; nothing here was faked:
 
-- [ ] **Demo video** (2 minutes) and the **public X post** with the video (screenshots alone are not enough for a local-only demo, Q-012). No video exists in this repo or linked; `docs/X-POST.md` still has a placeholder where the repo URL goes.
+- [ ] **Demo video** (2 minutes) and the **public X post** with the video (screenshots alone are not enough for a local-only demo, Q-012). No video exists in this repo or linked yet.
 - [ ] **Make this repository public** (judges cannot open a private one) and the sibling repo (ProvenExit, linked at the top) public (Q-015: it was private when last checked).
 - [ ] **Create the tag `hackathon-submission`** (none exists). There is no compare link for that reason; see "Pre-hackathon code".
 - [ ] Add the video and X post links here, then submit once on nearhackathon.com (after the humans confirm the payload).
@@ -395,7 +396,7 @@ callback. If one fails (a missing account, an unregistered token receiver), NEAR
 - `fixtures/` — recorded RPC sessions that replay offline: `fixtures/v32/` (current: `demo-run.json`, `token-demo-run.json`, `tokens.json`, `race.json`), `fixtures/v31/` (`demo-run.json`, `token-demo-run.json`, `tokens.json`, `race.json`, `late.json`, plus `sf4.json`, spike evidence, not a replay), `fixtures/v3/`, `fixtures/v2/`, `fixtures/v1/` (history), and two **synthetic** fixtures used by tests only. Public signatures are replaced by `ed25519:REDACTED-PUBLIC-SIGNATURE` in the v2/v3 fixtures.
 - `invoices/` — `v32/` (current), `v31/`, `v3/`, `v2/`, `v1/` and `examples/INV-0001.json` (the frozen test vector); none contain secrets.
 - `scripts/` — `demo.sh`, `demo-token.sh`, the `record-*.sh` recorders that were run, helpers (`plain-transfer.ts`, `plain-ft-transfer.ts`, `race-v32.ts`, `race-v31.ts`, …) and `judge-offline.sh` (one-command offline check).
-- `docs/` — `HISTORY.md` (v1/v2/v3/v3.1/v3.2 and the older replays), `RUN-ON-TESTNET.md` (the keyed walkthrough), `SPIKES.md` (live tx hashes and measurements), `ARCHITECTURE.md`, `STABLECOIN.md` (the v3 interface spec), `SUBMISSION.md` (human checklist), `plan/` (the frozen plan and byte-level interfaces).
+- `docs/` — `HISTORY.md` (v1/v2/v3/v3.1/v3.2 and the older replays), `RUN-ON-TESTNET.md` (the keyed walkthrough), `SPIKES.md` (live tx hashes and measurements), `ARCHITECTURE.md`, `STABLECOIN.md` (the v3 interface spec), `plan/` (the byte-level interfaces and the planning-phase reference implementation).
 
 ## Libraries
 
