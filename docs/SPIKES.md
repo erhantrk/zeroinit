@@ -604,7 +604,7 @@ Open questions the runs answered: `storage_deposit` and `ft_transfer` to a never
 returns everything (yes); `[UniversalStateInit, fund, sweep]` works in one transaction (yes, `TOK-V3-A`). Whether the state-init `deposit` is credited was **not
 run** in this round (nothing relies on it; run later on v3.1, below). Gas and storage are the measurements below.
 
-### Contract-2 evidence on v2 (the vault now exists)
+### Bounced-tax evidence on v2 (the vault now exists)
 
 `unregistered.sm1110-zi-taxvault.testnet` was created as a sub-account of `sm1110-zi-taxvault.testnet`, signed with that account's own key (the only account this
 round created): tx `FWBnYH6K5J2YzB7aLUNrzT8DNjRTeoqeJvuPaPFhot6x` (`CreateAccount`, 0.1 NEAR, the parent's public key as full access key; `scripts/create-v2-unregistered-vault.ts`).
@@ -857,3 +857,15 @@ The token figures were not re-measured on v3.2r (see "Measured on v3.2").
 | `bash scripts/judge-offline.sh` | last line `JUDGE-OFFLINE: ALL PASS` |
 | `zi verify <id>` (online) on the 6 invoices of `invoices/v32r/` | exit 0 for each, no `FAIL`; `PASS code-hash-onchain BQLSk5ca…zCFry`, `PASS no-access-keys` |
 | `zi replay fixtures/v32r/{demo-run,token-demo-run,tokens,race}.json` | 62 / 31 / 45 / 46 `PASS`, 0 `FAIL` (the same counts as the v3.2 recordings) |
+
+### Dashboard in a browser on v3.2r (2026-11-12)
+
+The local dashboard (`npm run zi -- serve`) was opened in Chrome against v3.2r. Merchant `sm1110-zi3-sweeper.testnet`, tax vault `sm1110-zi3-taxvault.testnet`, payer `sm1110-zi3-payer.testnet`, 800 bps. Invoice files: `invoices/demo/DASH-53NMD-{A,B,C}.json`; screenshot: `docs/img/dashboard-v32r.png`. No fixture was recorded for this run.
+
+| Invoice | Action in the page | Transactions | Result |
+|---|---|---|---|
+| `DASH-53NMD-A` (0.1 NEAR) | **Pay (one transaction)** | `BKKA7RZ7S279y87FQqsGrvMrNeQsHLw4abvKV6GvGtxa` (signer `sm1110-zi3-payer.testnet`: state init + `pay`) | `PAID` |
+| `DASH-53NMD-B` (0.1 NEAR) | **Send plain transfer**, then **Sweep** | `3ZXKEeGhhPMjspK1inNyqfWqC3J5DYyATFVF2DyXrqxd` (plain `Transfer`), `FofRUtoYFmvRwtmxGWpLEt9FpXYtcMCC72M1PHZbn7yy` (signer `sm1110-zi3-sweeper.testnet`: state init + `sweep`) | `PAID` |
+| `DASH-53NMD-C` (0.1 NEAR) | none | none | `NONEXISTENT` |
+
+Re-checked read-only on 2026-11-13: all three transactions succeeded, and `ZI_INVOICE_DIR=invoices/demo npm run zi -- verify DASH-53NMD-<A|B|C>` exits 0 (`PASS code-hash-onchain BQLSk5ca…`, `PASS no-access-keys` and `status=PAID` for A and B; C `state=NONEXISTENT`). Not tried in the browser: token invoices, the `SETTLING`/`REFUNDED` badges, Refund payer.

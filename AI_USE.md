@@ -36,4 +36,4 @@ There is no code from before the hackathon window: every commit is inside it.
   (`git show ea8d0fb --stat` lists what the first commit contained).
 - Added after the reference: the scaffold and toolchain, the live testnet runs and fixtures, the replay and dashboard extensions, the scripts, the extra tests, the docs, the review and audit fixes,
   v2, v3 (NEP-141 tokens), v3.1, v3.2, v3.2r, the MCP server and the site. Test vectors are copied from nearcore (MIT/Apache-2.0) and cited inline.
-- Code comments cite "PLAN" and task numbers (`T01`, `T02`, …): these refer to the internal plan and task list, which are not published.
+- Code comments cite the internal plan and task numbers, which are not published.

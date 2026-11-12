@@ -8,7 +8,7 @@ Sections: [Replaying the earlier recordings](#replaying-the-earlier-recordings) 
 [Older claims](#older-claims-and-how-to-verify-them) · [Deploy transactions](#deploy-transactions-and-burns).
 
 **Transaction lookups:** the default RPC prunes transactions after about 1.5 days, so most hashes below no longer resolve there. Use
-`ZI_ARCHIVAL_RPC_URL=https://archival-rpc.testnet.fastnear.com` (`zi receipt --tx` tries it automatically on the default RPC), nearblocks, or replay the fixture
+`ZI_ARCHIVAL_RPC_URL=https://archival-rpc.testnet.fastnear.com` (`zi receipt <ID> --tx <hash>` tries it automatically on the default RPC, for example `npm run zi -- receipt INV-1111-V32R-A --tx GwnQFSjp…`; it writes the gitignored `invoices/<ID>.receipt.json`), nearblocks, or replay the fixture
 offline (`zi replay fixtures/…`), which never needs a network.
 
 ## Replaying the earlier recordings
@@ -199,7 +199,7 @@ Tests at the time of the v3.1 round: 65 Rust tests in `contract/` (the v3.1 sour
 ## v3.1 → v3.2
 
 Contract **v3.2** is a new wasm and a new code hash (`6YtW5oJ8UtCrzUePQf14zqKMb9G3DUtMynEnZvMCNHJ`, 164,040 bytes, sha256 `016bf5ba27ae4e10022458d158cc070167b8b7eabc84cdd35ab2bd7c69f5e63d`, built by the operator with `npm run contract:build` from HEAD `2a57328`, the commit before this one), deployed by the operator as another global contract: tx `GHHsammf6Mg4nNZWtdB9sBYPJtSojSE46JVUs7nyd3Pg`, signer `sm1110-zi32-deployer.testnet`, burn about **16.4053 NEAR** (balance 17 → 0.5946814 NEAR, gas included; the
-tx's `tokens_burnt` read back from RPC on 2026-11-11 is 16.405318 NEAR). We also compared the on-chain `view_global_contract_code` bytes of that hash with the committed `contract/res/zeroinit_invoice.wasm` (now `contract/res/v3.2/zeroinit_invoice.wasm`): identical (164,040 bytes, same sha256).
+tx's `tokens_burnt` read back from RPC on 2026-11-11 is 16.405318 NEAR). The on-chain `view_global_contract_code` bytes of that hash were compared with the committed `contract/res/zeroinit_invoice.wasm` (now `contract/res/v3.2/zeroinit_invoice.wasm`): identical (164,040 bytes, same sha256).
 The state layout and the interface did not change; the same terms give a different address under v3.2 (new ids end in `-V32`). v3.1 (`2prMzXHZ…DaYX`) stays on testnet as recorded history. Nothing is migrated.
 
 **The four contract findings of the final audit that v3.2 fixes** (details and the residual in `docs/STABLECOIN.md` §5.3):
@@ -234,7 +234,7 @@ A residual that stays open (`docs/STABLECOIN.md` §5.3): a sweep that lands in t
 163,788 bytes, sha256 `9a8f368d406392f566d64293d148dcbbee016db8a4d6948c82f6996ce7775b92`, code hash **`BQLSk5carin64UMreToJHT15gvow6wqZSyKqDz7zCFry`**. The build records its commit in the contract metadata, so a build from a later commit gives a different hash even with unchanged source;
 only `4116e69` reproduces this one. The operator ran that build; no independent party has repeated it ([REPRODUCE.md](REPRODUCE.md)).
 
-Published as a global contract by hash: tx `DYP9bS9hn7Laip759uTCZ1t3uVF9caWKGZxHM7SdUuNs`, signer `sm1110-zi-deployer.testnet`, funded by three transfers from the retired v2 accounts. We read the on-chain `view_global_contract_code` bytes of the new hash on 2026-11-12
+Published as a global contract by hash: tx `DYP9bS9hn7Laip759uTCZ1t3uVF9caWKGZxHM7SdUuNs`, signer `sm1110-zi-deployer.testnet`, funded by three transfers from the retired v2 accounts. The on-chain `view_global_contract_code` bytes of the new hash were read on 2026-11-12
 and they equal `contract/res/v3.2r/zeroinit_invoice.wasm` (163,788 bytes, same sha256). The deploy burn was not computed.
 
 **Client and files.** `KNOWN_DEPLOYMENTS` lists v3.2r first (`historical: false`, the same fixes and layout 3 as v3.2) and v3.2 as history (verify and replay only: `zi pay`, `zi sweep` and `zi init` refuse a v3.2 invoice unless `ZI_CODE_HASH` is pinned to its hash, `ZI_V32_CODE_HASH` in `.env`).

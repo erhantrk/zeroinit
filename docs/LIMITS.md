@@ -45,7 +45,7 @@ Sections: [Scope](#scope) · [Token invoices](#token-invoices) · [Contract beha
 ## Client and tooling
 
 - **Wallet support is untested.** Exchange-style `Transfer`s built by near-cli-rs and by the `zi` CLI were tested. Which browser wallets accept a `0u…` receiver is not known.
-- **The dashboard has not been opened in a browser since v2.** The screenshots in `docs/img/` show the v2 dashboard; the current one (token selector, `SETTLING`/`REFUNDED` badges, Refund payer) is covered by tests only.
+- **The dashboard was tried in a browser for NEAR invoices only.** On v3.2r (Chrome, 2026-11-12): three 0.1 NEAR invoices created from the page; `DASH-53NMD-A` paid with **Pay (one transaction)** ([`BKKA7RZ7…`](https://testnet.nearblocks.io/txns/BKKA7RZ7S279y87FQqsGrvMrNeQsHLw4abvKV6GvGtxa)), `DASH-53NMD-B` paid by a plain transfer ([`3ZXKEeGh…`](https://testnet.nearblocks.io/txns/3ZXKEeGhhPMjspK1inNyqfWqC3J5DYyATFVF2DyXrqxd)) and swept ([`FofRUtoY…`](https://testnet.nearblocks.io/txns/FofRUtoYFmvRwtmxGWpLEt9FpXYtcMCC72M1PHZbn7yy)), `DASH-53NMD-C` left unpaid (files in `invoices/demo/`, screenshot `docs/img/dashboard-v32r.png`). Token invoices, the `SETTLING`/`REFUNDED` badges and Refund payer were not tried in a browser; they are covered by tests only.
 - **Transaction lookups need an archival RPC** after about 1.5 days ([VERIFY.md](VERIFY.md#live-read-only-checks)). State checks and offline replays keep working.
 - **Exit codes.** `zi verify`, `zi receipt` and `zi replay` exit 1 on any failed check. `zi pay` exits 1 unless the result is
   `PAID` (a `REFUNDED_*` result means the deposit came back); the dashboard answers 409 with `paid:false` in that case. `zi pay` and `zi sweep` also exit 1 (with a `WARNING` and
@@ -95,6 +95,6 @@ What ran live on v3.2r (2026-11-12): NEAR pay, plain transfer + sweep, an underp
 - the other v3.2 fixes: an `OPEN` invoice past its expiry released by one `sweep`, `paid_at_ms == 0` as "never settled", success decided from the promise status only (Rust unit tests only);
 - the race more than once per version: each run is one run that hit the right block alignment, not a rate;
 - the same race sequence on v3.1, so the evidence that v3.1 had the hole is a Rust test, not a testnet run;
-- a browser walk-through of the current dashboard, and any wallet;
+- the dashboard in a browser with a token invoice, a `SETTLING`/`REFUNDED` badge or Refund payer (the NEAR pay, plain transfer + sweep and unpaid cases were run in Chrome on v3.2r), and any wallet;
 - anything on mainnet;
 - an independent audit, and an independent third-party rebuild of the wasm ([REPRODUCE.md](REPRODUCE.md)).

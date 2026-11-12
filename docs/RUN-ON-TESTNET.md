@@ -138,6 +138,6 @@ creation uses near-cli-rs. The steps below assume you are in the repo root.
    the payer/sweeper keys from `.env` and binds `127.0.0.1` only. Statuses load when the page opens, after each
    action, and when you click **Refresh statuses** (no polling, to stay under public RPC rate limits).
 
-   ![ZeroInit dashboard on the v2 build (2026-11-10): INV-SHOT-1 paid on testnet](img/dashboard-pay.png)
+   ![ZeroInit dashboard on v3.2r (2026-11-12): three 0.1 NEAR invoices, two paid, one never paid](img/dashboard-v32r.png)
 
-   *This screenshot is from the **v2** dashboard. The current dashboard (token selector, `SETTLING`/`REFUNDED` badges, Refund payer) has not been opened in a browser; its invoice file `INV-SHOT-1.json` is not in the repo (`invoices/` root is gitignored), so `zi status INV-SHOT-1` cannot be run from a clone.*
+   *The current dashboard in Chrome on v3.2r: three 0.1 NEAR invoices created from the page; `DASH-53NMD-A` paid with **Pay (one transaction)** ([`BKKA7RZ7…`](https://testnet.nearblocks.io/txns/BKKA7RZ7S279y87FQqsGrvMrNeQsHLw4abvKV6GvGtxa)), `DASH-53NMD-B` paid by a plain transfer ([`3ZXKEeGh…`](https://testnet.nearblocks.io/txns/3ZXKEeGhhPMjspK1inNyqfWqC3J5DYyATFVF2DyXrqxd)) and swept ([`FofRUtoY…`](https://testnet.nearblocks.io/txns/FofRUtoYFmvRwtmxGWpLEt9FpXYtcMCC72M1PHZbn7yy)), `DASH-53NMD-C` left unpaid. The invoice files are in `invoices/demo/`, so `ZI_INVOICE_DIR=invoices/demo npm run zi -- verify DASH-53NMD-A` works from a clone. Token invoices, the `SETTLING`/`REFUNDED` badges and Refund payer were not tried in a browser.*

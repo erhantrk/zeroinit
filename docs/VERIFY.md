@@ -81,7 +81,7 @@ The default endpoint is `https://rpc.testnet.fastnear.com`; set `ZI_RPC_URL` to 
 **The default RPC is not archival.** It keeps about 1.5 days of transactions, so a transaction lookup there fails with `UNKNOWN_TRANSACTION` once the transaction is older
 than that (every transaction in this repo was sent between 2026-11-09 and 2026-11-12). State-based checks keep working (`zi verify`, `zi status`, `view_global_contract_code`),
 and so does every offline replay. For a transaction lookup use the archival endpoint `https://archival-rpc.testnet.fastnear.com` (set `ZI_ARCHIVAL_RPC_URL`;
-`zi receipt --tx <hash>` falls back to it by itself on the default RPC) or nearblocks. The recorded fixtures under `fixtures/` are the durable evidence.
+`zi receipt <ID> --tx <hash>` falls back to it by itself on the default RPC, for example `npm run zi -- receipt INV-1111-V32R-A --tx GwnQFSjpCqcPZeSHiTmiu6t5ZMkhM6NQ8vh4NjDzDpWE`; it writes `invoices/<ID>.receipt.json`, which is gitignored) or nearblocks. The recorded fixtures under `fixtures/` are the durable evidence.
 
 1. `npm run zi -- verify INV-1111-V32R-A` → the address and the state-init bytes are recomputed from the terms and the pinned code hash (`ZI_CODE_HASH`, default v3.2r
    `BQLSk5ca…zCFry`, never the invoice file's own `code_hash`), then compared with the chain. Any `FAIL` makes the command exit 1. Output, exit 0:

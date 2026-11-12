@@ -30,7 +30,6 @@ ZeroInit derives the address from the terms with NEAR's deterministic account id
 - **Live site:** <https://zeroinit.vercel.app>
 - **The one-transaction payment** on testnet: [`GwnQFSjp…`](https://testnet.nearblocks.io/txns/GwnQFSjpCqcPZeSHiTmiu6t5ZMkhM6NQ8vh4NjDzDpWE) (state init + `pay`, 0.92 to the merchant, 0.08 to the tax vault)
 - **For AI agents:** an [MCP server](mcp/README.md) with `issue_invoice`, `invoice_status` and `verify_invoice` (read-only, never signs)
-- **Demo video:** (link added at submission)
 
 Tracks: **Open Innovation** (primary) · **Real-World Money**. Testnet only, mock token only, not audited.
 
@@ -91,7 +90,7 @@ Full list with the evidence: [docs/LIMITS.md](docs/LIMITS.md).
 - **A token payer can be charged twice.** A plain `ft_transfer` of the full price followed by an `ft_transfer_call` is accepted twice; the parked amount is later swept to the merchant side with no refund. The client refuses this order; a hand-built call is not stopped. For NEAR, a partly parked transfer followed by a full `pay` is also charged twice.
 - **Plain-transfer underpayments and overpayments are not refunded** (`sweep` cannot know the payer).
 - **No checksum.** A mistyped `0u…` address is a valid address for other bytes; funds sent there are lost.
-- **Wallet support is untested**, and the current dashboard has not been opened in a browser.
+- **Wallet support is untested.** The current dashboard was opened in Chrome on v3.2r for NEAR invoices only; token invoices, the `SETTLING`/`REFUNDED` badges and Refund payer were not tried in a browser.
 - **Transaction lookups need an archival RPC** after about 1.5 days; state checks and offline replays keep working.
 
 ## Who holds keys
@@ -104,9 +103,9 @@ The invoice contract has no owner and no admin call, and invoice accounts have n
 - `src/` — the `zi` CLI, the byte encoders (`bytes.ts`, `stateinit.ts`, `tx.ts`), RPC client, outcome parser, invoice documents, offline replay, and the local dashboard server (`server.ts`; the page is in `web/`).
 - `mcp/` — the MCP server (`mcp/dist/zeroinit-mcp.mjs` is the bundled single file).
 - `fixtures/` — recorded live RPC sessions that replay offline: `v32r/` (current), `v32/`, `v31/`, `v3/`, `v2/`, `v1/` (history), plus synthetic fixtures used by tests only.
-- `invoices/` — the invoice documents of those runs (`v32r/` current) and `examples/INV-0001.json` (the frozen test vector). No secrets.
+- `invoices/` — the invoice documents of those runs (`v32r/` current), `demo/` (the three invoices of the v3.2r dashboard run) and `examples/INV-0001.json` (the frozen test vector). No secrets.
 - `scripts/` — `judge-offline.sh`, the demo and recording scripts that produced the fixtures, and small signing helpers.
-- `site/` — the landing page (Astro), live at <https://zeroinit.vercel.app>; it shows the v3.2r recording `fixtures/v32r/demo-run.json`.
+- `site/` — the landing page (Astro), live at <https://zeroinit.vercel.app>. It shows the v3.2 recording `fixtures/v32/demo-run.json` (the previous build of the same source), not the v3.2r one. Build: `cd site && npm ci && npm run build` (Node >= 22.23.4); the replay data comes from `python3 -I site/scripts/extract-replay.py`.
 - `docs/` — [HOW-IT-WORKS](docs/HOW-IT-WORKS.md), [VERIFY](docs/VERIFY.md), [LIMITS](docs/LIMITS.md), [REPRODUCE](docs/REPRODUCE.md), [RUN-ON-TESTNET](docs/RUN-ON-TESTNET.md) (the keyed walkthrough), [ARCHITECTURE](docs/ARCHITECTURE.md) (measured costs, design by version), [STABLECOIN](docs/STABLECOIN.md) (the token interface spec), [HISTORY](docs/HISTORY.md) (v1 to v3.2), [SPIKES](docs/SPIKES.md) (every live transaction). [SPEC.md](SPEC.md) is the v1 interface spec.
 
 ## No code from before the hackathon window

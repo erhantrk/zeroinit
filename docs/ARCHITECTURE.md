@@ -17,7 +17,7 @@ All six stay on testnet and keep replaying. The account model (one global code h
 
 ## Costs measured
 
-v1 numbers were measured on testnet on 2026-11-10 (protocol 88); the raw output and tx hashes are in [SPIKES.md "Storage, payer cost and deploy burn"](SPIKES.md#storage-payer-cost-and-deploy-burn).
+v1 numbers were measured on testnet on 2026-11-09 (UTC, protocol 88); the raw output and tx hashes are in [SPIKES.md "Storage, payer cost and deploy burn"](SPIKES.md#storage-payer-cost-and-deploy-burn).
 The v2 rows come from the re-recorded fixtures ([SPIKES.md "Contract v2 live"](SPIKES.md#contract-v2-live)).
 
 | What | Measured | Evidence |
