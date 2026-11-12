@@ -378,10 +378,9 @@ Images — **HTML renders, not live screenshots** (both show the green `PAID` ba
 blocked), so the PNGs are not OS screen captures and not screenshots. They are full-page rasters of the live
 `zi serve` state: the same DOM/CSS of `web/index.html`, the real invoice docs and the real API responses (events, tx
 hashes, transfers) captured at the two moments above, rendered with ImageMagick. Every value visible in the images is
-from the live run. `docs/img/README.md` says the same. Do not present them as screen captures in `README.md`, the video
-or the X post.
+from the live run. `docs/img/README.md` says the same. They are HTML renders, not screen captures.
 
-- [x] Live dashboard check + real screenshots (2026-11-10, contract v2, Chrome): INV-SHOT-1 (0.1 NEAR) paid from the
+Real screenshots were taken later (2026-11-10, contract v2, Chrome): INV-SHOT-1 (0.1 NEAR) paid from the
   dashboard's **Pay** button; `zi status INV-SHOT-1` → `status=PAID paid_by=sm1110-zi-payer.testnet`, tax 0.008 NEAR.
   Captures: `docs/img/dashboard-pay.png`, `docs/img/dashboard-invoices.png`. The sweep image is still the HTML render.
   Found and fixed during the check: the page polled every invoice's status every 3 s (overlapping requests, badges
@@ -578,7 +577,7 @@ Merchant = `sm1110-zi3-sweeper.testnet`, tax vault `sm1110-zi3-taxvault.testnet`
 | NEAR expired | `INV-V3-D` | pay `FuVnkSmpJ1KPW5RQKSZFLvXmRvhjZaxMXsrfo3P4HMC3` | `REFUNDED_EXPIRED`, status `EXPIRED` |
 | NEAR double pay | `INV-V3-E` | pay `93Lz8Pcwo2dtMvMPv6b9heVFgSWTJQHJBaENT5rqMyAR`, again `5Rs6jKxDCKs7pCQt6TnUiSf9FHWZyjJhvS51WayouiRQ` | `PAID`, then `REFUNDED_NOT_OPEN` |
 | missing merchant (fix 1) | `LATE-V3` (merchant `late.sm1110-zi3-merchant.testnet`, does not exist) | pay `Gp1zyoBYjd2T9NKUU8z68hQqCanFt7Agv3TWzjuTMXJ1` | `PAYOUT_PENDING`, `transfer_failed` (merchant), **no `invoice_paid`**, status `SETTLING`, 0.092 stays on the invoice |
-| missing merchant paid later | | | **not run in this round**: it needs the parent to create `late.…`, and this round did not create accounts (run later on v3.1, below). The retry that delivers an owed share is shown instead by the unregistered-receiver run (tokens, v3) and by the second `AUD2-V2` sweep (NEAR, v2) |
+| missing merchant paid later | | | not run on v3: the missing-merchant account was only created for the v3.1 runs (below). The retry that delivers an owed share is shown instead by the unregistered-receiver run (tokens, v3) and by the second `AUD2-V2` sweep (NEAR, v2) |
 | refund to the payer (fix 2) | `REFUND-V3` (merchant never created, `grace_ms` 60 s) | pay `5evLS6TvWR6jp7DDZnRDZJ2UUzJFyPQapWuFzkEiGmZW`; `refund_payer` too early `B7CN44eobZwpc4wZbcnAGiYioQxQB3XxnKRvT6KM4Hi6` (`NOT_YET: refundable after …`); after the window `EKXYxx7RnigUuLxT5AGvvmhLoDcz6diPnKw8nniZ338a` | `REFUNDED`: 0.092 back to the payer (`owed_reclaimed`); the vault kept its 0.008 |
 | parked part taxed (fix 3) | `TAX-V3` | plain 0.05 `C1brBZRjwjAyA2QiYMJcQsogo7vUMBjL3rWRm6eHde1B`, pay 0.1 `99naQTxXfGb5a6RaeveXGFk37QRsU3p4a2UsVBgcGv1a`, sweep `EMaHjcPppRp2M49Vqtc6J15HT4YVzqAbwjKfe7j6yKoJ` | pay 0.092 / 0.008, then the parked 0.05 is split 0.046 / 0.004 (`extra_swept`): the vault got 0.012 in total, nothing untaxed |
 | token plain path | `TOK-V3-A` | register id `36oEwerP6xArKcMPo52CsDZtxhwdUjLesdCWGMVyxwks`, plain `ft_transfer` 1 tUSDC `85mQgYa15Ki8pr3P3zLhWrp5j5Wa7mU2cpNSSq82LWKo`, sweep (state init + fund + sweep in one tx) `EXpJhWoheyu3UaBDwQpvFvETSYsD5YPwe4QftE5rqZFX` | before the sweep `view_account` says `UNKNOWN_ACCOUNT` and `ft_balance_of` says 1; after it `PAID`, 0.92 / 0.08 tUSDC |

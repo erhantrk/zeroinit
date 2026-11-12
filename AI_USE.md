@@ -29,7 +29,7 @@ There is no code from before the hackathon window: every commit is inside it.
 
 - The first commit, `ea8d0fb` (2026-11-09 21:52 UTC), is the frozen plan. It contains `docs/plan/reference/` (removed from the current tree; still in that commit): a reference implementation
   (the TypeScript sources, tests and the contract) drafted with Claude during the planning phase of this hackathon (2026-11-08/09), not before it.
-- Commit `1435bbf` ("scaffold the repo from reference/") copied it verbatim into `src/` and `contract/`. The v1 deployed contract was that reference contract; v2 is the same contract with the audit fixes.
+- Commit `1435bbf` (the scaffold commit) copied it verbatim into `src/` and `contract/`. The v1 deployed contract was that reference contract; v2 is the same contract with the audit fixes.
 - **Only `src/vectors.ts` is still identical to the reference:** `git diff ea8d0fb:docs/plan/reference/ts/src/vectors.ts HEAD:src/vectors.ts` is empty.
   `src/outcome.ts` and `src/tx.ts` were extended for the token work; `bytes.ts`, `config.ts`, `rpc.ts`, `send.ts` and `stateinit.ts` were changed by the audit fixes (range checks, the pinned code hash, the testnet check).
 - A diff that starts after `ea8d0fb` does not show the reference code. Because every commit is inside the window there is no earlier baseline and no compare link; use `git log --reverse --stat`
