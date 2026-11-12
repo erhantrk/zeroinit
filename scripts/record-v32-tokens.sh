@@ -9,7 +9,7 @@ set -a; source .env; set +a
 S="${1:-V32}"
 M="${ZI_SWEEPER_ACCOUNT:?set ZI_SWEEPER_ACCOUNT}"
 V="${ZI_TAXVAULT_ACCOUNT:?set ZI_TAXVAULT_ACCOUNT}"
-export ZI_RECORD=fixtures/v32/tokens.json
+export ZI_RECORD="${ZI_RECORD_OUT:-fixtures/v32/tokens.json}"
 zi() { node src/cli.ts "$@"; }
 echo "== v3.2 L7: one-step path (init, then ft_transfer_call)"
 zi invoice new --id "TOK-$S-B" --merchant "$M" --tax-vault "$V" --tax-bps 800 --amount 1 --expires-in 2h --token tUSDC

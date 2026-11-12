@@ -8,7 +8,7 @@ import { u64 } from '../src/bytes.ts';
 import { invoiceStateBytes } from '../src/stateinit.ts';
 import { checkDoc, assertDocTrusted, rawFromTerms, createInvoiceDoc, isV3Doc, docAmountRaw, docToken, docGraceMs, loadDoc } from '../src/invoice.ts';
 import { DEPLOYED_CODE_HASH } from '../src/config.ts';
-import { DEPLOYED, V1, V2, V3, V31, FOREIGN, terms, makeDoc, makeTokenDoc, tempDir } from './helpers.ts';
+import { DEPLOYED, V1, V2, V3, V31, V32, FOREIGN, terms, makeDoc, makeTokenDoc, tempDir } from './helpers.ts';
 
 const TOKEN_ENTRY = { symbol: 'tUSDC', decimals: 6, accountId: 'tusdc.example.testnet' };
 
@@ -31,19 +31,20 @@ test('invoiceStateBytes rejects invalid merchant / tax_vault account ids, so no 
   assert.throws(() => invoiceStateBytes(terms({ tax_vault: 'a..b' })), /tax_vault .* not a valid NEAR account id/);
 });
 
-test('createInvoiceDoc writes /2 (v3 layout) for the v3.2, v3.1 and v3 deployments and /1 for v2/v1', () => {
+test('createInvoiceDoc writes /2 (v3 layout) for the v3.2r, v3.2, v3.1 and v3 deployments and /1 for v2/v1', () => {
   const v3 = makeDoc();
   assert.equal(v3.format, 'zeroinit-invoice/2');
   assert.equal(isV3Doc(v3), true);
   assert.equal(docAmountRaw(v3), terms().amount);
   assert.equal(docToken(v3), null);
   assert.equal(docGraceMs(v3), 604_800_000n);
+  assert.equal(makeDoc(V32).format, 'zeroinit-invoice/2');
   assert.equal(makeDoc(V3).format, 'zeroinit-invoice/2');
   assert.equal(makeDoc(V31).format, 'zeroinit-invoice/2');
   assert.equal(makeDoc(V2).format, 'zeroinit-invoice/1');
   assert.equal(makeDoc(V1).format, 'zeroinit-invoice/1');
   // a /1 document on the v3 hash would initialize an account with bytes the v3 contract cannot read: refused at creation
-  assert.throws(() => createInvoiceDoc('0u', DEPLOYED, terms({ layout: 1 })), /v3\.2 deployment needs the v3 state layout/);
+  assert.throws(() => createInvoiceDoc('0u', DEPLOYED, terms({ layout: 1 })), /v3\.2r deployment needs the v3 state layout/);
   assert.throws(() => createInvoiceDoc('0u', V31, terms({ layout: 1 })), /v3\.1 deployment needs the v3 state layout/);
   assert.throws(() => createInvoiceDoc('0u', V3, terms({ layout: 1 })), /v3 deployment needs the v3 state layout/);
 });

@@ -20,7 +20,7 @@ for ((n=FIRST; n<FIRST+MAX; n++)); do
   ZI_RECORD="$f" node src/cli.ts init "$id" || exit 1
   ZI_RECORD="$f" node src/cli.ts token register "$id" || exit 1
   ZI_RECORD="$f" node scripts/race-v32.ts "$id" "$off"; rc=$?
-  if [ "$rc" -eq 0 ]; then cp "$f" fixtures/v32/race.json; echo "RECORDED fixtures/v32/race.json from $id"; exit 0; fi
+  if [ "$rc" -eq 0 ]; then R="${RACE_OUT:-fixtures/v32/race.json}"; cp "$f" "$R"; echo "RECORDED $R from $id"; exit 0; fi
   echo "attempt $n ended with exit $rc"
 done
 echo "no attempt produced the race"; exit 3

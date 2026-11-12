@@ -1,4 +1,4 @@
-// The live v3.2 recordings (2026-11-11, NEAR testnet, global contract 6YtW5oJ8…vMCNHJ, tUSDC mock sm1110-tusdc.testnet).
+// The live v3.2 recordings (2026-11-11, NEAR testnet; HISTORY since v3.2r, which is the same source built reproducibly, see test/live-v32r.test.ts; global contract 6YtW5oJ8…vMCNHJ, tUSDC mock sm1110-tusdc.testnet).
 // v3.2 = v3.1 plus the audit fixes: the sweep/ft_transfer_call race is closed on EVERY rejection path (here: bad_msg), contract-2/3/4.
 // Every fixture under fixtures/v32/ must replay clean offline; the tests pin what each run proved and mutate the recordings to check the
 // replay catches tampering. Run: node --test test/live-v32.test.ts
@@ -13,9 +13,12 @@ import { checkDoc } from '../src/invoice.ts';
 import { V32_CODE_HASH, V31_CODE_HASH } from '../src/config.ts';
 import { DEPLOYED, tempDir } from './helpers.ts';
 
+// v3.2 is history since v3.2r (the same source, built reproducibly): its recordings replay and verify under their own hash (the trusted default is v3.2r).
+const PIN = V32_CODE_HASH;
+
 const FILES = ['demo-run', 'token-demo-run', 'tokens', 'race'].map((n) => `fixtures/v32/${n}.json`);
 const load = (file: string) => JSON.parse(readFileSync(file, 'utf8'));
-const checks = (file: string) => replayFixture(file, DEPLOYED).map((c) => `${c.name} ${c.id}${c.detail ? ' ' + c.detail : ''}`);
+const checks = (file: string) => replayFixture(file, PIN).map((c) => `${c.name} ${c.id}${c.detail ? ' ' + c.detail : ''}`);
 const has = (file: string, want: string) => assert.ok(checks(file).some((s) => s === want || s.startsWith(`${want} `)), `missing check "${want}" in ${file}`);
 const tx = (file: string, id: string, label: string, n = 0): ParsedTx => {
   const f = load(file);
@@ -27,13 +30,13 @@ const ev = (p: ParsedTx, name: string): any => { const e = p.events.find((x) => 
 function mutated(file: string, mutate: (fx: any) => void): string[] {
   const fx = load(file); mutate(fx);
   const p = join(tempDir(), 'f.json'); writeFileSync(p, JSON.stringify(fx));
-  return replayFixture(p, DEPLOYED).filter((c) => !c.ok).map((c) => `${c.name} ${c.id}`);
+  return replayFixture(p, PIN).filter((c) => !c.ok).map((c) => `${c.name} ${c.id}`);
 }
 const callOf = (fx: any, id: string, label: string, n = 0) => fx.calls.filter((c: any) => c.invoice_id === id && c.label === label)[n];
 
 test('v3.2 is the deployment the new recordings were made on: hash, format, and every fixture replays clean under the default pin', () => {
-  assert.equal(V32_CODE_HASH, DEPLOYED);
-  assert.equal(fixturePin(FILES[0], DEPLOYED), V32_CODE_HASH, 'a v3.2 recording is not history: it replays under the trusted hash');
+  assert.notEqual(V32_CODE_HASH, DEPLOYED, 'v3.2r is the current deployment now');
+  assert.equal(fixturePin(FILES[0], DEPLOYED), V32_CODE_HASH, 'a v3.2 recording is pinned to its own hash');
   assert.notEqual(V32_CODE_HASH, V31_CODE_HASH);
   for (const file of FILES) {
     assert.ok(existsSync(file), `${file} is missing`);
@@ -41,7 +44,7 @@ test('v3.2 is the deployment the new recordings were made on: hash, format, and 
     assert.notEqual(f.synthetic, true, `${file} must be a recording`);
     assert.ok(f.invoices.length > 0);
     for (const d of f.invoices) { assert.equal(d.code_hash, V32_CODE_HASH); assert.equal(d.format, 'zeroinit-invoice/2'); }
-    const out = replayFixture(file, DEPLOYED);
+    const out = replayFixture(file, PIN);
     assert.ok(out.length > 0, file);
     for (const c of out) assert.ok(c.ok, `${file}: FAIL ${c.name} ${c.id} ${c.detail}`);
     assert.ok(out.some((c) => c.name === 'code-hash-trusted' && c.detail === V32_CODE_HASH), `${file}: documents are checked against the v3.2 hash`);
@@ -54,7 +57,7 @@ test('the replay runs the pinned set of checks for every invoice of every v3.2 r
   for (const file of FILES) {
     const name = file.replace('fixtures/v32/', '').replace('.json', '');
     const got: Record<string, string[]> = {};
-    for (const c of replayFixture(file, DEPLOYED)) (got[c.id] ??= []).push(c.name);
+    for (const c of replayFixture(file, PIN)) (got[c.id] ??= []).push(c.name);
     const norm = Object.fromEntries(Object.entries(got).map(([k, v]) => [k, [...new Set(v)].sort()]));
     assert.deepEqual(norm, pinned[name], `${file}: the set of checks per invoice changed`);
   }
@@ -67,7 +70,7 @@ test('every invoice document in invoices/v32/ re-derives its address and is v3.2
     const d = JSON.parse(readFileSync(join('invoices/v32', f), 'utf8'));
     assert.equal(d.code_hash, V32_CODE_HASH, f);
     assert.match(d.invoice_id, /V32/, f);
-    const c = checkDoc(d, DEPLOYED);
+    const c = checkDoc(d, PIN);
     assert.ok(c.idFromTerms && c.rawFromTerms && c.fieldsConsistent && c.codeHashTrusted && c.formatMatchesDeployment, `${f} does not verify offline`);
   }
 });

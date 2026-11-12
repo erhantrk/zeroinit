@@ -4,7 +4,9 @@ cd "$(dirname "$0")/.."
 npm ci --include=dev
 npm test
 npm run -s zi -- vectors
-# v3.2 (current contract; the audit fixes): the live recordings of 2026-11-11 (NEAR demo, tUSDC demo, one-step ft_transfer_call, the bad_msg race)
+# v3.2r (current contract: the v3.2 source built reproducibly, commit 4116e69): the live recordings of 2026-11-12 (NEAR demo, tUSDC demo, one-step ft_transfer_call, the bad_msg race)
+for f in demo-run token-demo-run tokens race; do npm run -s zi -- replay "fixtures/v32r/$f.json"; done
+# v3.2 (history since v3.2r, the same source, a non-reproducible build; the audit fixes): the live recordings of 2026-11-11 (NEAR demo, tUSDC demo, one-step ft_transfer_call, the bad_msg race)
 for f in demo-run token-demo-run tokens race; do npm run -s zi -- replay "fixtures/v32/$f.json"; done
 # v3.1 (history since v3.2; the F1 race fix for the busy rejection only): the live recordings of 2026-11-10 (NEAR demo, tUSDC demo, one-step ft_transfer_call, the F1 race, the L3 late merchant)
 for f in demo-run token-demo-run tokens race late; do npm run -s zi -- replay "fixtures/v31/$f.json"; done
@@ -17,5 +19,5 @@ npm run -s zi -- replay fixtures/v2/audit-scenarios.json
 # v1 (frozen history, verify-only): the original recordings still replay
 npm run -s zi -- replay fixtures/v1/demo-run.json
 npm run -s zi -- replay fixtures/v1/refund-cases.json
-for f in invoices/v32/*.json invoices/v31/*.json invoices/v3/*.json invoices/v2/*.json invoices/v1/*.json; do npm run -s zi -- verify "$(basename "$f" .json)" --offline; done
+for f in invoices/v32r/*.json invoices/v32/*.json invoices/v31/*.json invoices/v3/*.json invoices/v2/*.json invoices/v1/*.json; do npm run -s zi -- verify "$(basename "$f" .json)" --offline; done
 echo "JUDGE-OFFLINE: ALL PASS"

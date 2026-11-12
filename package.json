@@ -10,7 +10,7 @@
     "test": "node --test test/*.test.ts",
     "contract:test": "cd contract && cargo test",
     "contract:test:v2": "cd contract-v2 && cargo test",
-    "contract:build": "cd contract && cargo near build non-reproducible-wasm && cp target/near/zeroinit_invoice.wasm res/zeroinit_invoice.wasm",
+    "contract:build": "cd contract && cargo near build reproducible-wasm",
     "contract:build:v2": "cd contract-v2 && cargo near build non-reproducible-wasm && cp target/near/zeroinit_invoice.wasm res/zeroinit_invoice.wasm"
   },
   "dependencies": { "@noble/hashes": "2.2.0", "@noble/curves": "2.2.0", "@scure/base": "2.2.0" },
