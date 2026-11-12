@@ -1,6 +1,7 @@
 // Renders the four beats of the map story (the same code the page runs) to WebP stills for the no-JS,
 // reduced-motion and Save-Data fallback: 1280x720 for wide screens, 600x700 for phones.
-// Needs the preview server on :4321 and the cached Chromium. Usage: node scripts/make-story-stills.mjs
+// Needs the preview server on :4321 and a Chromium. Usage: node scripts/make-story-stills.mjs
+import fs from 'node:fs';
 import os from 'node:os';
 import sharp from 'sharp';
 import { chromium } from 'playwright';
@@ -10,8 +11,11 @@ const SETS = [
   { prefix: 'story-', w: 1280, h: 720 },
   { prefix: 'story-m', w: 600, h: 700 },
 ];
+// Browser: CHROME_PATH if set, else the pinned Linux build where it exists, else Playwright's own Chromium.
+const pinned = os.homedir() + '/.cache/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell';
+const executablePath = process.env.CHROME_PATH || (fs.existsSync(pinned) ? pinned : undefined);
 const browser = await chromium.launch({
-  executablePath: os.homedir() + '/.cache/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell',
+  ...(executablePath ? { executablePath } : {}),
   args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'],
 });
 for (const set of SETS) {

@@ -14,8 +14,8 @@ const LAT_MIN = -57;
 const LAT_MAX = 84;
 const N = 25;
 const N_MERCHANT = 23;
-const INV_A = 'INV-1111-V32-A';
-const INV_B = 'INV-1111-V32-B';
+const INV_A = 'INV-1111-V32R-A';
+const INV_B = 'INV-1111-V32R-B';
 
 const PAYER: Pt = [-90, 40];
 const ADDR_A: Pt = [10, 50];
@@ -311,7 +311,7 @@ function boot() {
     if (b === 0) for (let r = 0; r < 2; r++) ripple(pA[0], pA[1], (t * 1.5 + r * 0.5) % 1, paper, 38);
     if (b === 1) ripple(pA[0], pA[1], (t - 0.38) / 0.3, green, 52);
     label(INV_A, pA[0], pA[1] - 46 * ps, smooth(0.15, 0.4, u) * dimA);
-    label('0ue8ts6vvgpq…qazs62g', pA[0], pA[1] - 27 * ps, smooth(0.25, 0.5, u) * dimA);
+    label('0u7hdnprw7z1…ees4ppg', pA[0], pA[1] - 27 * ps, smooth(0.25, 0.5, u) * dimA);
     if (u < 1.05) label('chain says: UNKNOWN_ACCOUNT', pA[0], pA[1] + 32 * ps, smooth(0.45, 0.75, u) * (1 - smooth(0.95, 1.05, u)));
 
     // ---- merchant and vault ----
@@ -358,7 +358,7 @@ function boot() {
       ring(pB[0], pB[1], RING, green, bIn * litB, { fill: 0.18 * litB, w: 1.6 });
       if (b === 3) ripple(pB[0], pB[1], (t - 0.32) / 0.3, green, 52);
       label(INV_B, pB[0], pB[1] + (narrow ? 30 : -46) * ps, 0.95 * bIn);
-      if (!narrow) label('0u2kmvc0zc7h…9c0km0xr0', pB[0], pB[1] - 27 * ps, 0.95 * smooth(2.1, 2.3, u));
+      if (!narrow) label('0u9j9t2pzf15…4g39bm95g', pB[0], pB[1] - 27 * ps, 0.95 * smooth(2.1, 2.3, u));
       if (u < 3.25) label('uninitialized: 1 NEAR waiting', pB[0], pB[1] + (narrow ? 52 : 32) * ps, smooth(2.78, 2.95, u) * (1 - smooth(3.15, 3.28, u)));
 
       const wIn = smooth(2.0, 2.1, u) * (1 - 0.5 * smooth(3.0, 3.2, u));
