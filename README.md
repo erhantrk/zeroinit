@@ -3,7 +3,7 @@
 **Every invoice gets its own NEAR address, and issuing it needs no transaction.** The payer's one transaction creates the account, pays the merchant and sets the tax aside (92/8 in the demo). Nobody ever holds a key to that account.
 
 NEAR HACKATHON 2026 · Tracks (proposed, confirmed at submission): **Open Innovation** (primary), **Real-World Money** · Testnet only, mock token only, not audited, written with AI help (["AI use disclosure"](#ai-use-disclosure)).
-Also by the same submitter: [ProvenExit](https://github.com/erhantrk/provenexit) (hackathon rule Q-015).
+Also by the same submitter: [ProvenExit](https://github.com/erhantrk/provenexit) (hackathon rule Q-015). Site: <https://zeroinit.vercel.app>.
 
 ![ZeroInit local dashboard: invoice list with PAID badges and the payer panel with the "Pay (one transaction)" button](docs/img/dashboard-pay.png)
 *Real browser screenshot of the local dashboard, v2 build, 2026-11-10 (the v3.2 dashboard has not been opened in a browser; see `docs/img/README.md`).*
@@ -397,7 +397,7 @@ callback. If one fails (a missing account, an unregistered token receiver), NEAR
 - `invoices/` — `v32/` (current), `v31/`, `v3/`, `v2/`, `v1/` and `examples/INV-0001.json` (the frozen test vector); none contain secrets.
 - `scripts/` — `demo.sh`, `demo-token.sh`, the `record-*.sh` recorders that were run, helpers (`plain-transfer.ts`, `plain-ft-transfer.ts`, `race-v32.ts`, `race-v31.ts`, …) and `judge-offline.sh` (one-command offline check).
 - `docs/` — `HISTORY.md` (v1/v2/v3/v3.1/v3.2 and the older replays), `RUN-ON-TESTNET.md` (the keyed walkthrough), `SPIKES.md` (live tx hashes and measurements), `ARCHITECTURE.md`, `STABLECOIN.md` (the v3 interface spec). The v1 interface spec is [`SPEC.md`](SPEC.md) at the repo root.
-- `site/` — the landing page (Astro; Node ≥ 22.23.4): `cd site && npm ci && npm run build`, output in `site/dist/`. Its replay data comes from `fixtures/v32/demo-run.json` (`python3 -I site/scripts/extract-replay.py`).
+- `site/` — the landing page, live at <https://zeroinit.vercel.app> (Astro; Node ≥ 22.23.4): `cd site && npm ci && npm run build`, output in `site/dist/`. Its replay data comes from `fixtures/v32/demo-run.json` (`python3 -I site/scripts/extract-replay.py`).
 
 ## Libraries
 
