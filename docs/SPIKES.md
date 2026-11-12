@@ -809,3 +809,54 @@ The `expired` and `not_open` variants of the race were not produced on testnet (
 
 A reproducible wasm build, a browser walk-through of the dashboard, wallet checks, an independent audit, mainnet, the `expired` / `not_open` race variants on testnet, the contract-2/3/4 fixes on testnet, and a repeat of the race (one success is recorded).
 `$CONDUCTOR_BIN slot run -- npm test` exited 255 with no output here, so `node --test` and `cargo test` were run directly (nothing was heavy). The invoice documents are `invoices/v32/*.json`; none contain secrets.
+
+## Contract v3.2r live (2026-11-12)
+
+v3.2r is the **same source as v3.2**, built reproducibly and published as a global contract by hash (`docs/HISTORY.md` "v3.2 → v3.2r"). Nothing about the contract changed, so these runs repeat the v3.2 runs on the new hash.
+All hashes below are real testnet transactions; each run is a fixture that replays offline (`npm run zi -- replay fixtures/v32r/<name>.json`). RPC `https://rpc.testnet.fastnear.com`; transactions were signed with the repo's own encoder
+and the keys from `.env`, never printed. In this sandbox Node needed `NODE_USE_ENV_PROXY=1` for fetch.
+
+### Build and publish
+
+- wasm: `contract/res/v3.2r/zeroinit_invoice.wasm`, 163,788 bytes, from `cd contract && cargo near build reproducible-wasm` at commit `4116e69` (image `sourcescan/cargo-near:0.23.0-rust-1.99.1`, pinned by digest), sha256
+  `9a8f368d406392f566d64293d148dcbbee016db8a4d6948c82f6996ce7775b92`, code hash (base58) `BQLSk5carin64UMreToJHT15gvow6wqZSyKqDz7zCFry`. The build records its commit in the contract metadata: a later commit gives a different hash.
+  The build and the publish were done by the operator before this run; in this run we re-read the on-chain `view_global_contract_code` bytes of the hash (163,788 bytes, sha256 identical to the committed file). We did not re-run the reproducible build in this run.
+- Global publish: tx `DYP9bS9hn7Laip759uTCZ1t3uVF9caWKGZxHM7SdUuNs`, signer `sm1110-zi-deployer.testnet`, funded by three transfers from the retired v2 accounts. We did not read back the burn.
+- Accounts as in "Contract v3 live" (`sm1110-zi3-*`, tUSDC `sm1110-tusdc.testnet`); nothing new was created this round.
+
+### The runs (fixtures under `fixtures/v32r/`)
+
+Merchant = `sm1110-zi3-sweeper.testnet`, tax vault `sm1110-zi3-taxvault.testnet`, payer `sm1110-zi3-payer.testnet`, 800 bps, tUSDC `sm1110-tusdc.testnet`. Scripts: `scripts/demo.sh 1111-V32R`, `scripts/demo-token.sh 1111-V32R`,
+`scripts/record-v32-tokens.sh V32R` (with `ZI_RECORD_OUT=fixtures/v32r/tokens.json`), `scripts/record-v32-race.sh V32R 4` (with `RACE_OUT=fixtures/v32r/race.json`); the demos with `ZI_RECORD` set to the fixture.
+
+| Run | Invoice | Transactions | Result |
+|---|---|---|---|
+| NEAR demo: pay | `INV-1111-V32R-A` (1 NEAR, `0u7hdnpr…4ppg`) | pay `GwnQFSjpCqcPZeSHiTmiu6t5ZMkhM6NQ8vh4NjDzDpWE` | `PAID`, 0.92 / 0.08, `invoice_paid` from `on_settled` |
+| NEAR demo: plain + sweep | `INV-1111-V32R-B` | plain transfer `8vg2gkVxnYpKMqf75gTVx4eCXRqMn46edWz27BNNmPFL`, sweep `DKFQDCKQ6xNK1PeRHPDf372nj6zMJ9cPhPxYkLeCroXv` | `PAID`, `paid_by` null, 0.92 / 0.08 |
+| NEAR demo: underpay | `INV-1111-V32R-C` | pay 0.5 `6824mNU425kmYZavKrmBQwurjJP9oVWnSqvxiDQiy3cH` | `REFUNDED_UNDERPAID`, status `OPEN`, 0.5 NEAR back to the payer |
+| tUSDC demo: plain `ft_transfer` + sweep | `TOK-1111-V32R-A` (1 tUSDC) | register the id `8yXZ9S7TLX5dF5ih6wbjHALN982GwiJcqPjPxSNMaHzW`, plain `ft_transfer` `9TJ3YwAt8XQX12BC36hP9yzGyUj3jPb7qRB7uCGbjWWG`, sweep (state init + fund + sweep) `EmQYXvDFSsTX3ekgP3QLUxPVQW4TvLmhT5VVA8uvx4Q2` | before the sweep NEAR says `NONEXISTENT` and `tokens_parked=1 tUSDC`; after it `PAID`, 0.92 / 0.08 tUSDC |
+| tUSDC one-step | `TOK-V32R-B` | init `EbGZTsHvDVA4s1Zo5i1L7cHQQS5r7YfPVUZuMbZdVabV`, register the id `2247afwRmXCHD6DDQeY1SahqC6yRjbpo3vF3m5zwcVfr`, `ft_transfer_call` `GZGNu2t2zShtUVbXxhKRvvB4bhueAD8TmGhr4dyBpGCJ`, second call `CHdcrrGrCTjCV1r9sBNN14rTWpC8RLA4NTZubjCksYH9` | `invoice_paid` via `pay`, payer recorded, final value `"1000000"`; the second call `payment_rejected not_open`, final value `"0"` |
+| **Race on the `bad_msg` path** | `RACE-V32R-1` | init `AH8wQ5bcKFe8EDerhXAPgKLbMwpt65uTDS1XFG3TUjDG`, register the id `BWBs3MC14GWVHgAPfvvGXCSCSUEpqRB6VoNfhkkfTyv9`, sweep `mRNSLvycnnRCHh626BkMgUQTxvvqMdnBP3ns46hecDB` and `ft_transfer_call` with `msg` `{"action":"x"}` `5BMHSgs24N21yr3ux3L3b73ppX4qQcL37rMfTgi1DcQK` sent at the same moment (offset 0 ms), then the retry `8SpKRh4HEriaTJvCYJ1oY8s2Y8RE7SLghWkw7BHbvLQE` | the sweep returned `CONCURRENT_PAYMENT` (success, no payout, no event); the call got `payment_rejected bad_msg`, final value `"0"`; the invoice stayed `OPEN` (owed 0, `paid_by` null); the retry was accepted: `"1000000"`, `invoice_paid`, `PAID` |
+
+**What the race run does and does not show.** First attempt of the recorder (offset 0 ms); one run that hit the right block alignment, **not a rate**. As on v3.2, we did not run the sequence on v3.1, and the `expired` / `not_open` race variants and the contract-2/3/4 fixes were not run live.
+The invoice documents are `invoices/v32r/*.json` (6 files).
+
+### Measured on v3.2r (single runs; tokens burnt = sum over all receipts, deposits not included)
+
+| What | Measured |
+|---|---|
+| NEAR `pay` creating the account (`INV-1111-V32R-A`) | 13.70 Tgas, 0.0075612 NEAR (v3.2: 13.71 Tgas, 0.007562) |
+| NEAR underpay refunded (`INV-1111-V32R-C`) | 12.83 Tgas, 0.0074963 NEAR |
+| NEAR sweep after a plain transfer, with state init (`INV-1111-V32R-B`) | 13.68 Tgas, 0.0012789 NEAR (the plain transfer itself, 8.37 Tgas, 0.0070946 NEAR) |
+
+The token figures were not re-measured on v3.2r (see "Measured on v3.2").
+
+### Verification run (2026-11-12)
+
+| Command | Result |
+|---|---|
+| `npm test` | `# tests 226` / `# pass 226` / `# fail 0` |
+| `cd contract && cargo test` | 94 passed, 0 failed |
+| `bash scripts/judge-offline.sh` | last line `JUDGE-OFFLINE: ALL PASS` |
+| `zi verify <id>` (online) on the 6 invoices of `invoices/v32r/` | exit 0 for each, no `FAIL`; `PASS code-hash-onchain BQLSk5ca…zCFry`, `PASS no-access-keys` |
+| `zi replay fixtures/v32r/{demo-run,token-demo-run,tokens,race}.json` | 62 / 31 / 45 / 46 `PASS`, 0 `FAIL` (the same counts as the v3.2 recordings) |

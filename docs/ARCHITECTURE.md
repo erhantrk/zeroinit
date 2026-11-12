@@ -2,7 +2,7 @@
 
 One immutable contract, one derivation function, and three transaction shapes. Everything below runs on NEAR
 testnet at protocol 88; `docs/SPIKES.md` (sections S-A…S-E, "Contract v2 live", "Contract v3 live", "Contract v3.1 live" and "Contract v3.2 live") records the live transactions that prove it.
-The **current** contract is **v3.2** (code hash `6YtW5oJ8UtCrzUePQf14zqKMb9G3DUtMynEnZvMCNHJ`, deployed as a global contract by tx `GHHsammf6Mg4nNZWtdB9sBYPJtSojSE46JVUs7nyd3Pg`):
+The **current** contract is **v3.2r** (code hash `BQLSk5carin64UMreToJHT15gvow6wqZSyKqDz7zCFry`, published as a global contract by tx `DYP9bS9hn7Laip759uTCZ1t3uVF9caWKGZxHM7SdUuNs`): the v3.2 source built reproducibly, so everything below about v3.2 holds for it; v3.2 itself (`6YtW5oJ8UtCrzUePQf14zqKMb9G3DUtMynEnZvMCNHJ`, tx `GHHsammf6Mg4nNZWtdB9sBYPJtSojSE46JVUs7nyd3Pg`) is history:
 v3.1 plus the final audit's contract fixes (see "v3.2" below); v3.1 (`2prMzXHZVWdeHfmdqqxzb5ahLy2pWBWZjuE25EDJDaYX`) was v3 plus one fix (a token `sweep` racing an in-flight `ft_transfer_call`, see "v3.1" below). v3 (`Ut7EQhLDrvYVarHb6ZaXk6m7o9kQqYPCpyqiamvreWa`) added NEP-141 invoices
 (tUSDC, a testnet mock), a `SETTLING` status, an owed ledger and a payout lock. v3.1, v3, v2 (`4bQ61AgHWWmYXp5c3fwj9NJxS79D9R3cGZAZxHyx9zEA`) and v1
 (`Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k`) stay on testnet as recorded history, see "v1 → v2", "v3", "v3.1" and "v3.2". The sections up to "v1 → v2" describe the account model, which is
@@ -63,7 +63,7 @@ Facts this relies on (all verified in source / official tests; Day-0 spikes re-p
   so no key exists that could ever sign for it. `zi verify` asks RPC `view_access_key_list` and prints
   `PASS no-access-keys` only when the list is empty.
 - **The code is fixed by hash.** The invoice account is a global-contract account: `view_account.global_contract_hash`
-  must equal the deployed code hash (v3.2 `6YtW5oJ8UtCrzUePQf14zqKMb9G3DUtMynEnZvMCNHJ`, checked by `PASS code-hash-onchain`; v1/v2/v3/v3.1 history invoices are checked against their own hash and labelled by `zi verify`).
+  must equal the deployed code hash (v3.2r `BQLSk5carin64UMreToJHT15gvow6wqZSyKqDz7zCFry`, checked by `PASS code-hash-onchain`; v1/v2/v3/v3.1/v3.2 history invoices are checked against their own hash and labelled by `zi verify`).
   A state init can only install code whose hash is already baked into the address, and repeating it on an initialized
   account is a no-op that refunds the deposit (SPEC.md §1, fact 3).
 - **What this does *not* mean.** Only **invoice** accounts are keyless. The tUSDC mock token `sm1110-tusdc.testnet` (a contract account) and the operator's deployer/merchant/vault/payer accounts each hold a full-access key
@@ -130,7 +130,7 @@ Residual: `invoice_paid` precedes the transfers; extra funds arriving while a ta
 vault as the owed share; a nonexistent merchant still cannot receive its share, so the CLI and the dashboard check both
 accounts exist at issue time. Full tx hashes and the table are in `docs/HISTORY.md` → "v1 → v2".
 
-Client side (`src/config.ts`): a known-deployments list holds v3.2 (the trusted build, labelled "current, deployed on testnet"), v3.1, v3, v2 (deployed, historical for the client) and v1 (historical).
+Client side (`src/config.ts`): a known-deployments list holds v3.2r (the trusted build, labelled "current, deployed on testnet"), v3.2, v3.1, v3, v2 (deployed, historical for the client) and v1 (historical).
 `zi verify`, `zi receipt` and `zi replay` accept a v1, v2, v3 or v3.1 invoice or fixture against its own hash to replay the recorded history
 and say which deployment it uses; `zi pay`, `zi sweep`, `zi init`, `zi invoice new` and the dashboard use only the trusted
 hash (v3.2 or the `ZI_CODE_HASH` pin). Foreign hashes are never accepted.
@@ -179,7 +179,7 @@ code is global and ownerless.
 
 Gas: the client attaches 100 Tgas for NEAR `pay`/`sweep`/`refund_payer`, 200 Tgas for token `ft_transfer_call`, token `sweep` and token `refund_payer`; the runs burnt 2 to 22 Tgas
 per transaction (numbers above). Deploy: about 16.1226 NEAR measured by the operator, `contract/`'s wasm is 161,213 bytes (a local, non-reproducible build). Client side
-(`src/config.ts`): v3.2 is the trusted build (labelled "current, deployed on testnet"), v3.1, v3, v2 and v1 are historical; `pinForVerification` accepts a historical document only against
+(`src/config.ts`): v3.2r is the trusted build (labelled "current, deployed on testnet"), v3.2, v3.1, v3, v2 and v1 are historical; `pinForVerification` accepts a historical document only against
 its own hash, and pay/sweep/init refuse a historical or foreign document. tUSDC (`sm1110-tusdc.testnet`) is a testnet mock token; the allow-list default is in `src/config.ts`.
 On mainnet it would be a real issuer's NEP-141 contract; that was not tested.
 

@@ -1,10 +1,10 @@
-# ZeroInit history: v1, v2, v3, v3.1 and v3.2
+# ZeroInit history: v1, v2, v3, v3.1, v3.2 and v3.2r
 
 This file holds what used to be the long middle of the README: what each contract version fixed, the live evidence, and how to replay the older
-recordings. The README keeps only what a judge needs for the **deployed v3.2** contract. Everything here is recorded history on testnet:
-v1, v2, v3 and v3.1 stay deployed, keep replaying under their own code hashes, and are never used by `zi pay` / `zi sweep` / `zi init` (the client refuses them).
+recordings. The README keeps only what a judge needs for the **deployed v3.2r** contract. Everything here is recorded history on testnet:
+v1, v2, v3, v3.1 and v3.2 stay deployed, keep replaying under their own code hashes, and are never used by `zi pay` / `zi sweep` / `zi init` (the client refuses them).
 
-Sections: [Replaying the earlier recordings](#replaying-the-earlier-recordings) · [v1 → v2](#v1--v2) · [v2 → v3](#v2--v3) · [v3 → v3.1](#v3--v31) · [v3.1 → v3.2](#v31--v32) ·
+Sections: [Replaying the earlier recordings](#replaying-the-earlier-recordings) · [v1 → v2](#v1--v2) · [v2 → v3](#v2--v3) · [v3 → v3.1](#v3--v31) · [v3.1 → v3.2](#v31--v32) · [v3.2 → v3.2r](#v32--v32r) ·
 [Older claims](#older-claims-and-how-to-verify-them) · [Deploy transactions](#deploy-transactions-and-burns).
 
 **Transaction lookups:** the default RPC prunes transactions after about 1.5 days, so most hashes below no longer resolve there. Use
@@ -13,7 +13,7 @@ offline (`zi replay fixtures/…`), which never needs a network.
 
 ## Replaying the earlier recordings
 
-   The v3.2 recordings in `fixtures/v32/` (`demo-run.json`, `token-demo-run.json`, `tokens.json`, `race.json`) replay under the current hash. The v3.1 recordings in `fixtures/v31/` (history since v3.2; their first line says `INFO deployment v3.1 (history, frozen: …)`) other than the demos replay the same way: `tokens.json` (init, then one `ft_transfer_call` that settles, then a second one that is returned) and `late.json` (a missing
+   The v3.2r recordings in `fixtures/v32r/` (`demo-run.json`, `token-demo-run.json`, `tokens.json`, `race.json`) replay under the current hash. The v3.2 recordings in `fixtures/v32/` (same file names; history since v3.2r; their first line says `INFO deployment v3.2 (history, frozen: …)`) replay under their own hash. The v3.1 recordings in `fixtures/v31/` (history since v3.2; their first line says `INFO deployment v3.1 (history, frozen: …)`) other than the demos replay the same way: `tokens.json` (init, then one `ft_transfer_call` that settles, then a second one that is returned) and `late.json` (a missing
    merchant, then the L3 sweep after the account was created). The v3 recordings, made earlier the same day on the previous contract, replay under their own hash (history):
    `near.json` (pay, plain transfer + sweep, underpay, expired, double pay), `fixes.json` (a missing merchant gives `SETTLING` and no `invoice_paid`; `refund_payer`; a parked part is
    taxed), `tokens.json` (tUSDC plain path, one-step pay, overpay, underpay, expiry, token `refund_payer`, wrong asset), `failures.json` (an unregistered receiver that is retried to
@@ -198,7 +198,7 @@ Tests at the time of the v3.1 round: 65 Rust tests in `contract/` (the v3.1 sour
 ## v3.1 → v3.2
 
 Contract **v3.2** is a new wasm and a new code hash (`6YtW5oJ8UtCrzUePQf14zqKMb9G3DUtMynEnZvMCNHJ`, 164,040 bytes, sha256 `016bf5ba27ae4e10022458d158cc070167b8b7eabc84cdd35ab2bd7c69f5e63d`, built by the operator with `npm run contract:build` from HEAD `2a57328`, the commit before this one), deployed by the operator as another global contract: tx `GHHsammf6Mg4nNZWtdB9sBYPJtSojSE46JVUs7nyd3Pg`, signer `sm1110-zi32-deployer.testnet`, burn about **16.4053 NEAR** (balance 17 → 0.5946814 NEAR, gas included; the
-tx's `tokens_burnt` read back from RPC on 2026-11-11 is 16.405318 NEAR). We also compared the on-chain `view_global_contract_code` bytes of that hash with the committed `contract/res/zeroinit_invoice.wasm`: identical (164,040 bytes, same sha256).
+tx's `tokens_burnt` read back from RPC on 2026-11-11 is 16.405318 NEAR). We also compared the on-chain `view_global_contract_code` bytes of that hash with the committed `contract/res/zeroinit_invoice.wasm` (now `contract/res/v3.2/zeroinit_invoice.wasm`): identical (164,040 bytes, same sha256).
 The state layout and the interface did not change; the same terms give a different address under v3.2 (new ids end in `-V32`). v3.1 (`2prMzXHZ…DaYX`) stays on testnet as recorded history. Nothing is migrated.
 
 **The four contract findings of the final audit that v3.2 fixes** (details and the residual in `docs/STABLECOIN.md` §5.3):
@@ -223,8 +223,25 @@ returned the whole 1 tUSDC; the invoice stayed `OPEN` with nothing owed and no p
 the right block alignment, not a rate; we did not run the same sequence on v3.1 to show the old behaviour (the alignment is chance and v3.1 is history), so **the evidence that v3.1 had the hole is the Rust test, not a testnet run**.
 The replay rules `concurrent-payment-plans-nothing`, `concurrent-payment-nothing-owed` and `ft-rejected-bad_msg` check the recording offline.
 
-**Not run live:** the `expired` and `not_open` variants of the race, and the contract-2/3/4 fixes (Rust unit tests only). Also not done: a reproducible wasm build, a browser walk-through of the dashboard, wallet checks, an independent audit, mainnet.
+**Not run live:** the `expired` and `not_open` variants of the race, and the contract-2/3/4 fixes (Rust unit tests only). Also not done at that time: a reproducible wasm build (done afterwards, see v3.2r below), a browser walk-through of the dashboard, wallet checks, an independent audit, mainnet.
 A residual that stays open (`docs/STABLECOIN.md` §5.3): a sweep that lands in the same block as an already-executed rejected `ft_transfer_call` (no lock held yet) can still read a balance the token is about to take back.
+
+## v3.2 → v3.2r
+
+**v3.2r is the same source as v3.2, built reproducibly and published as another global contract by hash.** No contract behaviour changed; the code hash changed because the wasm bytes did. `contract/Cargo.toml` now has a working
+`[package.metadata.near.reproducible_build]` (image `sourcescan/cargo-near:0.23.0-rust-1.99.1` pinned by digest `sha256:8013f039…2fcc`; commits `f19a604` and `4116e69`). `cd contract && cargo near build reproducible-wasm` at commit **`4116e69`** gives
+163,788 bytes, sha256 `9a8f368d406392f566d64293d148dcbbee016db8a4d6948c82f6996ce7775b92`, code hash **`BQLSk5carin64UMreToJHT15gvow6wqZSyKqDz7zCFry`**. The build records its commit in the contract metadata, so a build from a later commit gives a different hash even with unchanged source;
+only `4116e69` reproduces this one. We ran that build ourselves; no independent party repeated it.
+
+Published as a global contract by hash: tx `DYP9bS9hn7Laip759uTCZ1t3uVF9caWKGZxHM7SdUuNs`, signer `sm1110-zi-deployer.testnet`, funded by three transfers from the retired v2 accounts. We read the on-chain `view_global_contract_code` bytes of the new hash on 2026-11-12
+and they equal `contract/res/v3.2r/zeroinit_invoice.wasm` (163,788 bytes, same sha256). We did not compute a deploy burn.
+
+**Client and files.** `KNOWN_DEPLOYMENTS` lists v3.2r first (`historical: false`, the same fixes and layout 3 as v3.2) and v3.2 as history (verify and replay only: `zi pay`, `zi sweep` and `zi init` refuse a v3.2 invoice unless `ZI_CODE_HASH` is pinned to its hash, `ZI_V32_CODE_HASH` in `.env`).
+The committed wasm files are versioned: `contract/res/v3.2/zeroinit_invoice.wasm` (016bf5ba…5e63d) and `contract/res/v3.2r/zeroinit_invoice.wasm` (9a8f368d…5b92); `test/wasm-files.test.ts` checks that each hashes to its code hash.
+`npm run contract:build` now runs the reproducible build (output in `contract/target/near/`; copy it where you want to compare). Invoice documents recorded on v3.2r are in `invoices/v32r/` (ids end in `-V32R`).
+
+**Re-recorded on v3.2r** (2026-11-12, the same accounts and recorders as for v3.2; transactions in `docs/SPIKES.md` "Contract v3.2r live"): the NEAR demo (`INV-1111-V32R-A/B/C`), the tUSDC demo (`TOK-1111-V32R-A`), the one-step path (`TOK-V32R-B`) and the `bad_msg` race (`RACE-V32R-1`, again produced on the first attempt).
+The pinned set of replay checks per invoice is identical to v3.2's (`test/v32r-check-names.json`). Same limits as v3.2: the `expired` / `not_open` race variants and the contract-2/3/4 fixes were not run live (Rust tests only); the race run is one run, not a rate.
 
 ## Older claims and how to verify them
 
@@ -246,7 +263,8 @@ These rows used to sit in the README claims table. The v3 and v3.1 rows are chec
 
 ## Deploy transactions and burns
 
-- **v3.2** (current): `GHHsammf6Mg4nNZWtdB9sBYPJtSojSE46JVUs7nyd3Pg` (signer `sm1110-zi32-deployer.testnet`), wasm sha256 `016bf5ba…5e63d`, 164,040 bytes, burn about 16.4053 NEAR (balance 17 → 0.5946814 NEAR across that tx, gas included; `tokens_burnt` 16.405318 NEAR read back from RPC).
+- **v3.2r** (current, the v3.2 source built reproducibly, commit `4116e69`): `DYP9bS9hn7Laip759uTCZ1t3uVF9caWKGZxHM7SdUuNs` (signer `sm1110-zi-deployer.testnet`), wasm sha256 `9a8f368d…5b92`, 163,788 bytes; no burn computed.
+- **v3.2** (history): `GHHsammf6Mg4nNZWtdB9sBYPJtSojSE46JVUs7nyd3Pg` (signer `sm1110-zi32-deployer.testnet`), wasm sha256 `016bf5ba…5e63d`, 164,040 bytes, burn about 16.4053 NEAR (balance 17 → 0.5946814 NEAR across that tx, gas included; `tokens_burnt` 16.405318 NEAR read back from RPC).
 - **v3.1**: `52dRw7RcBom9EbUJ6hCExDF5esWjsHPh5e1sUa87XyvB`, burn about 16.3784 NEAR (deployer balance 17.8774031 → 1.4989866 NEAR across that tx, gas included), built from commit `d1c185a`.
 - **v3** (`Ut7EQhLD…reWa`): `43D4EifRGJJBtWUVhFPXPFsZqooPwz1czD8LwRz6sjYT`, wasm digest `0724781d…0b1f`, 161,213 bytes, burn about 16.1226 NEAR (balance 27 → 10.8774031 NEAR, gas included). `git show d1c185a:contract/res/zeroinit_invoice.wasm` prints the v3 wasm (sha256 verified).
 - **v2** (`4bQ61AgH…yx9zEA`): `DvNnUtvqMg5Q5e2Mn4fMx7GYBFNFhTo7z9wo64szAFKG` (signer `sm1110-zi-deployer.testnet`, burn 8.2949 NEAR). `shasum -a 256 contract-v2/res/zeroinit_invoice.wasm` → `3562e978e6924a2c538e9906fc42d15a652947891f18f7816e3c7807d20f622f` (82,942 bytes).
@@ -255,9 +273,11 @@ These rows used to sit in the README claims table. The v3 and v3.1 rows are chec
 
 ### What a first payment cost on each version
 
-Measured tokens burnt for a NEAR `pay` (gas plus the protocol account-creation charge): v3.2 0.0075620 NEAR, v3.1 0.0075610, v3 0.0075600, v2 0.0077197, v1 0.0073617847981195 NEAR. One-time global-deploy burn: v3.2 about 16.41 NEAR, v3.1 about 16.38 (the README "Limits" keeps the v3.2 figures).
+Measured tokens burnt for a NEAR `pay` (gas plus the protocol account-creation charge): v3.2r 0.0075612 NEAR, v3.2 0.0075620 NEAR, v3.1 0.0075610, v3 0.0075600, v2 0.0077197, v1 0.0073617847981195 NEAR. One-time global-deploy burn: v3.2 about 16.41 NEAR, v3.1 about 16.38 (the README "Limits" keeps the v3.2 figures; the v3.2r publish burn was not computed).
 
 ### The v2 wasm rebuild (not re-run by us)
+
+(The current v3.2r deployment does have a reproducible build that we ran ourselves: see "v3.2 → v3.2r". The text below is only about v2.)
 
 `contract-v2/` was built with `cargo near build reproducible-wasm` by a judge-side test run, reported as byte-identical (sha256 `3562e978…f622f`); **we did not re-run it**, and the committed settings cannot be
 repeated as written: `[package.metadata.near.reproducible_build]` names the image tag `sourcescan/cargo-near:0.23.0-rust-1.95.0`, which is not in Docker Hub's tag list (checked 2026-11-10), and `image_digest` is `UNSET`.

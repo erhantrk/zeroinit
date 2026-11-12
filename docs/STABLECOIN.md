@@ -1,7 +1,7 @@
 # ZeroInit contract v3: stablecoin (NEP-141) support and the v2 residual fixes
 
 Status: **v3 was deployed on testnet and run live (2026-11-10); v3.1 (v3 plus the F1 fix, code hash `2prMzXHZVWdeHfmdqqxzb5ahLy2pWBWZjuE25EDJDaYX`, deploy tx
-`52dRw7RcBom9EbUJ6hCExDF5esWjsHPh5e1sUa87XyvB`, 163,771 bytes, sha256 `1b1dcc75…e278`) followed the same day; the current deployment is v3.2** (v3.1 plus the audit's contract fixes, code hash `6YtW5oJ8UtCrzUePQf14zqKMb9G3DUtMynEnZvMCNHJ`, deploy tx
+`52dRw7RcBom9EbUJ6hCExDF5esWjsHPh5e1sUa87XyvB`, 163,771 bytes, sha256 `1b1dcc75…e278`) followed the same day; the current deployment is v3.2r, the same source as v3.2 built reproducibly (code hash `BQLSk5carin64UMreToJHT15gvow6wqZSyKqDz7zCFry`, `docs/HISTORY.md` "v3.2 → v3.2r"); v3.2** (v3.1 plus the audit's contract fixes, code hash `6YtW5oJ8UtCrzUePQf14zqKMb9G3DUtMynEnZvMCNHJ`, deploy tx
 `GHHsammf6Mg4nNZWtdB9sBYPJtSojSE46JVUs7nyd3Pg`, 164,040 bytes, sha256 `016bf5ba…5e63d`, 2026-11-11); the sections "Live results (v3.1)" and "Live results (v3.2)" at the end say what was run on them. The interface in this file is the same
 for all three; v3 and v3.1 are recorded history. Everything below that says "v3" and a code hash describes the first build, `Ut7EQh…reWa`. The v3 contract, the client, the dashboard and the tests are in this repo. The wasm was built with
 `npm run contract:build`: 161,213 bytes, sha256 `0724781dd2c9f4f1b8bb30abbff0602578a7ad649fc5a450d4656ffde4740b1f`, code hash
