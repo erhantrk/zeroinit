@@ -33,6 +33,9 @@ ZeroInit derives the address from the terms with NEAR's deterministic account id
 
 Tracks: **Open Innovation** (primary) · **Real-World Money**. Testnet only, mock token only, not audited.
 
+![The local dashboard on the current contract: two invoices paid on testnet, one never paid and so not on chain](docs/img/dashboard-v32r.png)
+*The local dashboard (`npm run zi -- serve`), Chrome, 2026-11-12 UTC, contract v3.2r. The first invoice was paid in one transaction, the second by a plain transfer and a sweep; the third was issued and never paid, so its account does not exist.*
+
 ## Try it in 2 minutes
 
 No keys and no `.env` needed. Node 22; `npm ci` needs the npm registry once, everything after that is offline except the last line.
@@ -105,7 +108,7 @@ The invoice contract has no owner and no admin call, and invoice accounts have n
 - `fixtures/` — recorded live RPC sessions that replay offline: `v32r/` (current), `v32/`, `v31/`, `v3/`, `v2/`, `v1/` (history), plus synthetic fixtures used by tests only.
 - `invoices/` — the invoice documents of those runs (`v32r/` current), `demo/` (the three invoices of the v3.2r dashboard run) and `examples/INV-0001.json` (the frozen test vector). No secrets.
 - `scripts/` — `judge-offline.sh`, the demo and recording scripts that produced the fixtures, and small signing helpers.
-- `site/` — the landing page (Astro), live at <https://zeroinit.vercel.app>. It shows the v3.2 recording `fixtures/v32/demo-run.json` (the previous build of the same source), not the v3.2r one. Build: `cd site && npm ci && npm run build` (Node >= 22.23.4); the replay data comes from `python3 -I site/scripts/extract-replay.py`.
+- `site/` — the landing page (Astro), live at <https://zeroinit.vercel.app>. It shows the v3.2r recording `fixtures/v32r/demo-run.json`. Build: `cd site && npm ci && npm run build` (Node >= 22.23.4); the replay data comes from `python3 -I site/scripts/extract-replay.py`.
 - `docs/` — [HOW-IT-WORKS](docs/HOW-IT-WORKS.md), [VERIFY](docs/VERIFY.md), [LIMITS](docs/LIMITS.md), [REPRODUCE](docs/REPRODUCE.md), [RUN-ON-TESTNET](docs/RUN-ON-TESTNET.md) (the keyed walkthrough), [ARCHITECTURE](docs/ARCHITECTURE.md) (measured costs, design by version), [STABLECOIN](docs/STABLECOIN.md) (the token interface spec), [HISTORY](docs/HISTORY.md) (v1 to v3.2), [SPIKES](docs/SPIKES.md) (every live transaction). [SPEC.md](SPEC.md) is the v1 interface spec.
 
 ## No code from before the hackathon window

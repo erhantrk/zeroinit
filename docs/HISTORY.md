@@ -274,7 +274,7 @@ The v3 and v3.1 rows are checked on those versions' recordings (they replay unde
 
 ### What a first payment cost on each version
 
-Measured tokens burnt for a NEAR `pay` (gas plus the protocol account-creation charge): v3.2r 0.0075612 NEAR, v3.2 0.0075620 NEAR, v3.1 0.0075610, v3 0.0075600, v2 0.0077197, v1 0.0073617847981195 NEAR. One-time global-deploy burn: v3.2 about 16.41 NEAR, v3.1 about 16.38 ([LIMITS.md "Costs"](LIMITS.md#costs); the v3.2r publish burn was not computed).
+Measured tokens burnt for a NEAR `pay` (gas plus the protocol account-creation charge): v3.2r 0.0075612 NEAR, v3.2 0.0075620 NEAR, v3.1 0.0075610, v3 0.0075600, v2 0.0077197 NEAR; for v1 the figure is the payer's balance difference, 0.0073617847981195 NEAR. One-time global-deploy burn: v3.2 about 16.41 NEAR, v3.1 about 16.38 ([LIMITS.md "Costs"](LIMITS.md#costs); the v3.2r publish burn was not computed).
 
 ### The v2 wasm rebuild (not re-run here)
 
