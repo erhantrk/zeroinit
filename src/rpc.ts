@@ -1,4 +1,4 @@
-// JSON-RPC client with optional recording (ZI_RECORD) for the replay fixture (INTERFACES.md §6.3, §9).
+// JSON-RPC client with optional recording (ZI_RECORD) for the replay fixture (SPEC.md §6.3, §9).
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { base58 } from '@scure/base';
 import type { Config } from './config.ts';

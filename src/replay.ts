@@ -1,4 +1,4 @@
-// Offline verification over a recorded fixture (INTERFACES.md §6.3). No network, no keys.
+// Offline verification over a recorded fixture (SPEC.md §6.3). No network, no keys.
 import { readFileSync } from 'node:fs';
 import { base64 } from '@scure/base';
 import { formatNear, toHex } from './bytes.ts';
@@ -10,7 +10,7 @@ import { parseTxStatus, type ParsedTx } from './outcome.ts';
 
 export interface Check { ok: boolean; name: string; id: string; detail: string }
 
-// INTERFACES.md §5.1: the refund reason the contract must emit for each return value.
+// SPEC.md §5.1: the refund reason the contract must emit for each return value.
 const REFUND_REASON: Record<string, string> = {
   REFUNDED_UNDERPAID: 'underpaid',
   REFUNDED_EXPIRED: 'expired',

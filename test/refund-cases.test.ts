@@ -1,4 +1,4 @@
-// Refund rules proven on the real recorded fixture (INTERFACES.md §5.1-5.2).
+// Refund rules proven on the real recorded fixture (SPEC.md §5.1-5.2).
 // Run: node --test test/refund-cases.test.ts
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

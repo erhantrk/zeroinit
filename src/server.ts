@@ -1,4 +1,4 @@
-// SHOULD: local dashboard API (INTERFACES.md §8; docs/STABLECOIN.md §10 for v3). Binds 127.0.0.1 only.
+// SHOULD: local dashboard API (SPEC.md §8; docs/STABLECOIN.md §10 for v3). Binds 127.0.0.1 only.
 // Signs with server-side env keys (demo only).
 import { createServer, type IncomingMessage, type ServerResponse, type Server } from 'node:http';
 import { readFileSync } from 'node:fs';

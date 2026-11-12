@@ -1,4 +1,4 @@
-// Local dashboard API (INTERFACES.md §8): localhost bind, Origin/content-type guards, 400 for bad input.
+// Local dashboard API (SPEC.md §8): localhost bind, Origin/content-type guards, 400 for bad input.
 // Run: node --test test/server.test.ts
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

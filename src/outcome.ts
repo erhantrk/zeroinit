@@ -1,4 +1,4 @@
-// Parse EXPERIMENTAL_tx_status results (INTERFACES.md §9; v3 additions in docs/STABLECOIN.md §10).
+// Parse EXPERIMENTAL_tx_status results (SPEC.md §9; v3 additions in docs/STABLECOIN.md §10).
 export interface ZiEvent { standard: string; version: string; event: string; data: Array<Record<string, unknown>> }
 export interface FtTransfer { token: string; to: string; amount: bigint }
 export interface ParsedTx {

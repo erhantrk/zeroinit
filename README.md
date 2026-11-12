@@ -268,7 +268,7 @@ Everything in this repository was written with AI assistance; the human (Erhan) 
 ## Pre-hackathon code
 
 There is no code from before the hackathon window. The repository's first commit (`f2aa647`, 2026-11-10) is the
-frozen plan, and it contains `docs/plan/reference/`: a reference implementation (the TypeScript sources, tests and
+frozen plan, and it contains `docs/plan/reference/` (removed from the current tree; still in that commit): a reference implementation (the TypeScript sources, tests and
 the contract) that was **drafted with Claude during the planning phase of this hackathon (2026-11-08/09)**, not
 before it. Task T02 (`1f8ccc6`, "scaffold the repo from reference/") copied it verbatim into `src/` and
 `contract/`. The v1 deployed contract was that reference contract; v2 is the same contract with the audit fixes.
@@ -322,7 +322,7 @@ already parked** (run `zi sweep` then; see Limits).
 
 The id is computed offline: `0u` + Crockford-base32(SHA3-256(borsh
 `UniversalStateInit{code: CodeHash, data: {STATE}, access_keys: {}}`)). `STATE` is the borsh encoding of the
-invoice terms (frozen layout in `docs/plan/INTERFACES.md` §2.3, implemented in `src/stateinit.ts`). No key
+invoice terms (frozen layout in `SPEC.md` §2.3, implemented in `src/stateinit.ts`). No key
 exists for an invoice account: `access_keys` is empty, the code is fixed by hash, and the terms are inside the
 address.
 
@@ -396,7 +396,7 @@ callback. If one fails (a missing account, an unregistered token receiver), NEAR
 - `fixtures/` — recorded RPC sessions that replay offline: `fixtures/v32/` (current: `demo-run.json`, `token-demo-run.json`, `tokens.json`, `race.json`), `fixtures/v31/` (`demo-run.json`, `token-demo-run.json`, `tokens.json`, `race.json`, `late.json`, plus `sf4.json`, spike evidence, not a replay), `fixtures/v3/`, `fixtures/v2/`, `fixtures/v1/` (history), and two **synthetic** fixtures used by tests only. Public signatures are replaced by `ed25519:REDACTED-PUBLIC-SIGNATURE` in the v2/v3 fixtures.
 - `invoices/` — `v32/` (current), `v31/`, `v3/`, `v2/`, `v1/` and `examples/INV-0001.json` (the frozen test vector); none contain secrets.
 - `scripts/` — `demo.sh`, `demo-token.sh`, the `record-*.sh` recorders that were run, helpers (`plain-transfer.ts`, `plain-ft-transfer.ts`, `race-v32.ts`, `race-v31.ts`, …) and `judge-offline.sh` (one-command offline check).
-- `docs/` — `HISTORY.md` (v1/v2/v3/v3.1/v3.2 and the older replays), `RUN-ON-TESTNET.md` (the keyed walkthrough), `SPIKES.md` (live tx hashes and measurements), `ARCHITECTURE.md`, `STABLECOIN.md` (the v3 interface spec), `plan/` (the byte-level interfaces and the planning-phase reference implementation).
+- `docs/` — `HISTORY.md` (v1/v2/v3/v3.1/v3.2 and the older replays), `RUN-ON-TESTNET.md` (the keyed walkthrough), `SPIKES.md` (live tx hashes and measurements), `ARCHITECTURE.md`, `STABLECOIN.md` (the v3 interface spec). The v1 interface spec is [`SPEC.md`](SPEC.md) at the repo root.
 - `site/` — the landing page (Astro; Node ≥ 22.23.4): `cd site && npm ci && npm run build`, output in `site/dist/`. Its replay data comes from `fixtures/v32/demo-run.json` (`python3 -I site/scripts/extract-replay.py`).
 
 ## Libraries

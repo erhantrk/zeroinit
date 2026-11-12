@@ -28,7 +28,7 @@ const EXAMPLE = { invoice_id: 'INV-0001', merchant: 'zi-merchant.testnet', tax_v
   amount: parseNear('1'), expires_at_ms: 1794700800000n, salt: 42n };
 const CODE = { codeHash: new Uint8Array(32).fill(0x11) };
 
-test('ZeroInit invoice example (INTERFACES.md §2.3)', () => {
+test('ZeroInit invoice example (SPEC.md §2.3)', () => {
   const s = invoiceStateBytes(EXAMPLE);
   assert.equal(s.length, 135);
   assert.equal(toHex(s), '0108000000494e562d30303031130000007a692d6d65726368616e742e746573746e6574130000007a692d7461787661756c742e746573746e65742003000000a1edccce1bc2d300000000000000f080dca10100002a00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000');
@@ -63,7 +63,7 @@ test('tx encoder parity with near-api-js 7.4.0 (CreateAccount + Transfer + AddKe
   assert.throws(() => actAddFullAccessKey(new Uint8Array(31)), /32 bytes/);
 });
 
-test('signed pay tx vector [UniversalStateInit, FunctionCall pay 1 NEAR] (INTERFACES.md §4.4)', () => {
+test('signed pay tx vector [UniversalStateInit, FunctionCall pay 1 NEAR] (SPEC.md §4.4)', () => {
   const kp = keyPairFromSecret(SECRET);
   assert.equal(kp.publicKeyStr, 'ed25519:AKnL4NNf3DGWZJS6cPknBuEGnVsV4A4m5tgebLHaRSZ9');
   const { raw, accountId } = invoiceStateInit('0u', CODE, EXAMPLE);

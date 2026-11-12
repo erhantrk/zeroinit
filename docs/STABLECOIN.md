@@ -7,9 +7,9 @@ for all three; v3 and v3.1 are recorded history. Everything below that says "v3"
 `npm run contract:build`: 161,213 bytes, sha256 `0724781dd2c9f4f1b8bb30abbff0602578a7ad649fc5a450d4656ffde4740b1f`, code hash
 `Ut7EQhLDrvYVarHb6ZaXk6m7o9kQqYPCpyqiamvreWa`. The operator deployed it as a global contract (tx `43D4EifRGJJBtWUVhFPXPFsZqooPwz1czD8LwRz6sjYT`, measured burn about
 16.1226 NEAR) and created the `sm1110-zi3-*` accounts and the tUSDC mock `sm1110-tusdc.testnet`. The live runs are recorded in `docs/SPIKES.md` ("Contract v3 live")
-and replay offline from `fixtures/v3/`. **Read the rest of this file as the interface spec plus history:** the design text and the "Build notes" below were written
+and replay offline from `fixtures/v3/`. **Read the rest of this file as the interface spec plus history:** the design text below was written
 before the deploy and still say "not deployed" and "to measure"; the section "Live results" at the end says what the runs showed, which numbers are now measured, and the
-one design statement that was wrong (the final value of `ft_transfer_call`). v2 (`4bQ61AgH…yx9zEA`) is recorded history. `docs/plan/` is the locked original plan and is not touched.
+one design statement that was wrong (the final value of `ft_transfer_call`). v2 (`4bQ61AgH…yx9zEA`) is recorded history. [`SPEC.md`](../SPEC.md) is the original v1 interface spec.
 
 What was actually run for this design (2026-11-10, read-only):
 
@@ -42,7 +42,7 @@ lists the spikes that must run first.
 
 - **Code hash:** unknown until the wasm is built. It is the base58 of `sha256(contract/res/zeroinit_invoice.wasm)`, the same way
   v1 and v2 were derived. Call it `V3_CODE_HASH`. It is written to `src/config.ts`, `.env.example`, `test/helpers.ts` (`DEPLOYED`) and the README
-  only after the contract is frozen (section 12, step 6). A contract change after the operator deploys means another deploy
+  only after the contract is frozen. A contract change after the operator deploys means another deploy
   (v2 burned 8.2949 NEAR for 82,942 bytes; v3 will be larger, expect roughly 9 to 11 NEAR, to measure).
 - **Why addresses change:** an invoice id is `0u` + base32(SHA3-256(borsh state init)), and the state init holds the code hash and the
   initial `STATE` bytes. v3 changes both: a new hash, and a new state layout (section 3). The same terms (merchant, tax vault, amount,
@@ -117,7 +117,7 @@ Token, `amount = 1000000` (1 tUSDC), `token = Some("tusdc.example.testnet")` (a 
 0308000000494e562d30303031130000007a692d6d65726368616e742e746573746e6574130000007a692d7461787661756c742e746573746e6574200340420f0000000000000000000000000000f080dca10100002a0000000000000000840c2400000000011500000074757364632e6578616d706c652e746573746e6574000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 ```
 
-The v2 vector (135 bytes, in `docs/plan/INTERFACES.md` §2.3) is **not** changed and stays pinned: v1/v2 documents keep deriving
+The v2 vector (135 bytes, in `SPEC.md` §2.3) is **not** changed and stays pinned: v1/v2 documents keep deriving
 their ids with the old layout (`format: "zeroinit-invoice/1"`). A v3 document uses `zeroinit-invoice/2` (section 9).
 
 **Storage budget.** The zero-balance rule needs `storage_usage ≤ 770` bytes. Derived from the two v2 measurements
@@ -340,7 +340,7 @@ A partial case is allowed: if the vault was paid and the merchant was not, only 
 
 Accepts a NEAR deposit into the invoice account so it can attach 1 yocto to `ft_transfer`. Panics `NOT_A_TOKEN_INVOICE` on a NEAR invoice (a deposit on a NEAR invoice would
 look like extra funds) and `NEEDS_DEPOSIT` if the deposit is 0. No event. The client attaches 1,000 yocto (`FLOAT_YOCTO`), enough for hundreds of settlements and retries; it is a tiny
-amount that stays on the account. The state-init `deposit` field is **not** used for this: `docs/plan/INTERFACES.md` §4.3 says the unused part of it is refunded to the signer,
+amount that stays on the account. The state-init `deposit` field is **not** used for this: `SPEC.md` §4.3 says the unused part of it is refunded to the signer,
 and whether it is credited to the account has never been measured (spike S-F4).
 
 ## 6. How fixes 1, 2 and 3 map to the design
@@ -593,7 +593,7 @@ Server and dashboard
 
 ### 11.4 Live testnet runs to record afterwards (operator and builder)
 
-Spikes first (S-F1 to S-F5, section 12). Then, with the `sm1110-zi3-*` accounts, each as a replayable fixture plus a section in `docs/SPIKES.md`:
+Spikes first (S-F1 to S-F5, results in `docs/SPIKES.md`). Then, with the `sm1110-zi3-*` accounts, each as a replayable fixture plus a section in `docs/SPIKES.md`:
 
 | Run | What it records |
 |---|---|
@@ -619,33 +619,7 @@ Spikes first (S-F1 to S-F5, section 12). Then, with the `sm1110-zi3-*` accounts,
 
 The README and the docs only quote what the replays and the verification run show; a line for a run that did not happen is not written.
 
-## 12. Order of work, spikes, open questions
-
-Order (each step is one commit): 1. pure rename of v2 (`contract/` → `contract-v2/`, v2 fixtures/invoices → `v2/`), tests green; 2. contract v3 + the Rust tests of 11.1; 3. TS encoders, document `/2`, the
-two vectors, units, config; 4. `src/ft.ts`, outcome parsing, CLI, their tests; 5. server and dashboard; 6. **contract freeze**: Sonnet review, then Opus review, then build the wasm, compute and record `V3_CODE_HASH`; 7. operator: accounts, tUSDC registrations and mint, global deploy,
-spikes, live runs; 8. fixtures, replay checks, docs with measured numbers. Nothing after step 6 may change the contract without a new deploy.
-
-Spikes (live, before step 6; each result is written to `docs/SPIKES.md` and can change this design):
-
-| # | Question | If the answer is no |
-|---|---|---|
-| S-F1 | does tUSDC accept `storage_deposit` and `ft_transfer` to a never-seen `0u` id, and does `view_account` still say `UNKNOWN_ACCOUNT`? | the plain token path is dead; token invoices would need an init-first flow |
-| S-F2 | does `ft_transfer_call` to a nonexistent `0u` id return the whole amount (balance unchanged)? | the one-step path has to be documented as unsafe or removed |
-| S-F3 | does `[UniversalStateInit, FunctionCall fund, FunctionCall sweep]` work in one transaction, and what do `view_account` and `ft_balance_of` show afterwards? | split into two transactions |
-| S-F4 | is the `UniversalStateInit.deposit` credited to the account? (not relied upon) | none, informational |
-| S-F5 | gas per method on testnet, final constants of section 9 | adjust the constants before the freeze |
-| S-F6 | storage usage of an initialised token invoice after settle and after a failure | adjust the section 3 estimate |
-
-Open assumptions (nothing here was tested): the `0u` id is accepted as `AccountId` by the token contract (it has the same characters as any account id and the v2 unit tests already parse one, but the token side was not run);
-the 1,000 yocto float is enough and is not rejected; five minutes is long enough for a payout cycle; floor rounding of the tax is acceptable (it is the v2 rule).
-
-## 13. Docs to update when v3 is built
-
-`README.md`: repo map (`contract/` is v3, `contract-v2/`, `fixtures/v2/`), the "NEAR only" limit (replace with the real token limits below), claims table, methods and rules tables, a "v2 → v3" section next to "v1 → v2",
-the test count and the offline output (only after running them), the cost lines, the allow-list note, the AI disclosure. `docs/ARCHITECTURE.md`: diagram, lifecycle, transaction shapes (`fund`, `ft_transfer_call`), costs and v3 section.
-`docs/SPIKES.md`: S-F1 to S-F6 and "Contract v3 live". `.env.example`, `scripts/judge-offline.sh`, `package.json` scripts. `docs/plan/` stays frozen; this file is the v3 interface spec.
-
-## 14. Limits that stay (honest list)
+## 12. Limits that stay (honest list)
 
 - Tokens: only one token per invoice, only tokens on the client allow-list for the supported flow, `0u` only (no `0s` for tokens), testnet only, mock tUSDC.
 - A NEAR plain transfer to a token invoice and a plain `ft_transfer` of another token are not recoverable.
@@ -655,161 +629,6 @@ the test count and the offline output (only after running them), the cost lines,
 - Plain-transfer parking and a later full `pay` still charge the payer for both (the tax is now right, the payer's double payment is not refunded).
 - Gas and cost numbers are estimates until the live runs; the v3 deploy burn is larger than v2's 8.29 NEAR.
 - Nothing here was audited. The v3 contract needs the same review gate as v2 before the deploy.
-
-## 15. AI use for this round
-
-- **Claude Sonnet 5.5** wrote this design (reading the code and docs, the vector computation and the read-only checks listed at the top).
-- Plan for the build (carried out; see "Live results" at the end): **DeepSeek V4.1 Flash** builds the contract, client and tests from this file; **Claude Sonnet 5.5** designs, reviews and fixes; **Claude Opus 5.5** does the final review and the operator deploys (accounts, tUSDC registration and mint, the global deploy, the live runs). The README disclosure is updated with what actually happened when each step is done.
-
-## Build notes (2026-11-10, this round)
-
-What was actually run (all offline; nothing touched testnet):
-
-| Command | Result |
-|---|---|
-| `npm run contract:test` | 61 v3 unit tests pass (`contract/`); 64 after the review round below |
-| `npm run contract:test:v2` | 14 v2 tests still pass (`contract-v2/`, the pure rename) |
-| `npm test` | 140 client tests pass; 141 after the review round |
-| `npm run zi -- vectors` | 8 PASS (v1/v2 vectors unchanged; the v3 hex is pinned in `test/vectors.test.ts`) |
-| `npm run contract:build` | 161,213 bytes, sha256 `0724781d…0b1f`, code hash `Ut7EQhLD…reWa` |
-| `bash scripts/judge-offline.sh` | v2 and v1 fixtures replay and verify; **no v3 fixture is in the judge path** (none was recorded) |
-
-Not run (impossible before the deploy): S-F1…S-F6, L1…L19, the live gas/storage/cost measurements, the token-side
-`0u` acceptance checks, and the operator's accounts/tUSDC/deploy. So every number in §9, §3's live storage expectation
-and the "deployed" statements in README remain estimates or v-next.
-
-### Deviations from the design, and why
-
-1. **The §3 hex vectors were truncated.** The strings printed in section 3 are 200 and 220 bytes; the stated lengths
-   (201/226) and the field layout are authoritative. The hex lost trailing zero bytes (1 and 6). The tests pin the
-   padded vectors (`test/vectors.test.ts`, `state_layout_is_frozen_*`), and `src/stateinit.ts` writes 201/226 bytes.
-2. **`Payout` carries two extra fields.** `from_owed` marks a retry of an amount that was already in the owed ledger
-   (only those emit `tax_resent`/`owed_resent` and were debited when scheduled). `near` says the payout is a NEAR
-   transfer even on a token invoice: a rejected `pay()` on a token invoice refunds an attached **NEAR** deposit, and a
-   test caught the first implementation sending it as `ft_transfer`. `Payout`/`Batch` are private callback args, so
-   their borsh layout is not a public compatibility surface.
-3. **`Batch` carries `merchant_part`, `tax_part` and `lock`.** The `owed_reclaimed` event needs the split, and a
-   rejected `pay()` refunds the deposit without owning the payout lock: `on_settled` clears the lock only when the
-   batch took it (`lock: true`). Clearing it unconditionally (as §4.4 step 1 says) would let a sweep run while the
-   original settlement payouts are still in flight.
-4. **`on_settled` event selection is per payout, not per batch kind.** A sweep can re-send owed amounts and settle
-   extra funds in one batch; the design's kind-only rule cannot express both. Successful payouts with `from_owed` emit
-   `tax_resent`/`owed_resent`; the `extra_swept` event is emitted only when every payout of the batch succeeded, as designed.
-5. **`ft_on_transfer` returns `U128(unused)` immediately and runs the payout batch detached.** If it returned the
-   `on_settled` promise, the token's `ft_resolve_transfer` would receive the callback's string instead of a `U128` and
-   treat the whole amount as unused (near-contract-standards refunds everything when the value is not a `U128`) — every
-   accepted token payment would be silently refunded. The client therefore reads `invoice_paid`/`payment_rejected`, not
-   the final value (section 10 already says this).
-6. **`on_token_balance` returns the `on_settled` promise** for a scheduled batch, so a token `sweep` transaction's final
-   value is the real outcome. For no-op cases it returns the short value; a panic string that starts with `UNDERPAID`
-   is mapped to `UNDERPAID` (§5.3 says the token path returns the value, not the NEAR panic string).
-7. **A reclaim retry that completes sets `REFUNDED`, not `PAID`.** §4.4 step 5 would mark a `SETTLING` invoice `PAID`
-   after a `RESEND` that only paid `owed_payer`; that is a payer refund, not a payment. A `RESEND` that delivers a
-   merchant/tax share still completes the settlement as designed.
-8. **`paid_amount` grows on the expired pro-rata release and on extras.** Field 14 is "total settled to the merchant
-   side"; the design's step tables did not say whether the release counts. It is added (and `tax_amount` with it), so
-   `tax_amount` stays the sum of the taxes of everything in `paid_amount`.
-9. **Lock scope.** The lock is taken by settlements, sweeps and `refund_payer`; rejection refunds of a `pay()` do not
-   take or clear it (see deviation 3). A stale lock (5 minutes) is taken over, as designed.
-10. **Documents follow the deployment.** New issuance on the v3 hash writes `zeroinit-invoice/2` (layout 3); v1/v2
-    hashes write `/1` (layout 1). A `/1` document on the v3 hash is refused (`format-matches-deployment`): its state
-    bytes would be unreadable by the v3 contract. A custom pinned hash defaults to `/1`; `--layout 3` is the escape
-    hatch for a custom v3-like deployment. `checkDoc` takes the allow-list as an optional argument: replay and history
-    verification skip it, `zi verify`/`pay`/`invoice new` enforce it (`FAIL token-allowed` when the allow-list is empty).
-11. **`zi pay --plain` never initializes the invoice**, even when it does not exist: that is the exchange path, and the
-    tokens park on the token contract until someone sweeps. (An implementation that initialized first was caught by the
-    action-order test.)
-12. **`zi sweep` funds a nonexistent token account.** The design says "fund only if fewer than 100 yocto or does not
-    exist"; the first implementation skipped the fund for a nonexistent account, so the sweep had no yocto to attach.
-13. **The 48 numbered Rust test items are 61 test functions** (grouped items such as the refund paths, the bad-msg
-    variants and the token failures are split into one test each). No v2 test was changed: `contract-v2/` still runs
-    its 14 tests, and the v1/v2 document vectors are untouched.
-14. **v3 fixtures do not exist.** `fixtures/v3-synthetic-token.json` is **SYNTHETIC** (marked `synthetic: true`): it
-    exercises the new replay rules and their 10 tamper mutations in `npm test`, but it is not a recording and is not in
-    `scripts/judge-offline.sh`. The recorder scripts (`scripts/record-v3-*.sh`) write `fixtures/v3-near.json`,
-    `fixtures/v3-fixes.json`, `fixtures/v3-tokens.json`, `fixtures/v3-failures.json`; they were not run. `judge-offline.sh`
-    still replays only the v2 and v1 recordings.
-15. **The wasm is larger than v2** (161,213 vs 82,942 bytes). The strict `msg` parser uses a serde derive; the deploy
-    burn is therefore unmeasured and will be larger than v2's 8.2949 NEAR. `image_digest` in
-    `contract/Cargo.toml` is still `UNSET`, like v2's; the reproducible-build note in README applies to the v2 crate
-    now under `contract-v2/`.
-16. **The reproducible build was not run** (no Docker here). The wasm is a local `cargo near build
-    non-reproducible-wasm` build; a judge's reproducible build must be compared before anyone quotes it as reproducible.
-
-### Not done, explicitly
-
-- The global v3 deploy, the `sm1110-zi3-*` accounts, tUSDC registration/mint, and the second mock token (L11).
-- S-F1…S-F6 and L1…L19, the live fixtures, and every gas/storage/cost number marked "to measure".
-- The token-side assumption that a never-seen `0u` id can be registered and receive `ft_transfer` (S-F1), that an
-  uninitialized `0u` id rejects `ft_transfer_call` safely (S-F2), and that the one-transaction
-  `[UniversalStateInit, fund, sweep]` works (S-F3).
-- The dashboard was not clicked in a browser this round (no browsers); its pure state functions and the HTTP API are
-  tested with `node --test`.
-- README/ARCHITECTURE describe v2 as the deployed contract and mark the v3 text "v-next, not deployed yet". After the
-  operator deploys, the measured numbers, the deployment labels and the AI-use section have to be updated again.
-
-## Review round (2026-11-10, Claude Sonnet 5.5, commit "review: stablecoin fixes")
-
-I read the whole v3 diff against this spec, ran `cargo test` (61 pass) and `node --test test/*.test.ts` (140 pass) as the
-baseline, then fixed what I found. Each fix has a test that fails without it (checked by putting the old code back).
-Everything is offline; nothing touched testnet.
-
-Fixed:
-
-1. **Contract: a failed NEAR refund on a token invoice was recorded as owed tokens.** `pay()` on a token invoice refunds the
-   attached NEAR. If that refund failed, `on_settled` added the yoctoNEAR amount to `owed_payer`. A later token `sweep`
-   would then pay `min(owed_payer, token balance)` in **tokens** to `refund_to`, that is, other people's parked tokens.
-   Now a failed NEAR refund on a token invoice emits `refund_failed` (`recorded: false`) and changes no ledger field; the
-   NEAR stays on the account. Test: `failed_near_refund_on_token_invoice_is_not_recorded_as_owed_tokens`.
-2. **Contract: `refund_payer` could redirect another account's `owed_payer`.** It always overwrote `refund_to` with `paid_by`.
-   If `owed_payer` already belonged to another account, that amount would then go to `paid_by`. It now leaves `refund_to`
-   alone while `owed_payer > 0` (rule 2 of 4.2 holds). Test: `refund_payer_does_not_redirect_an_owed_payer_of_another_account`.
-3. **Contract: the tax split could overflow in a callback.** `split_of` computed `x * tax_bps`, which overflows for a balance
-   above `u128::MAX / 10000`; the token balance read by `on_token_balance` is not bounded by the invoice amount rule. A panic
-   there would leave the lock stale for 5 minutes. It now computes the same floor without the product. Test:
-   `split_does_not_overflow_for_huge_balances` (the old formula panics on it; `split_never_loses_a_unit` still pins the values).
-4. **Client: a token `zi pay` (and the dashboard's) parsed the `ft_transfer_call` transaction with the token as "the invoice".**
-   The transaction's receiver is the token, so a payout that failed on the token (merchant not registered) was counted as a
-   failure of the transaction itself: `RESULT FAILED`, `success: false`, the dashboard answered 502, and `FT_TRANSFER` lines
-   were never printed. `sendActions` now takes the invoice account id for that call, so the failure is a downstream failure
-   (as in `replay`) and the exit message is the "payout(s) failed, run sweep" one. Test: `pay token: an unregistered merchant ...`
-   in `test/cli-token.test.ts` (the earlier fake transactions used the invoice as receiver, which hid this).
-
-Also fixed (no behaviour change in the contract):
-
-- `web/index.html` said "0 = default 7 days" for the grace field, but 0 is rejected (60,000 ms minimum); the field is now
-  labelled "empty = default 7 days".
-- `scripts/record-v3-fixes.sh`: L4 reused the merchant that L3 had just created, so no payout would have failed; it now
-  uses a merchant that is never created (`never.sm1110-zi3-merchant.testnet`). The `near account create-account
-  sponsor-by-faucet-service` line cannot create a sub-account; it is now `fund-myself ... sign-as <parent>` (**not run**; check
-  the near-cli-rs syntax).
-- `scripts/record-v3-tokens.sh`: L14 reused `ZI_UNREG_ACCOUNT`, which `record-v3-failures.sh` (L13) registers, and used a 1 minute
-  expiry with a 125 s sleep that does not reach `max(expiry, paid_at) + grace`; it now has its own account (`ZI_UNREG2_ACCOUNT`),
-  3 minute expiry and a 240 s sleep. `.env.example` lists the extra variables.
-- The wasm was rebuilt: 161,213 bytes, sha256 `0724781d…0b1f`, code hash `Ut7EQhLD…reWa`. The hash in this file's header and
-  everywhere else was updated, and the synthetic v3 fixture was regenerated for it (`node scripts/make-synthetic-v3-fixture.mjs`).
-  The earlier hash `ATRjmY1x…3Dp3` is obsolete and must not be deployed.
-
-Read and left as it is (noted, not fixed):
-
-- `zi pay` (token) does not check the payer's token balance first (the 7.1 table says it does). A payer with too little tokens
-  gets a failed `ft_transfer_call` after registering the id and initialising the invoice; no funds are lost.
-- `zi status` and the dashboard show `0` tokens if the `ft_balance_of` view fails (the error is swallowed).
-- A token `sweep` that reads its balance while a plain `ft_transfer_call` credit is in flight (credited, `ft_on_transfer` not run yet)
-  can include that credit in the balance; the later `ft_on_transfer` then rejects as `busy` and the token returns it. In the
-  deployed v3 (code hash `Ut7EQhLD…reWa`) the sweep then plans with a balance the invoice no longer holds: the invoice goes to
-  `SETTLING` with `paid_by = None`, both payouts fail and are recorded as owed (`owed_merchant`, `owed_tax`) with 0 tokens behind
-  them. A retry with `ft_transfer_call` is rejected `not_open` and `refund_payer` panics `NO_PAYER`. The only recovery is a plain
-  `ft_transfer` of the full amount to the invoice followed by `sweep`, which the client's `zi pay` does not do. `sweep` is
-  permissionless, so anyone can trigger this, and repeated `sweep` calls can also keep `ft_transfer_call` rejected as `busy`.
-  **Fixed in the source (deployed later as v3.1, see "Live results (v3.1)"):** `on_token_balance` takes the lock value that `sweep` set, `ft_on_transfer` raises the lock
-  by 1 when it rejects as `busy` on an `OPEN` invoice, and the callback then returns `CONCURRENT_PAYMENT` without planning
-  (test `token_sweep_racing_a_busy_ft_transfer_call_plans_nothing`; `cargo test`: 65 passed). This changed the wasm, so it needed a new global
-  deploy and a new code hash (v3.1); the v3 recorded runs describe the old code. Sweep spam can still block
-  `ft_transfer_call`.
-- Not tested live: everything in "Not done, explicitly" above. The `ft_on_transfer` detached batch and the callback gas (20 Tgas)
-  are the first things to check in the spikes.
-- The slot wrapper `$CONDUCTOR_BIN slot run` failed here with `spawn EPERM`, so `cargo` and `node --test` were run directly.
 
 ## Live results (2026-11-10, Claude Sonnet 5.5 with the operator's accounts)
 

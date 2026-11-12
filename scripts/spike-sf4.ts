@@ -1,4 +1,4 @@
-// Spike S-F4 (docs/STABLECOIN.md §12): is the UniversalStateInit `deposit` credited to the new account, or refunded to the signer?
+// Spike S-F4 (docs/SPIKES.md, S-F4): is the UniversalStateInit `deposit` credited to the new account, or refunded to the signer?
 //   node scripts/spike-sf4.ts <invoice-id> <deposit-in-NEAR>
 // The invoice must be a NEAR invoice that does not exist yet (`zi invoice new`). One transaction, signed by the sweeper key:
 // [UniversalStateInit{raw, deposit}] and nothing else. Prints what the chain did with the deposit and writes the evidence to fixtures/v31/sf4.json.

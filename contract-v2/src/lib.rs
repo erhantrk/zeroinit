@@ -1,6 +1,6 @@
 //! ZeroInit invoice contract. One instance = one invoice = one `0u` universal account.
 //! The instance never has an init method: its whole state (key "STATE") is written by the
-//! protocol's UniversalStateInit action from the invoice terms. See INTERFACES.md §2.
+//! protocol's UniversalStateInit action from the invoice terms. See SPEC.md §2.
 use near_sdk::json_types::{U128, U64};
 use near_sdk::serde_json;
 use near_sdk::{env, near, AccountId, Gas, NearToken, PanicOnDefault, Promise};
@@ -10,7 +10,7 @@ pub const STATUS_PAID: u8 = 1;
 pub const STATUS_EXPIRED: u8 = 2;
 pub const ZBA_LIMIT_BYTES: u64 = 770;
 
-/// Borsh layout is FROZEN (INTERFACES.md §2.1). Field order matters. Do not reorder.
+/// Borsh layout is FROZEN (SPEC.md §2.1). Field order matters. Do not reorder.
 #[near(contract_state)]
 #[derive(PanicOnDefault)]
 pub struct Invoice {

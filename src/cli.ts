@@ -1,4 +1,4 @@
-// zi — ZeroInit CLI (INTERFACES.md §7; docs/STABLECOIN.md §10 for v3).
+// zi — ZeroInit CLI (SPEC.md §7; docs/STABLECOIN.md §10 for v3).
 // Run: node src/cli.ts <command> [flags]
 import { parseArgs } from 'node:util';
 import { writeFileSync } from 'node:fs';

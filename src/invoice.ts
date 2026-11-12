@@ -1,4 +1,4 @@
-// Invoice document create / load / check (INTERFACES.md §6.1; docs/STABLECOIN.md §9-10 for /2).
+// Invoice document create / load / check (SPEC.md §6.1; docs/STABLECOIN.md §9-10 for /2).
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { base58 } from '@scure/base';

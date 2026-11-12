@@ -1,5 +1,5 @@
 // Invoice STATE borsh, UniversalStateInit (0u) and DeterministicStateInit (0s) bytes, and id derivation.
-// Spec: INTERFACES.md §2 and §3 (layout 1 = v1/v2) and docs/STABLECOIN.md §3 (layout 3 = v3).
+// Spec: SPEC.md §2 and §3 (layout 1 = v1/v2) and docs/STABLECOIN.md §3 (layout 3 = v3).
 // Verified against nearcore 2.14.0-rc.5 vectors (see test/vectors.test.ts).
 import { sha3_256, keccak_256 } from '@noble/hashes/sha3.js';
 import { concat, u8, u16, u32, u64, u128, str, bytesVec, utf8, cmpBytes, toHex } from './bytes.ts';

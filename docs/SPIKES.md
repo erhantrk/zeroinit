@@ -166,7 +166,7 @@ is first visible at block **276982291**, and the transaction itself is in block 
   It is not a builder run, and the checker no longer re-runs live commands. The account stayed initialized
   (`global_contract_hash` unchanged) with `status=PAID`, `paid_by=null`, `paid_amount=0.1`, `storage=325`.
 
-That gave an unplanned but useful data point: `sweep()` on an **already-PAID** invoice (INTERFACES §5.2 last row).
+That gave an unplanned but useful data point: `sweep()` on an **already-PAID** invoice (SPEC.md §5.2 last row).
 
 ```bash
 npm run zi -- sweep SMOKE-2
@@ -183,7 +183,7 @@ STATE INITIALIZED status=PAID paid_by=null balance=0 storage=325
 - **Extra sweep tx:** `GToSvGaCs9eAKrVydxjgsi3RuvDotqPGF5zh3eTUYafm`
   (https://testnet.nearblocks.io/txns/GToSvGaCs9eAKrVydxjgsi3RuvDotqPGF5zh3eTUYafm). Signer
   `sm1110-zi-merchant.testnet`, return value `"EXTRA_SWEPT"`, one `extra_swept` event, and **100 %** of the extra
-  0.1 NEAR forwarded to the merchant (no tax split on extra funds, per INTERFACES §5.2). `paid_at_ms`/`paid_amount`
+  0.1 NEAR forwarded to the merchant (no tax split on extra funds, per SPEC.md §5.2). `paid_at_ms`/`paid_amount`
   were not rewritten. `tokens_burnt` 82,740,528,600,500,000,000 yocto (0.0000827 NEAR), paid by the sweeper.
 - **Final state:** `{"amount":"0", "global_contract_hash":"Amg4WXKy…GW6k", "storage_usage":325}` at block 276984385 —
   the account is empty again, so no PAID invoice is left holding funds.
@@ -202,7 +202,7 @@ npm run zi -- status SMOKE-1 --json
 ```
 
 `storageUsage` = **352 B**. The task expected ≈ 330; 352 is far below the 770 B zero-balance limit
-(INTERFACES §0), so `deposit: 0` on `UniversalStateInit` stays correct and the pre-approved 0.01 NEAR
+(SPEC.md §0), so `deposit: 0` on `UniversalStateInit` stays correct and the pre-approved 0.01 NEAR
 deposit (T06 error table) is **not** needed. Raw `view_account` for the same account:
 
 ```json
@@ -392,7 +392,7 @@ or the X post.
 
 - **T15 allowed edits:** the task allowed CSS/HTML text in `web/index.html` only. `src/cli.ts` also had to change: the
   `serve` branch was moved ahead of the invoice-id lookup because the documented `npm run zi -- serve --port 8787`
-  exited 2 with `usage: zi serve <INVOICE_ID>`. This matches INTERFACES §7 and changes no interface. Regression test:
+  exited 2 with `usage: zi serve <INVOICE_ID>`. This matches SPEC.md §7 and changes no interface. Regression test:
   `test/cli-serve.test.ts` (spawns `node src/cli.ts serve --port <free>`, waits for `SERVE http://127.0.0.1:<port>`,
   then `GET /api/invoices` → 200 JSON array).
 - **T15 images:** the two PNGs are HTML renders, not screenshots; they are named `*-html-render.png` and the real
@@ -407,7 +407,7 @@ or the X post.
 Server hardening (same review): `zi serve` binds `127.0.0.1` only (already did), POST requires
 `Content-Type: application/json` (400 otherwise), a present `Origin` must be `http://127.0.0.1:<port>` or
 `http://localhost:<port>` (403 otherwise; requests without `Origin`, e.g. curl, are allowed), bad JSON and unknown
-invoice ids return 400 instead of 502, and RPC/tx failures stay 502 (INTERFACES §8).
+invoice ids return 400 instead of 502, and RPC/tx failures stay 502 (SPEC.md §8).
 
 The pay/sweep endpoints wait for `EXPERIMENTAL_tx_status` FINAL, so the badge updates when the response lands
 (measured 15.1 s for pay, 15.6 s for sweep in this run), not the ~5 s in the task sketch; the transaction itself was

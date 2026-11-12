@@ -59,13 +59,13 @@ Facts this relies on (all verified in source / official tests; Day-0 spikes re-p
 
 ## Why nobody holds a key
 
-- **`access_keys` is empty.** The account is created by `UniversalStateInit` with `access_keys: {}` (INTERFACES §3.1),
+- **`access_keys` is empty.** The account is created by `UniversalStateInit` with `access_keys: {}` (SPEC.md §3.1),
   so no key exists that could ever sign for it. `zi verify` asks RPC `view_access_key_list` and prints
   `PASS no-access-keys` only when the list is empty.
 - **The code is fixed by hash.** The invoice account is a global-contract account: `view_account.global_contract_hash`
   must equal the deployed code hash (v3.2 `6YtW5oJ8UtCrzUePQf14zqKMb9G3DUtMynEnZvMCNHJ`, checked by `PASS code-hash-onchain`; v1/v2/v3/v3.1 history invoices are checked against their own hash and labelled by `zi verify`).
   A state init can only install code whose hash is already baked into the address, and repeating it on an initialized
-  account is a no-op that refunds the deposit (INTERFACES §1, fact 3).
+  account is a no-op that refunds the deposit (SPEC.md §1, fact 3).
 - **What this does *not* mean.** Only **invoice** accounts are keyless. The tUSDC mock token `sm1110-tusdc.testnet` (a contract account) and the operator's deployer/merchant/vault/payer accounts each hold a full-access key
   (checked with `view_access_key_list`, 2026-11-11; README "Who holds keys" has the command). The invoice contract trusts nobody; a **token** invoice trusts whoever controls the token contract, which on testnet is that key. The global
   code is published by hash, so the deployer's key cannot change what `2prMzXHZ…DaYX` runs.
@@ -90,7 +90,7 @@ v1 numbers were measured on testnet 2026-11-10 (protocol 88, code hash `Amg4WXKy
 
 | What | Measured | Evidence |
 |---|---|---|
-| `storage_usage` after `pay()` | v1 **352 B**, v2 **358 B** — well under the 770 B zero-balance limit (INTERFACES §4.3 estimated ~312 B before and ~329 B after) | v1 SMOKE-1, `zi status SMOKE-1 --json`; v2 `INV-1111-V2-A` (`storage=358`) |
+| `storage_usage` after `pay()` | v1 **352 B**, v2 **358 B** — well under the 770 B zero-balance limit (SPEC.md §4.3 estimated ~312 B before and ~329 B after) | v1 SMOKE-1, `zi status SMOKE-1 --json`; v2 `INV-1111-V2-A` (`storage=358`) |
 | `storage_usage` after `sweep()` (plain-transfer path) | v1 **325 B**, v2 **331 B** | v1 SMOKE-2; v2 `INV-1111-V2-B` (`storage=331`) |
 | `storage_usage` while a tax share is owed (v2 `OWED_TAX` key) | **429 B** | `AUD2-V2` (`storage=429`) |
 | State-init deposit needed | **0** — the pre-approved 0.01 NEAR deposit was not needed | all rows above ≤ 770 B |
