@@ -6,7 +6,7 @@ import { checkCode } from './checkcode.ts';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { parseNear, formatNear, utf8 } from './bytes.ts';
 import { actFunctionCall, actTransfer } from './tx.ts';
-import { trustedCodeHash, pinForVerification, deploymentOf, tokenBySymbol, readOnlyAllowList, type Config, type AllowedToken } from './config.ts';
+import { trustedCodeHash, pinForVerification, deploymentOf, fixesFinding, tokenBySymbol, readOnlyAllowList, type Config, type AllowedToken } from './config.ts';
 import { viewAccount, viewInvoice } from './rpc.ts';
 import { sendActions } from './send.ts';
 import { createInvoiceDoc, saveDoc, loadDoc, listDocs, assertDocTrusted, docProblem, onchainProblem, assertAccountsUsable, stateInitAction, randomSalt,
@@ -215,8 +215,9 @@ export function serve(cfg: Config, port: number, opts: { token?: string } = {}):
               if (m[2] === 'pay' || m[2] === 'plain') {
                 let amount = docAmountRaw(doc);
                 if (b.value.amount !== undefined && b.value.amount !== '') amount = parseUnits(String(b.value.amount), entry.decimals);
-                if (m[2] === 'pay') {
-                  // audit claims-3: tokens already parked by a plain ft_transfer would be charged twice by a one-step payment; sweep them instead.
+                if (m[2] === 'pay' && !fixesFinding(trustedCodeHash(cfg), 'parked-counted')) {
+                  // audit claims-3: before v3.3 tokens already parked by a plain ft_transfer would be charged twice by a one-step payment; sweep
+                  // them instead. v3.3 counts parked tokens toward the price, so the payment goes through.
                   const parked = await ftBalanceOf(cfg, entry.accountId, doc.account_id);
                   if (parked > 0n) {
                     return send(res, 409, { paid: false, error: `invoice already holds ${formatUnits(parked, entry.decimals)} ${entry.symbol} from a plain transfer: use Sweep instead of paying again` });

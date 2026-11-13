@@ -8,9 +8,9 @@ import type { AddressInfo } from 'node:net';
 import { readdirSync } from 'node:fs';
 import { serve } from '../src/server.ts';
 import { loadConfig } from '../src/config.ts';
-import { DEPLOYED, tempDir, makeTokenDoc, writeDoc, throwawaySigner, fakeRpc, handlers, statusResult, viewResult, unknownAccount,
+import { DEPLOYED, FOREIGN, terms, tempDir, makeTokenDoc, writeDoc, throwawaySigner, fakeRpc, handlers, statusResult, viewResult, unknownAccount,
   onchainInvoice, b64, TEST_TOKEN, type Chain } from './helpers.ts';
-import type { InvoiceDoc } from '../src/invoice.ts';
+import { createInvoiceDoc, type InvoiceDoc } from '../src/invoice.ts';
 
 const TOKEN = 'tusdc.example.testnet';
 const MIN = '1250000000000000000000';
@@ -93,10 +93,19 @@ test('token pay: invoice_paid is 200/paid:true; rejected is 409; pending is 202;
   }
 });
 
-// audit claims-3: a one-step token payment on top of tokens parked by a plain ft_transfer would be charged twice.
-test('token pay is refused (409, nothing sent) while tokens are parked; plain and sweep still work', async (t) => {
+test('token pay with tokens already parked goes through on v3.3 (the contract counts them)', async (t) => {
   const doc = makeTokenDoc();
   const { port, rpc } = await boot(t, doc, { storageBalance: { total: MIN, available: '0' }, ftBalance: '1500000', invoice: onchainInvoice(doc), txResult: txResult(doc, '0', [paidEvent(doc)]) });
+  const r = await call(port, 'POST', `/api/invoices/${doc.invoice_id}/pay`, {});
+  assert.equal(r.status, 200, JSON.stringify(r.json));
+  assert.equal(r.json.paid, true);
+  assert.equal(rpc.calls.filter((c) => c.method === 'send_tx').length, 1);
+});
+
+// audit claims-3: before v3.3 a one-step token payment on top of tokens parked by a plain ft_transfer would be charged twice.
+test('on a deployment without the parked-funds rule, token pay is refused (409, nothing sent) while tokens are parked; plain still works', async (t) => {
+  const doc = createInvoiceDoc('0u', FOREIGN, terms({ token: 'tusdc.example.testnet', token_symbol: 'tUSDC', token_decimals: 6, amount: 1_500_000n, layout: 3, grace_ms: 604_800_000n }));
+  const { port, rpc } = await boot(t, doc, { storageBalance: { total: MIN, available: '0' }, ftBalance: '1500000', invoice: onchainInvoice(doc), txResult: txResult(doc, '0', [paidEvent(doc)]) }, { ZI_CODE_HASH: FOREIGN });
   const r = await call(port, 'POST', `/api/invoices/${doc.invoice_id}/pay`, {});
   assert.equal(r.status, 409, JSON.stringify(r.json));
   assert.equal(r.json.paid, false);

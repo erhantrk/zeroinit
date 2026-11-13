@@ -986,4 +986,15 @@ read fails, and a NEAR `pay` on top of a full parked amount were not run live on
 | `bash scripts/judge-offline.sh` | last line `JUDGE-OFFLINE: ALL PASS` |
 | `zi replay fixtures/v33/{demo-run,token-demo-run,parked,tokens,race,two-payments}.json` | 62 / 30 / 109 / 41 / 46 / 46 `PASS`, 0 `FAIL` |
 
-The dashboard was not reopened in a browser on v3.3; the last browser run is the v3.2r one above.
+### Dashboard on v3.3 (Chrome, about 09:05 UTC)
+
+The local dashboard (`npm run zi -- serve`, invoice folder outside the repo) was opened in Chrome and driven with Playwright. Merchant `zeroinit-merchant.testnet`, tax vault `zeroinit-taxvault.testnet`, payer `zeroinit-payer.testnet`. Three 0.1 NEAR invoices and one 0.5 tUSDC invoice were created from the page (no transaction); each row shows its check code.
+
+| Invoice | What was done | Transaction | Badge after |
+|---|---|---|---|
+| `DASH-R3STU-A` (NEAR) | **Pay (one transaction)** | `5tmr68M2hDhrcFPP8BQBtiyK7PYQmBsxbV9R2DoUknP8` | `PAID` |
+| `DASH-R3STU-B` (NEAR) | **Send plain transfer**, then **Sweep** | `9dLa7rGUAWYJD6MyGXugDmeuqfeYFk9tzNtuR85ASdmW`, `CYXnBAiVX8tZmiDuL5DiAT7PFUJvPgMAWSrgGkRZCV6Z` | `PAID` |
+| `DASH-R3STU-C` (NEAR) | nothing | none | `NONEXISTENT` |
+| `DASH-R3STU-T` (tUSDC) | **Pay**: init, then registration + `ft_transfer_call` in one transaction | `BAoTJ2Kbr3UtMmpGP3PKBTMaJGUJJzUyrbp8GPeyknRC` (final value `"500000"`) | `PAID` |
+
+No console errors. The page header said "contract v3.2r" (fixed text) and was corrected to v3.3 before the final screenshot, `docs/img/dashboard-v33.png`. Invoice files: `invoices/demo/DASH-R3STU-*`. Not tried in the browser: the `SETTLING`/`REFUNDED` badges and Refund payer.

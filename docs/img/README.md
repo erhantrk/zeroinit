@@ -2,9 +2,13 @@
 
 Logos (`logo-light.*`, `logo-dark.*`, `mark.*`) and dashboard images.
 
-Real browser screenshot of the **current** dashboard (Chrome, 2026-11-12, contract v3.2r, `npm run zi -- serve --port 8787`):
+Real browser screenshot of the **current** dashboard (Chrome, 2026-11-13, contract v3.3, `npm run zi -- serve`):
 
-- `dashboard-v32r.png`: three 0.1 NEAR invoices created from the page; `DASH-53NMD-A` paid with **Pay (one transaction)** ([`BKKA7RZ7…`](https://testnet.nearblocks.io/txns/BKKA7RZ7S279y87FQqsGrvMrNeQsHLw4abvKV6GvGtxa)), `DASH-53NMD-B` paid by a plain transfer ([`3ZXKEeGh…`](https://testnet.nearblocks.io/txns/3ZXKEeGhhPMjspK1inNyqfWqC3J5DYyATFVF2DyXrqxd)) and swept ([`FofRUtoY…`](https://testnet.nearblocks.io/txns/FofRUtoYFmvRwtmxGWpLEt9FpXYtcMCC72M1PHZbn7yy)), `DASH-53NMD-C` left unpaid. Badges as read from testnet: A and B `PAID`, C `NONEXISTENT` (never paid, so its account does not exist). Invoice files: `invoices/demo/`. Only NEAR invoices were tried; token invoices, the `SETTLING`/`REFUNDED` badges and Refund payer were not.
+- `dashboard-v33.png`: three 0.1 NEAR invoices and one 0.5 tUSDC invoice created from the page, each address with its check code. `DASH-R3STU-A` paid with **Pay (one transaction)** ([`5tmr68M2…`](https://testnet.nearblocks.io/txns/5tmr68M2hDhrcFPP8BQBtiyK7PYQmBsxbV9R2DoUknP8)), `DASH-R3STU-B` paid by a plain transfer ([`9dLa7rGU…`](https://testnet.nearblocks.io/txns/9dLa7rGUAWYJD6MyGXugDmeuqfeYFk9tzNtuR85ASdmW)) and swept ([`CYXnBAiV…`](https://testnet.nearblocks.io/txns/CYXnBAiVX8tZmiDuL5DiAT7PFUJvPgMAWSrgGkRZCV6Z)), `DASH-R3STU-C` left unpaid, `DASH-R3STU-T` (tUSDC) paid with **Pay**: the account initialised, then the registration and `ft_transfer_call` in one transaction ([`BAoTJ2Kb…`](https://testnet.nearblocks.io/txns/BAoTJ2Kbr3UtMmpGP3PKBTMaJGUJJzUyrbp8GPeyknRC)). Badges as read from testnet: A, B and T `PAID`, C `NONEXISTENT`. No console errors. Invoice files: `invoices/demo/DASH-R3STU-*`. The `SETTLING`/`REFUNDED` badges and Refund payer were not tried.
+
+Real browser screenshot of the dashboard on the previous contract (history; Chrome, 2026-11-12, contract v3.2r):
+
+- `dashboard-v32r.png`: three 0.1 NEAR invoices created from the page; `DASH-53NMD-A` paid with **Pay (one transaction)** ([`BKKA7RZ7…`](https://testnet.nearblocks.io/txns/BKKA7RZ7S279y87FQqsGrvMrNeQsHLw4abvKV6GvGtxa)), `DASH-53NMD-B` paid by a plain transfer ([`3ZXKEeGh…`](https://testnet.nearblocks.io/txns/3ZXKEeGhhPMjspK1inNyqfWqC3J5DYyATFVF2DyXrqxd)) and swept ([`FofRUtoY…`](https://testnet.nearblocks.io/txns/FofRUtoYFmvRwtmxGWpLEt9FpXYtcMCC72M1PHZbn7yy)), `DASH-53NMD-C` left unpaid. Badges as read from testnet: A and B `PAID`, C `NONEXISTENT` (never paid, so its account does not exist). Invoice files: `invoices/demo/DASH-53NMD-*`. Only NEAR invoices were tried; token invoices, the `SETTLING`/`REFUNDED` badges and Refund payer were not.
 
 Real browser screenshots of the **v2** dashboard (history; Chrome, 2026-11-10, contract v2, `node src/cli.ts serve --port 8787`):
 

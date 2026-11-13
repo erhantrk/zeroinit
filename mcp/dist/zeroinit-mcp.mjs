@@ -23083,15 +23083,15 @@ function payInstructions(doc, cfg) {
     token,
     token_symbol: unit,
     step_1_register_once: {
-      who: "the merchant, the payer or anyone (they pay about 0.00125 NEAR)",
+      who: "the payer, in the same transaction as the payment (zi pay does this), or the merchant or anyone beforehand (about 0.00125 NEAR)",
       receiver_id: token,
       action: { FunctionCall: { method_name: "storage_deposit", args: { account_id: doc.account_id, registration_only: true }, deposit: "the token's storage_balance_bounds().min" } },
-      why: "a token transfer to an unregistered account fails; this registration is a transaction, so issuing a token invoice is free but paying it is not just one transaction",
+      why: "a token transfer to an unregistered account fails (a rule of the token standard). The payer can put this action before the transfer in one transaction to the token; before a withdrawal from an exchange someone has to send it first",
       cli: `zi token register ${doc.invoice_id}`
     },
     step_2_pay: { who: "the payer", options: [
-      { name: "one step", how: `zi pay ${doc.invoice_id} (initialises the account, then ft_transfer_call to ${doc.account_id} with msg {"action":"pay","invoice_id":"${doc.invoice_id}"}, 1 yocto)` },
-      { name: "plain transfer", how: `ft_transfer of ${amount} to ${doc.account_id} on ${token}, then anyone runs zi sweep ${doc.invoice_id}; do not also pay by ft_transfer_call (the parked tokens would be charged twice)` }
+      { name: "one step", how: `zi pay ${doc.invoice_id} (initialises the account, then [storage_deposit if needed, ft_transfer_call to ${doc.account_id} with msg {"action":"pay","invoice_id":"${doc.invoice_id}"}, 1 yocto] in one transaction to the token)` },
+      { name: "plain transfer", how: `ft_transfer of ${amount} to ${doc.account_id} on ${token}, then anyone runs zi sweep ${doc.invoice_id}. Tokens already parked this way count toward the price if the payer later pays by ft_transfer_call (contract v3.3): the rest comes back` }
     ] },
     note: `the token is on this server's allow-list (${cfg.allowedTokens.map((t) => `${t.symbol} ${t.accountId}`).join(", ")}); a testnet mock with no value`
   };

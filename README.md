@@ -33,8 +33,8 @@ ZeroInit derives the address from the terms with NEAR's deterministic account id
 
 Tracks: **Open Innovation** (primary) · **Real-World Money**. Testnet only, mock token only, not audited.
 
-![The local dashboard on contract v3.2r: two invoices paid on testnet, one never paid and so not on chain](docs/img/dashboard-v32r.png)
-*The local dashboard (`npm run zi -- serve`), Chrome, 2026-11-12 UTC, on the previous contract, v3.2r. It was not retaken on v3.3, so it does not show the new check code next to each address. The first invoice was paid in one transaction, the second by a plain transfer and a sweep; the third was issued and never paid, so its account does not exist.*
+![The local dashboard on contract v3.3: three NEAR invoices and one tUSDC invoice, each with its check code; three paid on testnet, one never paid and so not on chain](docs/img/dashboard-v33.png)
+*The local dashboard (`npm run zi -- serve`), Chrome, 2026-11-13 UTC, contract v3.3. The first NEAR invoice was paid in one transaction, the second by a plain transfer and a sweep, the third was issued and never paid, so its account does not exist; the tUSDC invoice was paid from the page, with its registration on the token in the same transaction as the payment. Each address shows its check code.*
 
 ## Try it in 2 minutes
 
@@ -100,7 +100,7 @@ Full list with the evidence: [docs/LIMITS.md](docs/LIMITS.md).
 - **A token invoice id must be registered on the token before tokens can reach it.** That is a rule of the token standard (NEP-145), not of this contract. Our client sends the registration (`storage_deposit`, 0.00125 NEAR) in the same transaction as the payment. An exchange withdrawal is a plain `ft_transfer` from someone else's software, so someone (the merchant, the payer or anyone) must register the id first. For tokens only issuing is free; "no transaction until paid" holds fully for NEAR invoices.
 - **Plain-transfer underpayments and overpayments are not refunded** (`sweep` cannot know the payer).
 - **No checksum in the address.** The `0u…` format belongs to NEAR and has none: a mistyped address is a valid address for other bytes, and funds sent there are lost. `zi invoice new` prints a 4-character check code (`CHECK MVNC` for `INV-1111-V33-A`), and `zi check <address> <code>` says PASS or FAIL offline. It only helps a payer who checks; a raw address pasted into a wallet is still unprotected.
-- **Wallet support is untested.** The dashboard was last opened in Chrome on v3.2r, for NEAR invoices only, and not again on v3.3; token invoices, the `SETTLING`/`REFUNDED` badges and Refund payer were not tried in a browser.
+- **Wallet support is untested.** The dashboard was opened in Chrome on v3.3 for NEAR and tUSDC invoices (pay, plain transfer, sweep); the `SETTLING`/`REFUNDED` badges and Refund payer were not tried in a browser.
 - **Transaction lookups need an archival RPC** after about 1.5 days; state checks and offline replays keep working.
 
 ## Who holds keys
@@ -114,9 +114,9 @@ The invoice contract has no owner and no admin call, and invoice accounts have n
 - `cli/` — the npm package `@erhantrk/zeroinit`: the `zi` CLI, the library and the MCP server as bundled files plus the v3.3 recordings, assembled by `npm run build:cli`.
 - `mcp/` — the MCP server (`mcp/dist/zeroinit-mcp.mjs` is the bundled single file), shipped in the npm package as the `zeroinit-mcp` command; each GitHub release rebuilds the bundle and checks it is the committed file (`.github/workflows/release.yml`).
 - `fixtures/` — recorded live RPC sessions that replay offline: `v33/` (current), `v32r/`, `v32/`, `v31/`, `v3/`, `v2/`, `v1/` (history), plus synthetic fixtures used by tests only.
-- `invoices/` — the invoice documents of those runs (`v33/` current), `demo/` (the three invoices of the v3.2r dashboard run) and `examples/INV-0001.json` (the frozen test vector). No secrets.
+- `invoices/` — the invoice documents of those runs (`v33/` current), `demo/` (the invoices of the dashboard runs: `DASH-R3STU-*` on v3.3, `DASH-53NMD-*` on v3.2r) and `examples/INV-0001.json` (the frozen test vector). No secrets.
 - `scripts/` — `judge-offline.sh`, the demo and recording scripts that produced the fixtures, and small signing helpers.
-- `site/` — the landing page (Astro), live at <https://zeroinit.vercel.app>. It still shows the v3.2r recording `fixtures/v32r/demo-run.json` (the previous contract). Build: `cd site && npm ci && npm run build` (Node >= 22.23.4); the replay data comes from `python3 -I site/scripts/extract-replay.py`.
+- `site/` — the landing page (Astro), live at <https://zeroinit.vercel.app>. It shows the v3.3 recording `fixtures/v33/demo-run.json`. Build: `cd site && npm ci && npm run build` (Node >= 22.23.4); the replay data comes from `python3 -I site/scripts/extract-replay.py`.
 - `docs/` — [HOW-IT-WORKS](docs/HOW-IT-WORKS.md), [VERIFY](docs/VERIFY.md), [LIMITS](docs/LIMITS.md), [REPRODUCE](docs/REPRODUCE.md), [RUN-ON-TESTNET](docs/RUN-ON-TESTNET.md) (the keyed walkthrough), [ARCHITECTURE](docs/ARCHITECTURE.md) (measured costs, design by version), [STABLECOIN](docs/STABLECOIN.md) (the token interface spec), [HISTORY](docs/HISTORY.md) (v1 to v3.3), [SPIKES](docs/SPIKES.md) (every live transaction). [SPEC.md](SPEC.md) is the v1 interface spec.
 
 ## No code from before the hackathon window

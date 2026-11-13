@@ -141,9 +141,9 @@ creation uses near-cli-rs. The steps below assume you are in the repo root.
    the payer/sweeper keys from `.env` and binds `127.0.0.1` only. Statuses load when the page opens, after each
    action, and when you click **Refresh statuses** (no polling, to stay under public RPC rate limits).
 
-   ![ZeroInit dashboard on v3.2r (2026-11-12): three 0.1 NEAR invoices, two paid, one never paid](img/dashboard-v32r.png)
+   ![ZeroInit dashboard on v3.3 (2026-11-13): three NEAR invoices and one tUSDC invoice, three paid, one never paid](img/dashboard-v33.png)
 
-   *The dashboard in Chrome on the previous contract, v3.2r (2026-11-12); it was not retaken on v3.3, so the check code next to each address is not in the picture: three 0.1 NEAR invoices created from the page; `DASH-53NMD-A` paid with **Pay (one transaction)** ([`BKKA7RZ7…`](https://testnet.nearblocks.io/txns/BKKA7RZ7S279y87FQqsGrvMrNeQsHLw4abvKV6GvGtxa)), `DASH-53NMD-B` paid by a plain transfer ([`3ZXKEeGh…`](https://testnet.nearblocks.io/txns/3ZXKEeGhhPMjspK1inNyqfWqC3J5DYyATFVF2DyXrqxd)) and swept ([`FofRUtoY…`](https://testnet.nearblocks.io/txns/FofRUtoYFmvRwtmxGWpLEt9FpXYtcMCC72M1PHZbn7yy)), `DASH-53NMD-C` left unpaid. The invoice files are in `invoices/demo/`, so `ZI_INVOICE_DIR=invoices/demo npm run zi -- verify DASH-53NMD-A` works from a clone. Token invoices, the `SETTLING`/`REFUNDED` badges and Refund payer were not tried in a browser.*
+   *The dashboard in Chrome on v3.3 (2026-11-13): three 0.1 NEAR invoices and one 0.5 tUSDC invoice created from the page, each address with its check code; `DASH-R3STU-A` paid with **Pay (one transaction)**, `DASH-R3STU-B` paid by a plain transfer and swept, `DASH-R3STU-C` never paid (`NONEXISTENT`), `DASH-R3STU-T` (tUSDC) paid with **Pay**. Transactions: [SPIKES.md "Dashboard on v3.3"](SPIKES.md#dashboard-on-v33-chrome-about-0905-utc).*
 
 ## The accounts behind the v3.3 recordings
 
