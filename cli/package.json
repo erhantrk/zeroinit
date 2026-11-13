@@ -1,0 +1,15 @@
+{
+  "name": "zeroinit",
+  "version": "0.1.0",
+  "description": "ZeroInit CLI and library: NEAR invoice addresses computed from the invoice terms, so issuing an invoice sends no transaction. Testnet only.",
+  "type": "module",
+  "license": "MIT",
+  "bin": { "zeroinit": "dist/zeroinit.mjs", "zi": "dist/zeroinit.mjs" },
+  "exports": { ".": "./dist/index.mjs" },
+  "files": ["dist/", "web/", "invoices/", "fixtures/", "README.md", "LICENSE"],
+  "engines": { "node": ">=22" },
+  "repository": { "type": "git", "url": "git+https://github.com/erhantrk/zeroinit.git", "directory": "cli" },
+  "homepage": "https://zeroinit.vercel.app",
+  "bugs": { "url": "https://github.com/erhantrk/zeroinit/issues" },
+  "keywords": ["near", "near-protocol", "invoices", "payments", "testnet", "cli"]
+}

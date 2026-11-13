@@ -1,6 +1,6 @@
 name: release
 # Runs when a GitHub release is published. Rebuilds the MCP bundle from source, checks it is the committed file,
-# attaches it to the release and publishes the package.
+# attaches it to the release, builds the CLI package and publishes both packages.
 on:
   release:
     types: [published]
@@ -10,7 +10,7 @@ permissions:
   id-token: write
 jobs:
   mcp-package:
-    name: MCP package
+    name: npm packages
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,23 +24,29 @@ jobs:
         run: |
           npm run build:mcp
           git diff --exit-code -- mcp/dist/zeroinit-mcp.mjs
-      - name: Check the package version is the release tag
-        run: test "v$(node -p "require('./mcp/package.json').version")" = "${{ github.event.release.tag_name }}"
+      - name: Check both package versions are the release tag
+        run: |
+          test "v$(node -p "require('./mcp/package.json').version")" = "${{ github.event.release.tag_name }}"
+          test "v$(node -p "require('./cli/package.json').version")" = "${{ github.event.release.tag_name }}"
+      - name: Build the CLI package and run it from the build
+        run: |
+          npm run build:cli
+          node cli/dist/zeroinit.mjs vectors
+          node cli/dist/zeroinit.mjs replay fixtures/v32r/demo-run.json > /dev/null
       - name: Attach the bundle to the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "${{ github.event.release.tag_name }}" mcp/dist/zeroinit-mcp.mjs --clobber
-      - name: Publish zeroinit-mcp to npm (trusted publishing, no stored token)
+      - name: Publish zeroinit-mcp and zeroinit to npm (trusted publishing, no stored token)
         if: vars.NPM_TRUSTED_PUBLISHING == 'true'
-        working-directory: mcp
         run: |
           npm install -g npm@11
-          npm publish --access public --provenance
-      - name: Publish @erhantrk/zeroinit-mcp to GitHub Packages
-        working-directory: mcp
+          (cd mcp && npm publish --access public --provenance)
+          (cd cli && npm publish --access public --provenance)
+      - name: Publish @erhantrk/zeroinit-mcp and @erhantrk/zeroinit to GitHub Packages
         env:
           NODE_AUTH_TOKEN: ${{ github.token }}
         run: |
-          npm pkg set name=@erhantrk/zeroinit-mcp
           echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" >> ~/.npmrc
-          npm publish --registry https://npm.pkg.github.com
+          (cd mcp && npm pkg set name=@erhantrk/zeroinit-mcp && npm publish --registry https://npm.pkg.github.com)
+          (cd cli && npm pkg set name=@erhantrk/zeroinit && npm publish --registry https://npm.pkg.github.com)

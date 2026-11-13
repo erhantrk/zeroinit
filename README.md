@@ -38,7 +38,14 @@ Tracks: **Open Innovation** (primary) · **Real-World Money**. Testnet only, moc
 
 ## Try it in 2 minutes
 
-No keys and no `.env` needed. Node 22; `npm ci` needs the npm registry once, everything after that is offline except the last line.
+Fastest, with no clone (Node 22 or newer, package [`zeroinit`](https://www.npmjs.com/package/zeroinit)):
+
+```bash
+npx zeroinit verify INV-1111-V32R-A               # read-only live check over testnet RPC: every line PASS, ends INFO status=PAID
+npx zeroinit replay fixtures/v32r/demo-run.json   # the recorded live run, replayed offline: 62 PASS lines, exit 0
+```
+
+From a clone, the full check. No keys and no `.env` needed. Node 22; `npm ci` needs the npm registry once, everything after that is offline except the last line.
 
 ```bash
 npm ci --include=dev
@@ -104,6 +111,7 @@ The invoice contract has no owner and no admin call, and invoice accounts have n
 
 - `contract/` — the invoice contract (Rust, near-sdk 5.30.1, 94 unit tests). `contract/res/v3.2r/zeroinit_invoice.wasm` is the deployed wasm; `contract/res/v3.2/` holds the previous build (history). `contract-v2/` is the v2 contract (history, 14 tests).
 - `src/` — the `zi` CLI, the byte encoders (`bytes.ts`, `stateinit.ts`, `tx.ts`), RPC client, outcome parser, invoice documents, offline replay, and the local dashboard server (`server.ts`; the page is in `web/`).
+- `cli/` — the npm package `zeroinit`: the `zi` CLI and the library as bundled files plus the v3.2r recording, assembled by `npm run build:cli`.
 - `mcp/` — the MCP server (`mcp/dist/zeroinit-mcp.mjs` is the bundled single file), published to npm as `zeroinit-mcp`; each GitHub release rebuilds the bundle and checks it is the committed file (`.github/workflows/release.yml`).
 - `fixtures/` — recorded live RPC sessions that replay offline: `v32r/` (current), `v32/`, `v31/`, `v3/`, `v2/`, `v1/` (history), plus synthetic fixtures used by tests only.
 - `invoices/` — the invoice documents of those runs (`v32r/` current), `demo/` (the three invoices of the v3.2r dashboard run) and `examples/INV-0001.json` (the frozen test vector). No secrets.

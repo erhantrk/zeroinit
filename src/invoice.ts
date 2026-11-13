@@ -267,6 +267,14 @@ export function loadDoc(dir: string, id: string): InvoiceDoc {
   for (const p of [join(dir, `${id}.json`), join(dir, 'examples', `${id}.json`), join(dir, 'v32r', `${id}.json`), join(dir, 'v32', `${id}.json`), join(dir, 'v31', `${id}.json`), join(dir, 'v3', `${id}.json`), join(dir, 'v2', `${id}.json`), join(dir, 'v1', `${id}.json`), join(dir, 'demo', `${id}.json`)]) {
     if (existsSync(p)) return JSON.parse(readFileSync(p, 'utf8'));
   }
+  // The npm package ships the recorded invoices next to its bundle (cli/main.ts sets this): they are found from any directory.
+  const bundled = process.env.ZI_BUNDLED_INVOICE_DIR;
+  if (bundled && SAFE_INVOICE_ID.test(id)) {
+    for (const sub of ['v32r', 'examples', 'demo']) {
+      const p = join(bundled, sub, `${id}.json`);
+      if (existsSync(p)) return JSON.parse(readFileSync(p, 'utf8'));
+    }
+  }
   throw new Error(`invoice ${id} not found in ${dir}/, ${dir}/examples/, ${dir}/v32r/, ${dir}/v32/, ${dir}/v31/, ${dir}/v3/, ${dir}/v2/, ${dir}/v1/ or ${dir}/demo/`);
 }
 /** Invoice ids are used in file names and URL paths: this is the only shape the dashboard routes accept. */

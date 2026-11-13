@@ -13,3 +13,8 @@ invoices/*.receipt.json
 !invoices/demo/
 *.log
 .DS_Store
+cli/dist/
+cli/web/
+cli/invoices/
+cli/fixtures/
+cli/LICENSE
