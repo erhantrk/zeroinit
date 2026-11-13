@@ -10,6 +10,11 @@ const account = '0u7hdnprw7z1gfz4b6qj8pn683cnhwp4ges18hfbsk03nmdees4ppg';
 const accountShort = '0u7hdnprw7z1…ees4ppg';
 const codeHash = 'BQLSk5carin64UMreToJHT15gvow6wqZSyKqDz7zCFry';
 const replayCmd = 'npm run zi -- replay fixtures/v32r/demo-run.json';
+// the live demo invoice the npm command checks; change it here when a new contract version ships
+const demoInvoice = 'INV-1111-V32R-A';
+const npmUrl = 'https://www.npmjs.com/package/@erhantrk/zeroinit';
+const npmVerifyCmd = `npx -y @erhantrk/zeroinit verify ${demoInvoice}`;
+const npmMcpCmd = 'claude mcp add zeroinit -- npx -y -p @erhantrk/zeroinit zeroinit-mcp';
 
 const steps = replayData.steps;
 ---
@@ -27,7 +32,7 @@ const steps = replayData.steps;
       <nav aria-label="Sections">
         <a href="#how">How it works</a>
         <a class="nav-opt" href="#details">Details</a>
-        <a href="#replay">Replay</a>
+        <a class="nav-opt-narrow" href="#replay">Replay</a>
         <a href="#trust">Trust and limits</a>
       </nav>
     </div>
@@ -289,6 +294,21 @@ STATE INITIALIZED status=PAID paid_by=null balance=0 storage=400</code></pre>
           </div>
         </div>
         <p class="note muted">Transaction lookups need an archival RPC, <span class="mono">https://archival-rpc.testnet.fastnear.com</span>. The default RPC keeps about a day and a half.</p>
+        <div class="run">
+          <p class="label">Try it from npm</p>
+          <p class="run-step">Check the demo invoice on testnet. Read-only, no keys.</p>
+          <div class="cmd-card">
+            {/* wrapped only between words, so a flag like -p is never split at its hyphen */}
+            <code>{npmVerifyCmd.split(' ').map((w, i) => <>{i > 0 && ' '}<span class="nb">{w}</span></>)}</code>
+            <button class="copy on-ink" type="button" data-copy={npmVerifyCmd} aria-label="Copy the verify command" hidden>Copy</button>
+          </div>
+          <p class="run-step">Add the MCP server for AI agents. It is read-only and never signs.</p>
+          <div class="cmd-card">
+            <code>{npmMcpCmd.split(' ').map((w, i) => <>{i > 0 && ' '}<span class="nb">{w}</span></>)}</code>
+            <button class="copy on-ink" type="button" data-copy={npmMcpCmd} aria-label="Copy the MCP command" hidden>Copy</button>
+          </div>
+          <p class="note muted">The package is <a href={npmUrl}>@erhantrk/zeroinit on npm</a>: the CLI, the library and the MCP server.</p>
+        </div>
         <div class="run">
           <p class="label">Run it locally</p>
           <div class="cmd-card">
