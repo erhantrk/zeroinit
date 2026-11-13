@@ -16,10 +16,10 @@ Inputs are validated like the CLI: testnet accounts only, `NEAR` and the allow-l
 
 ## Install
 
-From npm (package [`zeroinit-mcp`](https://www.npmjs.com/package/zeroinit-mcp), Node 22 or newer, no accounts or keys needed):
+From npm (it ships in the package [`@erhantrk/zeroinit`](https://www.npmjs.com/package/@erhantrk/zeroinit) as the `zeroinit-mcp` command; Node 22 or newer, no accounts or keys needed):
 
 ```bash
-claude mcp add zeroinit -- npx -y zeroinit-mcp
+claude mcp add zeroinit -- npx -y -p @erhantrk/zeroinit zeroinit-mcp
 ```
 
 Claude Desktop (`claude_desktop_config.json`):
@@ -29,7 +29,7 @@ Claude Desktop (`claude_desktop_config.json`):
   "mcpServers": {
     "zeroinit": {
       "command": "npx",
-      "args": ["-y", "zeroinit-mcp"]
+      "args": ["-y", "-p", "@erhantrk/zeroinit", "zeroinit-mcp"]
     }
   }
 }

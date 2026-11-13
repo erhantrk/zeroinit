@@ -1,5 +1,6 @@
 {
   "name": "zeroinit-mcp",
+  "private": true,
   "version": "0.1.0",
   "description": "MCP server for ZeroInit: issue and check NEAR testnet invoices whose pay address is computed from the terms. Read-only, never signs.",
   "type": "module",

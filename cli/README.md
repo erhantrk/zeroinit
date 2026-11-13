@@ -43,7 +43,15 @@ console.log(doc.account_id);                        // the 0u… pay address; no
 console.log(checkDoc(doc, DEPLOYED_CODE_HASH));     // re-derives the address from the terms
 ```
 
-For AI agents there is a separate package, [`zeroinit-mcp`](https://www.npmjs.com/package/zeroinit-mcp).
+## MCP server for AI agents
+
+The package also installs `zeroinit-mcp`, an MCP server with `issue_invoice`, `invoice_status` and `verify_invoice`. It is read-only: it never signs, never reads a key and never sends a transaction.
+
+```bash
+claude mcp add zeroinit -- npx -y -p @erhantrk/zeroinit zeroinit-mcp
+```
+
+Tool details: [mcp/README.md](https://github.com/erhantrk/zeroinit/blob/main/mcp/README.md).
 
 ## Limits
 
