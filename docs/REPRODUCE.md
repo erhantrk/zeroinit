@@ -53,6 +53,20 @@ The account is `INV-1111-V33-A`; any v3.3 invoice account gives the same answer,
 [`verify-contract.yml`](../.github/workflows/verify-contract.yml) runs this command on every push to `main` (checksum-verified near-cli-rs release, GitHub's runner, no key)
 and also checks that the committed wasm hashes to the same code hash; its badge is in the README. That is a rebuild by a party other than the operator's machine.
 
+## SourceScan
+
+The same account is verified on SourceScan, NEAR's source-verification registry (submitted through
+[NearBlocks' verify page](https://testnet.nearblocks.io/verify-contract?account=0us40y0dm1767jkzzxynmwjer15h4xy5wc96rg3xv5hfgs8fx421ag) on 2026-11-13, block 277,500,229). Its
+verifier contract records the code hash and the source it rebuilt, stored on IPFS:
+
+```bash
+near contract call-function as-read-only v2-verifier.sourcescan.testnet get_contract \
+  json-args '{"account_id":"0us40y0dm1767jkzzxynmwjer15h4xy5wc96rg3xv5hfgs8fx421ag"}' network-config testnet now
+# {"cid":"QmWyuagbACPMC3QgNmj4jgj8TUuV1iMe7mjbsrSp3SGfVm","lang":"rust","code_hash":"CrwuvfSLJoHs4GkkqqL22PeHG2BdcxmnMoxX2zcfaVsb",…}
+```
+
+Every v3.3 invoice runs this global code, so the entry covers all of them.
+
 ## Earlier versions
 
 - **v3.2r** (`BQLSk5carin64UMreToJHT15gvow6wqZSyKqDz7zCFry`, history since v3.3): the v3.2 source built reproducibly at commit `4116e69`. The committed wasm `contract/res/v3.2r/zeroinit_invoice.wasm` is 163,788 bytes,

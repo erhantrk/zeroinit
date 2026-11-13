@@ -68,7 +68,7 @@ Every step, with its full expected output, is in [docs/VERIFY.md](docs/VERIFY.md
 | **0** | access keys on an invoice account (`zi verify` prints `PASS no-access-keys`) |
 | **0.0075647 NEAR** | measured cost of that one transaction to the payer (gas plus NEAR's 0.007 NEAR account-creation charge) |
 | **255 + 104** | offline JavaScript tests (`npm test`) + Rust unit tests on the contract (`npm run contract:test`) |
-| **1** | reproducible build: the deployed code `CrwuvfSL…` is what `cargo near build reproducible-wasm` produces at commit `7727a1c`; CI rebuilds it from the on-chain metadata on every push ([docs/REPRODUCE.md](docs/REPRODUCE.md#one-command-straight-from-the-chain)) |
+| **1** | reproducible build: the deployed code `CrwuvfSL…` is what `cargo near build reproducible-wasm` produces at commit `7727a1c`; CI rebuilds it from the on-chain metadata on every push, and it is verified on [SourceScan](docs/REPRODUCE.md#sourcescan) ([docs/REPRODUCE.md](docs/REPRODUCE.md#one-command-straight-from-the-chain)) |
 
 ## What NEAR does here
 
