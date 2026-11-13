@@ -301,7 +301,7 @@ No `sm1110` account or key was used for v3.3; the older recordings stay on those
 (`TOK-1111-V33-A`, registration and plain transfer in one transaction), payments on top of parked funds (`PARK-V33-N/T/F/U`), the one-step token path with the registration in the same
 transaction and a refused direct call of `on_pay_balance` (`TOK-V33-B`), the `bad_msg` race (`RACE-V33-2`) and two payments at the same moment (`TWO-V33-2`). Invoice documents: `invoices/v33/` (11 files).
 
-**Tests:** 104 Rust unit tests in `contract/` (94 at v3.2r), 254 JavaScript tests (242 before).
+**Tests:** 104 Rust unit tests in `contract/` (94 at v3.2r), 255 JavaScript tests (242 before).
 
 **Not run live:** the `expired` and `not_open` race variants, a token payment whose balance read fails, and a NEAR `pay` on top of a full parked amount on v3.3 (Rust unit tests only);
 the dashboard in a browser on v3.3; an independent human audit.

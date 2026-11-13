@@ -739,4 +739,4 @@ The transactions are in `docs/SPIKES.md` "Contract v3.3 live"; the recordings ar
 - **Two payments at the same moment, run once.** Both returned in full as `busy`, then a retry paid once (`TWO-V33-2`).
 - **The `bad_msg` race, run once again** on v3.3: the sweep returned `CONCURRENT_PAYMENT`, the retry paid (`RACE-V33-2`).
 - **Not run live:** the `balance_unavailable` path, the `expired`/`not_open` race variants, a NEAR `pay` on top of a full parked amount on v3.3 (Rust unit tests), a browser test of the dashboard, mainnet.
-- **Tests:** 104 Rust tests in `contract/`, 254 JavaScript tests.
+- **Tests:** 104 Rust tests in `contract/`, 255 JavaScript tests.

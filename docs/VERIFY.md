@@ -16,12 +16,12 @@ Node 22 (`package.json` asks for `>=22.22.0 <23`). `npm ci --include=dev` needs 
    `near-api-js` 7.4.0 (one encoder-parity test) and the MCP build tools. The flag matters: with `NODE_ENV=production` in the environment a plain `npm ci`
    skips devDependencies and the parity test cannot import `near-api-js`.
 
-2. `npm test` → 254 tests, all pass: byte vectors from nearcore 2.14 and the frozen examples, units, deployments, `/1` and `/2` invoice documents, encoder parity with
+2. `npm test` → 255 tests, all pass: byte vectors from nearcore 2.14 and the frozen examples, units, deployments, `/1` and `/2` invoice documents, encoder parity with
    near-api-js 7.4.0, outcome/replay/CLI/dashboard/MCP tests, the check code, and the recorded fixtures of every version, each with tamper tests.
 
    ```
-   # tests 254
-   # pass 254
+   # tests 255
+   # pass 255
    # fail 0
    # skipped 0
    ```

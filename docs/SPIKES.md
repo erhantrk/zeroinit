@@ -981,7 +981,7 @@ read fails, and a NEAR `pay` on top of a full parked amount were not run live on
 
 | Command | Result |
 |---|---|
-| `npm test` | `# tests 254` / `# pass 254` / `# fail 0` |
+| `npm test` | `# tests 255` / `# pass 255` / `# fail 0` |
 | `cd contract && cargo test` | 104 passed, 0 failed |
 | `bash scripts/judge-offline.sh` | last line `JUDGE-OFFLINE: ALL PASS` |
 | `zi replay fixtures/v33/{demo-run,token-demo-run,parked,tokens,race,two-payments}.json` | 62 / 30 / 109 / 41 / 46 / 46 `PASS`, 0 `FAIL` |

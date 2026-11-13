@@ -49,7 +49,7 @@ From a clone, the full check. No keys and no `.env` needed. Node 22; `npm ci` ne
 
 ```bash
 npm ci --include=dev
-npm test                                             # 254 tests, all pass
+npm test                                             # 255 tests, all pass
 npm run zi -- replay fixtures/v33/demo-run.json      # a recorded live testnet run, replayed offline: 62 PASS lines, exit 0
 bash scripts/judge-offline.sh                        # the whole offline check; last line: JUDGE-OFFLINE: ALL PASS
 npm run zi -- verify INV-1111-V33-A                  # one read-only live check over testnet RPC: every line PASS, ends PASS no-access-keys / INFO status=PAID
@@ -66,7 +66,7 @@ Every step, with its full expected output, is in [docs/VERIFY.md](docs/VERIFY.md
 | **1** | transaction to create the invoice account, pay and split the money |
 | **0** | access keys on an invoice account (`zi verify` prints `PASS no-access-keys`) |
 | **0.0075647 NEAR** | measured cost of that one transaction to the payer (gas plus NEAR's 0.007 NEAR account-creation charge) |
-| **254 + 104** | offline JavaScript tests (`npm test`) + Rust unit tests on the contract (`npm run contract:test`) |
+| **255 + 104** | offline JavaScript tests (`npm test`) + Rust unit tests on the contract (`npm run contract:test`) |
 | **1** | reproducible build: the deployed code `CrwuvfSL…` is what `cargo near build reproducible-wasm` produces at commit `7727a1c` ([docs/REPRODUCE.md](docs/REPRODUCE.md)) |
 
 ## What NEAR does here
