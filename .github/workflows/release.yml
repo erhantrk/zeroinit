@@ -37,7 +37,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "${{ github.event.release.tag_name }}" mcp/dist/zeroinit-mcp.mjs --clobber
-      - name: Publish zeroinit-mcp and zeroinit to npm (trusted publishing, no stored token)
+      - name: Publish zeroinit-mcp and @erhantrk/zeroinit to npm (trusted publishing, no stored token)
         if: vars.NPM_TRUSTED_PUBLISHING == 'true'
         run: |
           npm install -g npm@11
@@ -49,4 +49,4 @@ jobs:
         run: |
           echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" >> ~/.npmrc
           (cd mcp && npm pkg set name=@erhantrk/zeroinit-mcp && npm publish --registry https://npm.pkg.github.com)
-          (cd cli && npm pkg set name=@erhantrk/zeroinit && npm publish --registry https://npm.pkg.github.com)
+          (cd cli && npm publish --registry https://npm.pkg.github.com)
