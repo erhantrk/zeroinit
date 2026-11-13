@@ -144,7 +144,8 @@ and so does every offline replay. For a transaction lookup use the archival endp
 4. Contract integrity: `shasum -a 256 contract/res/v3.3/zeroinit_invoice.wasm` → `b03c1b08a2b45b9f87163c9b9412e081a221fbb06b229dae26deecc416512a8e` (170,344 bytes). That digest,
    read as base58, is the code hash `CrwuvfSLJoHs4GkkqqL22PeHG2BdcxmnMoxX2zcfaVsb`; `zi verify` checks that the invoice account's on-chain `global_contract_hash` equals it, and the
    on-chain bytes (`view_global_contract_code`) equal the committed file (`test/wasm-files.test.ts` checks the file-to-hash step offline). This proves the committed wasm *is* the
-   deployed code; that it is built from this source is [REPRODUCE.md](REPRODUCE.md).
+   deployed code; that it is built from this source is [REPRODUCE.md](REPRODUCE.md). One command does the whole rebuild-and-compare from the chain's own build metadata:
+   `near contract verify deployed-at 0us40y0dm1767jkzzxynmwjer15h4xy5wc96rg3xv5hfgs8fx421ag network-config testnet now` (needs Docker; prints "are the same" and the code hash `CrwuvfSL…`).
 
 5. Keys: the RPC call in [LIMITS.md "Who holds keys"](LIMITS.md#who-holds-keys) lists the keys of any account; an invoice account answers `"keys":[]`.
 

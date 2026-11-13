@@ -36,7 +36,22 @@ Compare the digest with `contract/res/v3.3/zeroinit_invoice.wasm` and with the c
 **Why only commit `7727a1c`.** The reproducible build records its commit in the contract metadata, so a build from a *later* commit gives a different wasm and a different
 hash, even though `contract/src` did not change. Only `7727a1c` reproduces `CrwuvfSL…`.
 
-The project's operator ran this build twice on 2026-11-13; both gave the same hash, and that is the committed file. No independent party has reported repeating it.
+The project's operator ran this build twice on 2026-11-13; both gave the same hash, and that is the committed file.
+
+## One command, straight from the chain
+
+Every v3.3 invoice account answers `contract_source_metadata` (NEP-330): the repository link at commit `7727a1c`, the pinned image and the build command. near-cli-rs (0.31.1) reads
+that, rebuilds the recorded commit in Docker and compares the result with the account's code:
+
+```bash
+near contract verify deployed-at 0us40y0dm1767jkzzxynmwjer15h4xy5wc96rg3xv5hfgs8fx421ag network-config testnet now
+# … The code obtained from the contract account ID and the code calculated from the repository are the same.
+#   Contract code hash: CrwuvfSLJoHs4GkkqqL22PeHG2BdcxmnMoxX2zcfaVsb
+```
+
+The account is `INV-1111-V33-A`; any v3.3 invoice account gives the same answer, since they all run the same global code. The workflow
+[`verify-contract.yml`](../.github/workflows/verify-contract.yml) runs this command on every push to `main` (checksum-verified near-cli-rs release, GitHub's runner, no key)
+and also checks that the committed wasm hashes to the same code hash; its badge is in the README. That is a rebuild by a party other than the operator's machine.
 
 ## Earlier versions
 

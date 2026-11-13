@@ -1,0 +1,52 @@
+name: verify contract
+# Rebuilds the deployed invoice contract from source and compares it with the code on testnet.
+# `near contract verify` reads the NEP-330 build metadata from a v3.3 invoice account (repo link, commit 7727a1c,
+# the pinned sourcescan/cargo-near image), rebuilds that commit in Docker and compares the result with the account's
+# code hash, the global contract CrwuvfSL…aVsb. Read-only: no key, no transaction.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  INVOICE_ACCOUNT: 0us40y0dm1767jkzzxynmwjer15h4xy5wc96rg3xv5hfgs8fx421ag   # INV-1111-V33-A, paid on 2026-11-13
+  EXPECTED_HASH: CrwuvfSLJoHs4GkkqqL22PeHG2BdcxmnMoxX2zcfaVsb
+  NEAR_CLI_VERSION: v0.31.1
+jobs:
+  reproducible-build:
+    name: rebuild matches the deployed code
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install near-cli-rs (checksum-verified release)
+        run: |
+          base="https://github.com/near/near-cli-rs/releases/download/${NEAR_CLI_VERSION}"
+          f="near-cli-rs-x86_64-unknown-linux-gnu.tar.gz"
+          curl -fsSL -o "$f" "$base/$f"
+          curl -fsSL -o "$f.sha256" "$base/$f.sha256"
+          echo "$(cut -d' ' -f1 "$f.sha256")  $f" | sha256sum -c -
+          tar xzf "$f"
+          sudo install "$(find . -name near -type f -perm -u+x | head -1)" /usr/local/bin/near
+          near --version
+      - name: The committed wasm is the deployed code
+        run: |
+          got=$(python3 - <<'PY'
+          import hashlib
+          h = hashlib.sha256(open('contract/res/v3.3/zeroinit_invoice.wasm', 'rb').read()).digest()
+          a = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
+          n, s = int.from_bytes(h, 'big'), ''
+          while n:
+              n, r = divmod(n, 58)
+              s = a[r] + s
+          print(s)
+          PY
+          )
+          echo "committed wasm: $got"
+          test "$got" = "$EXPECTED_HASH"
+      - name: Rebuild from the on-chain metadata and compare
+        run: |
+          near contract verify deployed-at "$INVOICE_ACCOUNT" network-config testnet now < /dev/null 2>&1 | tee verify.log
+          grep -q "are the same" verify.log
+          grep -q "Contract code hash: $EXPECTED_HASH" verify.log
+          echo "MATCH: the rebuild of the source at the recorded commit is $EXPECTED_HASH, the code of $INVOICE_ACCOUNT"
