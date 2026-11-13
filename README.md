@@ -29,7 +29,7 @@ ZeroInit derives the address from the terms with NEAR's deterministic account id
 
 - **Live site:** <https://zeroinit.vercel.app>
 - **The one-transaction payment** on testnet: [`GwnQFSjp…`](https://testnet.nearblocks.io/txns/GwnQFSjpCqcPZeSHiTmiu6t5ZMkhM6NQ8vh4NjDzDpWE) (state init + `pay`, 0.92 to the merchant, 0.08 to the tax vault)
-- **For AI agents:** an [MCP server](mcp/README.md) with `issue_invoice`, `invoice_status` and `verify_invoice` (read-only, never signs)
+- **For AI agents:** an [MCP server](mcp/README.md) with `issue_invoice`, `invoice_status` and `verify_invoice` (read-only, never signs). No clone needed: `claude mcp add zeroinit -- npx -y zeroinit-mcp` ([npm](https://www.npmjs.com/package/zeroinit-mcp))
 
 Tracks: **Open Innovation** (primary) · **Real-World Money**. Testnet only, mock token only, not audited.
 
@@ -104,7 +104,7 @@ The invoice contract has no owner and no admin call, and invoice accounts have n
 
 - `contract/` — the invoice contract (Rust, near-sdk 5.30.1, 94 unit tests). `contract/res/v3.2r/zeroinit_invoice.wasm` is the deployed wasm; `contract/res/v3.2/` holds the previous build (history). `contract-v2/` is the v2 contract (history, 14 tests).
 - `src/` — the `zi` CLI, the byte encoders (`bytes.ts`, `stateinit.ts`, `tx.ts`), RPC client, outcome parser, invoice documents, offline replay, and the local dashboard server (`server.ts`; the page is in `web/`).
-- `mcp/` — the MCP server (`mcp/dist/zeroinit-mcp.mjs` is the bundled single file).
+- `mcp/` — the MCP server (`mcp/dist/zeroinit-mcp.mjs` is the bundled single file), published to npm as `zeroinit-mcp`; each GitHub release rebuilds the bundle and checks it is the committed file (`.github/workflows/release.yml`).
 - `fixtures/` — recorded live RPC sessions that replay offline: `v32r/` (current), `v32/`, `v31/`, `v3/`, `v2/`, `v1/` (history), plus synthetic fixtures used by tests only.
 - `invoices/` — the invoice documents of those runs (`v32r/` current), `demo/` (the three invoices of the v3.2r dashboard run) and `examples/INV-0001.json` (the frozen test vector). No secrets.
 - `scripts/` — `judge-offline.sh`, the demo and recording scripts that produced the fixtures, and small signing helpers.

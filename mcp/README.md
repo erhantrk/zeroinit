@@ -16,11 +16,10 @@ Inputs are validated like the CLI: testnet accounts only, `NEAR` and the allow-l
 
 ## Install
 
-Build the single file (needs `npm ci --include=dev` once), or use the committed `mcp/dist/zeroinit-mcp.mjs`. The bundle has no dependencies: it runs with Node 22 or newer from any directory.
+From npm (package [`zeroinit-mcp`](https://www.npmjs.com/package/zeroinit-mcp), Node 22 or newer, no accounts or keys needed):
 
 ```bash
-npm run build:mcp          # writes mcp/dist/zeroinit-mcp.mjs
-claude mcp add zeroinit -- node /path/to/zeroinit-mcp.mjs
+claude mcp add zeroinit -- npx -y zeroinit-mcp
 ```
 
 Claude Desktop (`claude_desktop_config.json`):
@@ -29,12 +28,14 @@ Claude Desktop (`claude_desktop_config.json`):
 {
   "mcpServers": {
     "zeroinit": {
-      "command": "node",
-      "args": ["/path/to/zeroinit-mcp.mjs"]
+      "command": "npx",
+      "args": ["-y", "zeroinit-mcp"]
     }
   }
 }
 ```
+
+From a clone of [the repo](https://github.com/erhantrk/zeroinit) instead: the package is one bundled file with no dependencies, committed as `mcp/dist/zeroinit-mcp.mjs`. Rebuild it with `npm ci --include=dev` once and then `npm run build:mcp`, and point the client at it: `claude mcp add zeroinit -- node /path/to/zeroinit-mcp.mjs`.
 
 Optional environment, the same variables as the CLI (`.env.example`): `ZI_RPC_URL`, `ZI_CODE_HASH`, `ZI_TUSDC_ACCOUNT`, `ZI_SCHEME`. Signing keys (`ZI_PAYER_KEY` and friends) are never used by this server.
 
@@ -43,6 +44,6 @@ Optional environment, the same variables as the CLI (`.env.example`): `ZI_RPC_UR
 - Testnet only. The token is a mock (tUSDC) with no value. Not audited.
 - Issuing sends no transaction because the pay address is computed from the terms. The account does not exist until the payer's transaction creates it, so a status of `NONEXISTENT` means "not paid yet", not "wrong address".
 - Token invoices: issuing is free, paying is not just one transaction, because the pay address must be registered on the token first (about 0.00125 NEAR, by the merchant, the payer or anyone).
-- A plain transfer to a NEAR invoice that is smaller than the price is not refunded (it stays parked); see [docs/LIMITS.md](../docs/LIMITS.md).
+- A plain transfer to a NEAR invoice that is smaller than the price is not refunded (it stays parked); see [docs/LIMITS.md](https://github.com/erhantrk/zeroinit/blob/main/docs/LIMITS.md).
 - The status of an invoice reflects the final block of the RPC you configured. This server trusts that RPC for liveness, but verifies the document and the on-chain contract hash itself.
 - Tests: `node --test test/mcp.test.ts` (fake RPC, no real network; one test builds the bundle, copies it alone into an empty directory and talks to it over stdio).

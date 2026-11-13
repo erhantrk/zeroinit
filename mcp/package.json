@@ -1,0 +1,14 @@
+{
+  "name": "zeroinit-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for ZeroInit: issue and check NEAR testnet invoices whose pay address is computed from the terms. Read-only, never signs.",
+  "type": "module",
+  "license": "MIT",
+  "bin": { "zeroinit-mcp": "dist/zeroinit-mcp.mjs" },
+  "files": ["dist/zeroinit-mcp.mjs", "README.md", "LICENSE"],
+  "engines": { "node": ">=22" },
+  "repository": { "type": "git", "url": "git+https://github.com/erhantrk/zeroinit.git", "directory": "mcp" },
+  "homepage": "https://zeroinit.vercel.app",
+  "bugs": { "url": "https://github.com/erhantrk/zeroinit/issues" },
+  "keywords": ["mcp", "model-context-protocol", "near", "near-protocol", "invoices", "payments", "testnet"]
+}
