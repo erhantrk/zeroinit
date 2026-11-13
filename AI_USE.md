@@ -20,6 +20,12 @@ The "operator" below is the model that held the testnet accounts and ran the dep
 - **v3.2 (2026-11-11):** **Claude Opus 5.5** built the v3.2 wasm, deployed it from `sm1110-zi32-deployer.testnet` and re-checked it; **Claude Sonnet 5.5** ran the live flows on v3.2 with the operator's accounts
   (NEAR pay, tUSDC plain transfer + sweep, the one-step `ft_transfer_call`, the `bad_msg` race), recorded and replayed them, and updated the client, tests and docs.
 - **After v3.2 (2026-11-12 onward):** the v3.2r reproducible build and its live re-runs, the MCP server, the landing site and this documentation were also made with AI assistance (Claude models); they are not broken down by model here.
+- **v3.3 (2026-11-13):** **Claude Fable 5.2** (in the morning) and then **Claude Opus 5.5** (after the author switched the session model), in Claude Code, built the v3.3 contract change
+  (parked funds count toward the price) and the client changes (registration in the same transaction as a token payment, the address check code, the new default token), ran the live testnet runs and recorded them.
+  Before the deploy, an independent **Claude Opus 5.5** review of the contract change found that a person who topped up parked funds could later reclaim them with `refund_payer` (fixed: such a settlement
+  records no payer), that the replay checks would misread such payments (fixed: new checks), and smaller items (the `busy` bounce, event timing, the `late` flag, tests, stale docs), each handled.
+  A **Claude Opus 5.5** agent made the site fixes (narrow-phone header, npm commands, share image), and another wrote this round's documentation update from the recorded facts.
+  The author decided, approved the contract change and the new testnet accounts, and is responsible. v3.3 is still not audited by a human auditor.
 
 Testnet transactions were signed with the repository's own encoder using keys from a local `.env` file, which is gitignored and was never printed or committed.
 
@@ -35,5 +41,5 @@ There is no code from before the hackathon window: every commit is inside it.
 - A diff that starts after `ea8d0fb` does not show the reference code. Because every commit is inside the window there is no earlier baseline and no compare link; use `git log --reverse --stat`
   (`git show ea8d0fb --stat` lists what the first commit contained).
 - Added after the reference: the scaffold and toolchain, the live testnet runs and fixtures, the replay and dashboard extensions, the scripts, the extra tests, the docs, the review and audit fixes,
-  v2, v3 (NEP-141 tokens), v3.1, v3.2, v3.2r, the MCP server and the site. Test vectors are copied from nearcore (MIT/Apache-2.0) and cited inline.
+  v2, v3 (NEP-141 tokens), v3.1, v3.2, v3.2r, v3.3, the MCP server and the site. Test vectors are copied from nearcore (MIT/Apache-2.0) and cited inline.
 - Code comments cite the internal plan and task numbers, which are not published.

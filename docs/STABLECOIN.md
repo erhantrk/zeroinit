@@ -1,7 +1,7 @@
 # ZeroInit contract v3: stablecoin (NEP-141) support and the v2 residual fixes
 
 Status: **v3 was deployed on testnet and run live (2026-11-10); v3.1 (v3 plus the token-sweep race fix, code hash `2prMzXHZVWdeHfmdqqxzb5ahLy2pWBWZjuE25EDJDaYX`, deploy tx
-`52dRw7RcBom9EbUJ6hCExDF5esWjsHPh5e1sUa87XyvB`, 163,771 bytes, sha256 `1b1dcc75…e278`) followed the same day; the current deployment is v3.2r, the same source as v3.2 built reproducibly (code hash `BQLSk5carin64UMreToJHT15gvow6wqZSyKqDz7zCFry`, `docs/HISTORY.md` "v3.2 → v3.2r"); v3.2** (v3.1 plus the audit's contract fixes, code hash `6YtW5oJ8UtCrzUePQf14zqKMb9G3DUtMynEnZvMCNHJ`, deploy tx
+`52dRw7RcBom9EbUJ6hCExDF5esWjsHPh5e1sUa87XyvB`, 163,771 bytes, sha256 `1b1dcc75…e278`) followed the same day; the current deployment is v3.3** (v3.2r plus "parked funds count toward the price", code hash `CrwuvfSLJoHs4GkkqqL22PeHG2BdcxmnMoxX2zcfaVsb`, 2026-11-13; §5.7 and "Live results (v3.3)" at the end); **before it v3.2r, the same source as v3.2 built reproducibly (code hash `BQLSk5carin64UMreToJHT15gvow6wqZSyKqDz7zCFry`, `docs/HISTORY.md` "v3.2 → v3.2r"); v3.2** (v3.1 plus the audit's contract fixes, code hash `6YtW5oJ8UtCrzUePQf14zqKMb9G3DUtMynEnZvMCNHJ`, deploy tx
 `GHHsammf6Mg4nNZWtdB9sBYPJtSojSE46JVUs7nyd3Pg`, 164,040 bytes, sha256 `016bf5ba…5e63d`, 2026-11-11); the sections "Live results (v3.1)" and "Live results (v3.2)" at the end say what was run on them. The interface in this file is the same
 for all three; v3 and v3.1 are recorded history. Everything below that says "v3" and a code hash describes the first build, `Ut7EQh…reWa`. The v3 contract, the client, the dashboard and the tests are in this repo. The wasm was built with
 `npm run contract:build`: 161,213 bytes, sha256 `0724781dd2c9f4f1b8bb30abbff0602578a7ad649fc5a450d4656ffde4740b1f`, code hash
@@ -237,7 +237,7 @@ pays a hand-made invoice that names a hostile token with a client that has no al
 ## 5. Contract methods (v3)
 
 Unchanged names and args: `pay()`, `sweep()`, `get_invoice()`, `get_owed_tax()`. New: `ft_on_transfer`, `refund_payer`, `fund`. Private callbacks:
-`on_settled` (replaces v2 `on_transfer`), `on_token_balance`. Args are `{}` for the public calls that take none.
+`on_settled` (replaces v2 `on_transfer`), `on_token_balance`, and since v3.3 `on_pay_balance` (§5.7). Args are `{}` for the public calls that take none.
 
 ### 5.1 `pay()` (payable, NEAR invoices)
 
@@ -251,8 +251,8 @@ predecessor), unless `d == 0`.
 | 3 | `now > expires_at_ms` | `REFUNDED_EXPIRED`, status becomes `EXPIRED` |
 | 4 | busy (**new**) | `REFUNDED_BUSY` |
 | 5 | `parked ≥ amount` (the v2 charged-twice fix, kept) | settle `parked` as a `TRANSFER` batch (taxed, `paid_by = None`) **and** refund `d` in full (`already_funded`) in the same batch |
-| 6 | `d < amount` | `REFUNDED_UNDERPAID` |
-| 7 | otherwise | accept: status `SETTLING`, `paid_by = payer`, `paid_amount = amount`, payouts merchant `net`, tax `tax`, payer `d − amount` (if > 0), `PAY` batch, lock. Final value `PAID`, or `PAYOUT_PENDING` |
+| 6 | `d < amount − parked` (v3.3; `d < amount` before, when parked funds were ignored here) | `REFUNDED_UNDERPAID` |
+| 7 | otherwise | accept: status `SETTLING`, `paid_amount = amount`, payouts merchant `net`, tax `tax`, payer `d − (amount − parked)` (if > 0), `PAY` batch, lock. `paid_by = payer` when `parked` is 0; when parked funds were counted (v3.3), `paid_by = None` and `invoice_paid` carries `parked_applied` and `topped_up_by` (§5.7). Final value `PAID`, or `PAYOUT_PENDING` |
 
 ### 5.2 `ft_on_transfer(sender_id, amount, msg) -> PromiseOrValue<U128>` (token invoices)
 
@@ -271,17 +271,18 @@ text, any extra field (so a `sender_id` or `amount` in `msg` is rejected, not tr
 | 4 | `now > expires_at_ms` | `amount`, status becomes `EXPIRED` | `expired` |
 | 5 | busy | `amount` | `busy` |
 | 6 | account NEAR balance below the number of payouts (1 yocto each) | `amount` | `no_yocto` |
-| 7 | remaining gas below 90 Tgas | `amount` | `low_gas` |
-| 8 | `amount < invoice.amount` | `amount` | `underpaid` |
-| 9 | otherwise | `amount − invoice.amount` (the excess, 0 when exact) | none; accept as 5.1 row 7, payouts via `ft_transfer`, no payer payout (the token returns the excess) |
+| 7 | remaining gas below 100 Tgas (90 before v3.3) | `amount` | `low_gas` |
+| 8 | `amount < invoice.amount − parked`: since v3.3 decided in the callback `on_pay_balance`, after the balance read (§5.7); before v3.3 `amount < invoice.amount`, decided here | `amount` | `underpaid` |
+| 9 | otherwise | since v3.3: take the lock, read `ft_balance_of(self)`, and `on_pay_balance` returns the unused amount (§5.7). Before: `amount − invoice.amount` (the excess, 0 when exact) | none; accept as 5.1 row 7, payouts via `ft_transfer`, no payer payout (the token returns the excess) |
 
-Parked tokens (plain transfers made earlier) are not looked at here; they are settled by a later `sweep`, taxed (4.6). Refunds are done by the token contract, so there is
+Before v3.3, parked tokens (plain transfers made earlier) were not looked at here; they were settled by a later `sweep`, taxed (4.6), so a payment on top of them was charged twice.
+Since v3.3 they count toward the price (§5.7). Refunds are done by the token contract, so there is
 no payer payout in the contract's batch and nothing for it to fail; `payment_rejected` records that the contract asked for the return, and the token's own `ft_transfer`
 log (`memo: "refund"`) is the proof it happened.
 
 ### 5.3 `sweep()` (anyone; settles funds that arrived without a call)
 
-**Contract v3.2 (the final audit's four contract fixes). Deployed on testnet on 2026-11-11 as a new global contract (code hash `6YtW5oJ8UtCrzUePQf14zqKMb9G3DUtMynEnZvMCNHJ`, "Live results (v3.2)" below), and again as v3.2r, the same source built reproducibly (`BQLSk5carin64UMreToJHT15gvow6wqZSyKqDz7zCFry`, the current deployment); v3.1 and older stay recorded history, and the v3.1 contract still has the race hole described here. Only the `bad_msg` variant of the race was run live (once); everything else in this paragraph is covered by Rust tests.**
+**Contract v3.2 (the final audit's four contract fixes). Deployed on testnet on 2026-11-11 as a new global contract (code hash `6YtW5oJ8UtCrzUePQf14zqKMb9G3DUtMynEnZvMCNHJ`, "Live results (v3.2)" below), and again as v3.2r, the same source built reproducibly (`BQLSk5carin64UMreToJHT15gvow6wqZSyKqDz7zCFry`); v3.3, the current deployment, keeps all of it (`CrwuvfSLJoHs4GkkqqL22PeHG2BdcxmnMoxX2zcfaVsb`); v3.1 and older stay recorded history, and the v3.1 contract still has the race hole described here. Only the `bad_msg` variant of the race was run live (once); everything else in this paragraph is covered by Rust tests.**
 In `ft_on_transfer`, right after the `wrong_token` check and before anything else, if `now < busy_until_ms` the lock value is raised by 1, **for every status and every
 rejection reason** (`bad_msg`, `not_open`, `expired`, `busy`, ...). A call from the invoice's own token while a lock is held may carry a credit that a pending token
 sweep's balance read already includes and that the token takes back whenever the hook returns it. v3.1 only did this for `busy` on an `OPEN` invoice, so a
@@ -292,6 +293,8 @@ Also in v3.2: an `OPEN` invoice past `expires_at_ms` is treated as `EXPIRED` by 
 are running totals); `on_settled` decides success from the promise status only, a body longer than 64 bytes from `ft_transfer` is still a success.
 Residual, not closed: if the sweep transaction lands in the same block as an already-executed rejected `ft_on_transfer` (no lock held yet), the balance read can still run
 before the token's refund resolves; this needs the sweeper to race a rejected transfer by one block and is not reproducible by a payer's single call.
+Since v3.3 a token payment reads the balance too (§5.7), so this residual covers payments as well: the lock check catches a competing call that arrives before the callback, and a call
+emitted earlier is excluded only because receipts from the token reach the invoice in order. Nothing breaks under in-order delivery; no ordering that breaks it was found.
 
 `sweep` takes no deposit. NEAR: runs the plan below at once. Token: panics `NEEDS_GAS` if prepaid gas is below 150 Tgas, panics `PAYOUT_IN_FLIGHT` if busy, takes the lock,
 calls `ft_balance_of(self)` (5 Tgas) and ends with `on_token_balance`, which runs the same plan with `balance = result` and the remaining gas.
@@ -343,6 +346,28 @@ look like extra funds) and `NEEDS_DEPOSIT` if the deposit is 0. No event. The cl
 amount that stays on the account. The state-init `deposit` field is **not** used for this: `SPEC.md` §4.3 says the unused part of it is refunded to the signer,
 and whether it is credited to the account had not been measured when this was written (measured later: it is not credited, see "Live results (v3.1)").
 
+### 5.7 `on_pay_balance` (v3.3): the balance read of a token payment
+
+`ft_on_transfer` cannot see tokens already parked on the invoice by a plain `ft_transfer`. Up to v3.2r it did not try, so a payment on top of them was charged twice. In v3.3, once rows 1 to 7
+of §5.2 pass, the hook sets the payout lock (`busy_until_ms = now + 5 min`), calls `ft_balance_of(self)` on the token (5 Tgas) and chains the private callback
+`on_pay_balance(sender_id, amount, lock)` (70 Tgas static, plus the unused gas). The callback's return value is the unused amount; the token's `ft_resolve_transfer` refunds it to `sender_id`.
+It never panics (a panic would make the token refund everything while the lock stays held).
+
+With `parked = balance − amount − owed_total` (the balance includes this payment):
+
+| # | Condition | Returns | Effect |
+|---|---|---|---|
+| 1 | the lock is no longer `lock` (another call from the token arrived while the balance was read) | `amount` | `payment_rejected busy`, lock cleared |
+| 2 | the balance cannot be read | `amount` | `payment_rejected balance_unavailable`, lock cleared |
+| 3 | `parked ≥ invoice.amount` | `amount` | the parked tokens settle like a sweep (`TRANSFER` batch, taxed, `paid_by = None`); `payment_refunded` reason `already_funded` is emitted here, when the contract hands the payment back |
+| 4 | `amount < invoice.amount − parked` | `amount` | `payment_rejected underpaid`, lock cleared |
+| 5 | otherwise | `amount − (invoice.amount − parked)` | the price settles (`PAY` batch). `paid_by = sender_id` when `parked` is 0; otherwise `paid_by = None`, and `invoice_paid` carries `parked_applied` and `topped_up_by` |
+
+**Why no payer when parked funds were used.** The parked part may be someone else's money. A recorded payer could later reclaim undelivered shares with `refund_payer` (§5.4), parked part included.
+**The trade-off.** A token payment now spans 2 to 3 blocks. Another `ft_transfer_call` from the same token in that window changes the lock (§5.3), and both payments are returned in full as `busy`.
+**Event detail.** In row 3 the `late` flag of the settlement batch uses the callback's block time.
+The NEAR `pay()` path needs no callback: it reads its own balance (§5.1 rows 5 to 7).
+
 ## 6. How fixes 1, 2 and 3 map to the design
 
 | v2 residual ([HISTORY.md "v1 → v2"](HISTORY.md#v1--v2)) | v3 mechanism | Test that fails on v2 (names in 11.1) |
@@ -375,7 +400,8 @@ NONEXISTENT (NEAR) ── register the 0u id on the token (storage_deposit, paye
   `sweep` reads `ft_balance_of(self)` and splits. The caller pays gas and the 0.007 NEAR account-creation charge, as with NEAR invoices.
 - **One-step path (initialised invoice).** `ft_transfer_call` to a **nonexistent** `0u` id cannot work: the token credits the id, then the call to the nonexistent receiver fails and the
   token refunds everything (confirmed live, see "Live results"). So the invoice must be initialised first: `[UniversalStateInit, fund]` by whoever pays (the CLI does it for the payer), then
-  `ft_transfer_call`. Two transactions from the payer, versus plain `ft_transfer` + a sweep by anyone.
+  `ft_transfer_call`. Two transactions from the payer, versus plain `ft_transfer` + a sweep by anyone. Since the v3.3 client, the second transaction also carries the id's registration when it is needed
+  (`[storage_deposit, ft_transfer_call]`), so the registration costs no extra transaction; `zi pay --plain` sends `[storage_deposit, ft_transfer]` the same way.
 - **Underpay / overpay / expiry**, as for NEAR: `ft_transfer_call` with less than the price is returned whole (status stays `OPEN`); with more, only the price is used and the
   excess is returned by the token; after expiry it is returned whole and status becomes `EXPIRED`. Plain transfers: less than the price stays parked (`sweep` returns `UNDERPAID`), more than the price is settled whole and
   taxed (4.6), after expiry `sweep` releases whatever is parked pro rata.
@@ -390,7 +416,7 @@ and `storage_deposit {account_id, registration_only: true}` can be paid by **any
 
 | Account | Registered by | When | Client |
 |---|---|---|---|
-| the invoice's `0u` id | the payer or exchange (it pays the tiny storage deposit) before the first `ft_transfer` / `ft_transfer_call`. Anyone else may do it too. | before any token reaches the invoice | `zi pay` and `zi pay --plain` check `storage_balance_of(id)` and register if `null`; `zi token register <invoice id>` does only that |
+| the invoice's `0u` id | the payer or exchange (it pays the tiny storage deposit) before the first `ft_transfer` / `ft_transfer_call`. Anyone else may do it too. | before any token reaches the invoice | `zi pay` and `zi pay --plain` check `storage_balance_of(id)` and, if `null`, put the registration in the same transaction as the payment (v3.3 client; before, a separate transaction); `zi token register <invoice id>` does only that. An exchange withdrawal does not register, so someone must do it first (a NEP-145 rule, not this contract's) |
 | merchant | the merchant (or the issuer for them) once | before the invoice is paid | `zi invoice new --token` checks `storage_balance_of(merchant)` and refuses if `null` (`--offline` skips); `zi token register <account>` |
 | tax vault | the tax vault owner (or the issuer) once | before the invoice is paid | same check and command |
 | payer | already registered (it holds tokens) | | `zi pay` checks `ft_balance_of` and says so if the payer has too little |
@@ -411,9 +437,9 @@ Every event is `EVENT_JSON:{"standard":"zeroinit","version":"3.0.0","event":…,
 
 | Event | When | Fields |
 |---|---|---|
-| `invoice_paid` | `on_settled`, when the settlement is fully delivered (first time) | v2 fields: `invoice_id, account_id, via ("pay"/"transfer"), payer, amount, merchant_amount, tax_amount, excess_refunded, late`; new: `retried` |
-| `payment_refunded` | `on_settled`, refund payout succeeded (or at once for a 0 deposit) | v2: `invoice_id, account_id, payer, amount, reason` (`underpaid, expired, not_open, already_funded`; new `wrong_asset, busy`) |
-| `payment_rejected` | `ft_on_transfer` returned the deposit as unused | `invoice_id, account_id, sender, amount, reason` (5.2), `predecessor` |
+| `invoice_paid` | `on_settled`, when the settlement is fully delivered (first time) | v2 fields: `invoice_id, account_id, via ("pay"/"transfer"), payer, amount, merchant_amount, tax_amount, excess_refunded, late`; new: `retried`; v3.3: `parked_applied` (the parked amount counted toward the price), `topped_up_by` (who sent the rest; `null` when nothing parked was counted) |
+| `payment_refunded` | `on_settled`, refund payout succeeded (or at once for a 0 deposit). On the token path, `already_funded` is emitted by `on_pay_balance` when it hands the payment back (v3.3); the token's `ft_resolve_transfer` then returns it | v2: `invoice_id, account_id, payer, amount, reason` (`underpaid, expired, not_open, already_funded`; new `wrong_asset, busy`) |
+| `payment_rejected` | `ft_on_transfer` or, since v3.3, `on_pay_balance` returned the deposit as unused | `invoice_id, account_id, sender, amount, reason` (5.2, 5.7), `predecessor` |
 | `extra_swept` | `on_settled`, all payouts of an EXTRA batch succeeded | v2: `amount` (to merchant), `to`; now always also `tax_amount`, `tax_to` |
 | `tax_resent` / `owed_resent` | `on_settled`, a RESEND payout to the vault / merchant succeeded | `amount, to` |
 | `transfer_failed` | `on_settled`, a payout failed (v2 event, now also for payer payouts) | `role` (`merchant`/`tax`/`payer`), `to`, `amount` |
@@ -429,8 +455,9 @@ Panics: v2 strings `UNDERPAID: available … < amount …` and `NOTHING_TO_SWEEP
 | `ft_transfer` promise | 15 Tgas each, 1 yocto |
 | `on_settled` | 20 Tgas |
 | `ft_balance_of` | 5 Tgas; `on_token_balance` gets all remaining (unused-gas weight 1) |
+| `on_pay_balance` (v3.3) | 70 Tgas static, plus the remaining gas (unused-gas weight 1) |
 | minimum prepaid gas for token `sweep` | 150 Tgas (`NEEDS_GAS` otherwise) |
-| minimum remaining gas for the `ft_on_transfer` accept path | 90 Tgas (`low_gas` reject otherwise) |
+| minimum remaining gas for the `ft_on_transfer` accept path | 100 Tgas since v3.3, 90 before (`low_gas` reject otherwise) |
 | client: `pay`/`sweep`/`refund_payer` on NEAR invoices | 100 Tgas (v2: 50) |
 | client: token `sweep` tx, `refund_payer` | 200 Tgas |
 | client: `ft_transfer_call` | 200 Tgas (the token keeps about 35 Tgas for itself and the resolve step) |
@@ -626,7 +653,7 @@ The docs only quote what the replays and the verification runs show; a run that 
 - A callback that never runs (it has 20 Tgas and no known failure path) would leave the lock stale after 5 minutes and the failed share unrecorded.
 - A second failed refund to a different payer account while the payer slot is taken is not protected (4.2).
 - A merchant that never exists and a payer that is unknown (plain-transfer settle) leave the shares owed forever; they are never given to anyone else.
-- Plain-transfer parking and a later full `pay` still charge the payer for both (the tax is now right, the payer's double payment is not refunded).
+- Plain-transfer parking and a later full `pay` still charge the payer for both (the tax is now right, the payer's double payment is not refunded). **Fixed in v3.3** for `pay()` and token payments: parked funds count toward the price (§5.1, §5.7).
 - Gas and cost numbers are estimates until the live runs; the v3 deploy burn is larger than v2's 8.29 NEAR.
 - Nothing here was audited. The v3 contract needs the same review gate as v2 before the deploy.
 
@@ -699,3 +726,17 @@ check v3.1 documents and fixtures against the v3.1 hash). The transactions are i
 - **Tests:** 94 Rust tests in `contract/` (v3.2 source), 14 in `contract-v2/`, 218 JavaScript tests (`npm test`).
 - **AI use for this round:** Claude Sonnet 5.5 ran and recorded the live flows and updated the client, tests and docs; Claude Opus 5.5 did the operator deploy of v3.2 and the re-check.
 
+## Live results (v3.3) (2026-11-13, Claude Fable 5.2 and Claude Opus 5.5 with new operator accounts)
+
+v3.3 is v3.2r plus §5.7: code hash `CrwuvfSLJoHs4GkkqqL22PeHG2BdcxmnMoxX2zcfaVsb`, reproducible build of commit `7727a1c`, 170,344 bytes, sha256 `b03c1b08…2a8e`, publish tx `2Sr5wa1TF117WpEyjBDPFx5jULPJQKVzZ4ooy8hA6TPS`
+(signer `zeroinit-deployer.testnet`), burn 17.0358 NEAR. The client treats v3.3 as current; v3.2r is history (verify and replay only). New accounts and a new mock token, `zeroinit-tusdc.testnet`, were used for every step.
+The transactions are in `docs/SPIKES.md` "Contract v3.3 live"; the recordings are `fixtures/v33/*.json`.
+
+- **Payments on top of parked funds, run.** NEAR: 0.3 parked, then `pay` of 1: settled once, 0.3 back, no payer recorded (`PARK-V33-N`). tUSDC: 0.4 parked, then `ft_transfer_call` of 1: 0.6 used,
+  0.4 returned (`PARK-V33-T`); the full price parked, then a payment: the payment returned whole, the parked tokens settled (`PARK-V33-F`); 0.3 parked, then 0.5: `underpaid`, all returned (`PARK-V33-U`).
+- **Registration in the same transaction, run.** `[storage_deposit, ft_transfer_call]` settled in one transaction (`TOK-V33-B`); `[storage_deposit, ft_transfer]` parked 1 tUSDC (`TOK-1111-V33-A`).
+- **The private callback, run.** A direct call of `on_pay_balance` by the payer failed: "Method on_pay_balance is private".
+- **Two payments at the same moment, run once.** Both returned in full as `busy`, then a retry paid once (`TWO-V33-2`).
+- **The `bad_msg` race, run once again** on v3.3: the sweep returned `CONCURRENT_PAYMENT`, the retry paid (`RACE-V33-2`).
+- **Not run live:** the `balance_unavailable` path, the `expired`/`not_open` race variants, a NEAR `pay` on top of a full parked amount on v3.3 (Rust unit tests), a browser test of the dashboard, mainnet.
+- **Tests:** 104 Rust tests in `contract/`, 254 JavaScript tests.

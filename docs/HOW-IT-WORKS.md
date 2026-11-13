@@ -1,8 +1,8 @@
 # How ZeroInit works
 
-One immutable contract published by hash, one derivation function, and a few transaction shapes. This describes the deployed contract, **v3.2r**
-(code hash `BQLSk5carin64UMreToJHT15gvow6wqZSyKqDz7zCFry`, the v3.2 source built reproducibly). The token interface in full detail is [STABLECOIN.md](STABLECOIN.md);
-measured costs and how the design changed from v1 to v3.2 are in [ARCHITECTURE.md](ARCHITECTURE.md); the live transactions behind every statement are in [SPIKES.md](SPIKES.md).
+One immutable contract published by hash, one derivation function, and a few transaction shapes. This describes the deployed contract, **v3.3**
+(code hash `CrwuvfSLJoHs4GkkqqL22PeHG2BdcxmnMoxX2zcfaVsb`, the reproducible build of commit `7727a1c`). The token interface in full detail is [STABLECOIN.md](STABLECOIN.md);
+measured costs and how the design changed from v1 to v3.3 are in [ARCHITECTURE.md](ARCHITECTURE.md); the live transactions behind every statement are in [SPIKES.md](SPIKES.md).
 
 Sections: [Overview](#overview) · [The address](#the-address) · [Account lifecycle](#account-lifecycle) · [Why nobody holds a key](#why-nobody-holds-a-key) · [Contract methods](#contract-methods) ·
 [pay() rules](#pay-rules) · [sweep() rules](#sweep-rules) · [Settlement and tax](#settlement-and-tax) · [Token flows](#token-flows) · [Transactions](#transactions) · [Events](#events) · [Client side](#client-side) · [Libraries](#libraries)
@@ -94,12 +94,12 @@ Args are `{}` unless noted. There is no init method, no owner and no key.
 | Method | Payable | What it does |
 |---|---|---|
 | `pay()` | yes | NEAR invoices: splits the attached deposit per `tax_bps` (92/8 at 800 bps), or refunds it ([rules](#pay-rules)) |
-| `ft_on_transfer(sender_id, amount, msg)` | no (called by the token) | token invoices: accepts an `ft_transfer_call` whose `msg` is exactly `{"action":"pay"}` (optionally with this invoice's `invoice_id`) and whose caller is the invoice's token, or returns the amount unused with a `payment_rejected` reason |
+| `ft_on_transfer(sender_id, amount, msg)` | no (called by the token) | token invoices: checks an `ft_transfer_call` whose `msg` must be exactly `{"action":"pay"}` (optionally with this invoice's `invoice_id`) and whose caller must be the invoice's token; then reads the invoice's token balance and lets `on_pay_balance` decide. A failed check returns the amount unused with a `payment_rejected` reason |
 | `sweep()` | no | settles funds that arrived without a call (a plain transfer or plain `ft_transfer`); re-sends owed shares to their own recipient; forwards extra funds (taxed) |
 | `refund_payer()` | no | after the invoice's grace period, pays the undelivered shares of a `SETTLING` invoice back to the payer (`paid_by`) and nobody else |
 | `fund()` | yes | token invoices: takes a NEAR deposit (the client sends 1,000 yocto) so the account can attach 1 yocto to each `ft_transfer` |
 | `get_invoice()`, `get_owed_tax()` | view | the invoice as JSON (`u64`/`u128` as strings, including `owed_*`, `grace_ms`, `token`, `busy_until_ms`) / the tax share not yet delivered |
-| `on_settled`, `on_token_balance` | private | callbacks: `on_settled` checks every payout, records failures per recipient (`owed_*`), emits `transfer_failed`, and is the **only** place `invoice_paid` is emitted |
+| `on_settled`, `on_token_balance`, `on_pay_balance` | private | callbacks: `on_settled` checks every payout, records failures per recipient (`owed_*`), emits `transfer_failed`, and is the **only** place `invoice_paid` is emitted; `on_token_balance` finishes a token `sweep`; `on_pay_balance` (v3.3) finishes a token payment |
 
 ## pay() rules
 
@@ -112,11 +112,19 @@ NEAR invoices, checked in this order (`d` = attached deposit, `now` = block time
 | 3 | `now > expires_at_ms` | `REFUNDED_EXPIRED`; status becomes `EXPIRED`; `d` goes back |
 | 4 | a payout is in flight (lock) | `REFUNDED_BUSY` |
 | 5 | `parked ≥ amount` | funds parked by a plain transfer already cover the invoice: they are settled like `sweep()` (taxed) and `d` goes back in full (`payment_refunded`, reason `already_funded`) |
-| 6 | `d < amount` | `REFUNDED_UNDERPAID`; status stays `OPEN`; `d` goes back |
-| 7 | otherwise | status `SETTLING`, tax = `amount × tax_bps / 10000` (floor) to the tax vault, net to the merchant, any excess back to the payer; the callback then sets `PAID` and emits `invoice_paid` (the transaction returns `PAID`), or records what failed (`PAYOUT_PENDING`) |
+| 6 | `d < amount − parked` | `REFUNDED_UNDERPAID`; status stays `OPEN`; `d` goes back |
+| 7 | otherwise | status `SETTLING`, tax = `amount × tax_bps / 10000` (floor) to the tax vault, net to the merchant, and `d − (amount − parked)` back to the payer; the callback then sets `PAID` and emits `invoice_paid` (the transaction returns `PAID`), or records what failed (`PAYOUT_PENDING`) |
 
-`ft_on_transfer` applies the same order for tokens and returns the whole amount with a reason (`wrong_token`, `bad_msg`, `not_open`, `expired`, `busy`, `no_yocto`, `low_gas`, `underpaid`);
-on success it uses only the price and the token returns the excess ([STABLECOIN.md §5.2](STABLECOIN.md#52-ft_on_transfersender_id-amount-msg---promiseorvalueu128-token-invoices)).
+**Parked funds count toward the price (v3.3).** In row 7, `parked` is usually 0. When a plain transfer parked part of the price first, the payer needs only the rest and gets back
+whatever the deposit has above it, so the price is charged once. Such a settlement records **no payer** (`paid_by` null, `invoice_paid` with `via: "transfer"`, `parked_applied` and
+`topped_up_by`): the parked part may be someone else's money, and a recorded payer could later take undelivered shares back with `refund_payer`.
+
+**Token payments.** `ft_on_transfer` checks, in order, `wrong_token`, `bad_msg`, `not_open`, `expired`, `busy`, `no_yocto` and `low_gas` (less than 100 Tgas left) and returns the
+whole amount with that reason. If all pass, it takes the payout lock, asks the token for `ft_balance_of(self)`, and the private callback `on_pay_balance` decides, with
+`parked` = balance − this payment − owed: the parked tokens cover the price (they settle, the whole payment is returned, `already_funded`); or the payment covers the rest
+(the price settles, the rest is returned); or it is too little (`underpaid`, all returned). The callback also returns everything if another call from the token changed the lock
+while the balance was read (`busy`) or the balance could not be read (`balance_unavailable`). Its return value is the unused amount, which the token gives back
+([STABLECOIN.md §5.2](STABLECOIN.md#52-ft_on_transfersender_id-amount-msg---promiseorvalueu128-token-invoices), [§5.7](STABLECOIN.md#57-on_pay_balance-v33-the-balance-read-of-a-token-payment)).
 
 ## sweep() rules
 
@@ -148,10 +156,10 @@ and **no `invoice_paid` is emitted**; a later `sweep` re-sends it to that recipi
 
 One token per invoice, fixed in the terms and so in the address; the contract accepts only that token (`predecessor == token`).
 
-- **Plain path (exchange, wallet):** register the `0u` id on the token (NEP-145 `storage_deposit`, 0.00125 NEAR, anyone may pay it), plain `ft_transfer` (the tokens sit on the token
+- **Plain path (exchange, wallet):** register the `0u` id on the token (NEP-145 `storage_deposit`, 0.00125 NEAR, anyone may pay it; `zi pay --plain` puts it in the same transaction as the transfer), plain `ft_transfer` (the tokens sit on the token
   contract under the `0u` id while NEAR still says `UNKNOWN_ACCOUNT`), then anyone sends `[UniversalStateInit, fund(1000 yocto), sweep]` to the invoice; `sweep` reads
   `ft_balance_of(self)` in a callback and settles.
-- **One-step path:** `[UniversalStateInit, fund]` first (`zi init`), then `ft_transfer_call` with `msg` `{"action":"pay","invoice_id":"…"}`. The `ft_transfer_call` transaction ends with
+- **One-step path:** `[UniversalStateInit, fund]` first (`zi init`, or `zi pay` does it), then one transaction to the token, `[storage_deposit, ft_transfer_call]`, with `msg` `{"action":"pay","invoice_id":"…"}` (the registration only if the id is not registered yet). The `ft_transfer_call` transaction ends with
   the amount **used** (NEP-141): `"1000000"` for a settled 1 tUSDC, `"0"` for a rejected payment; the token's own `ft_transfer` event with `memo: "refund"` shows what came back.
   An `ft_transfer_call` to a never-initialized id fails on NEAR and the token returns everything.
 - **The allow-list lives in the client** (`ZI_TUSDC_ACCOUNT` pins the token contract and its 6 decimals): a list inside the global, ownerless contract would bake an account id into the code hash.
@@ -166,8 +174,8 @@ Hand-encoded transactions (V0, ed25519 over SHA-256), because near-api-js 7.4.0 
 | SWEEP (NEAR) | anyone | invoice `0u…` id | `[UniversalStateInit{raw, deposit:0}, FunctionCall{"sweep", "{}", 100 Tgas, 0}]` |
 | PLAIN TRANSFER | any wallet | invoice `0u…` id | `[Transfer{amount}]`, sent by the payer's own wallet |
 | INIT (token) | payer / merchant | invoice `0u…` id | `[UniversalStateInit, FunctionCall{"fund", 10 Tgas, 1000 yocto}]` |
-| PAY (token) | payer | the token | `[FunctionCall{"ft_transfer_call", {receiver_id: invoice, amount, msg}, 200 Tgas, 1 yocto}]` |
-| PLAIN `ft_transfer` (token) | any wallet / exchange | the token | `[FunctionCall{"ft_transfer", 1 yocto}]`, which succeeds **only after the invoice id was registered on the token** with a separate `storage_deposit` transaction (`zi pay --plain` sends it first; an exchange withdrawal does not) |
+| PAY (token) | payer | the token | `[FunctionCall{"storage_deposit", {account_id: invoice, registration_only: true}, 0.00125 NEAR}, FunctionCall{"ft_transfer_call", {receiver_id: invoice, amount, msg}, 200 Tgas, 1 yocto}]` (the registration only when the id is not registered yet) |
+| PLAIN `ft_transfer` (token) | any wallet / exchange | the token | `[FunctionCall{"ft_transfer", 1 yocto}]`, which succeeds **only after the invoice id was registered on the token**. `zi pay --plain` sends `[storage_deposit, ft_transfer]` in one transaction; an exchange withdrawal sends only the transfer, so someone must register the id first |
 | SWEEP (token) | anyone | invoice `0u…` id | `[UniversalStateInit, FunctionCall{"fund"}, FunctionCall{"sweep", "{}", 200 Tgas}]` (state init and fund only when needed) |
 | REFUND PAYER | anyone | invoice `0u…` id | `[FunctionCall{"refund_payer", "{}", 100 Tgas (NEAR) / 200 Tgas (token)}]` |
 
@@ -180,10 +188,15 @@ Each state change emits an `EVENT_JSON:` log line (`invoice_paid`, `payment_refu
 
 ## Client side
 
-`src/config.ts` keeps a list of known deployments. **v3.2r** is the trusted build (labelled "current, deployed on testnet"; `ZI_CODE_HASH` overrides it); v3.2, v3.1, v3, v2 and v1 are
+`src/config.ts` keeps a list of known deployments. **v3.3** is the trusted build (labelled "current, deployed on testnet"; `ZI_CODE_HASH` overrides it); v3.2r, v3.2, v3.1, v3, v2 and v1 are
 history. History is accepted **only to verify recorded runs**: `zi verify`, `zi receipt` and `zi replay` check an older invoice or fixture against its own hash and say which deployment it uses;
 `zi pay`, `zi sweep`, `zi init`, `zi invoice new`, the dashboard and the MCP server use only the trusted hash. A foreign hash is never accepted. To operate an older invoice on purpose,
-pin its hash: `ZI_CODE_HASH=<hash> zi sweep <id>`.
+pin its hash: `ZI_CODE_HASH=<hash> zi sweep <id>`. The default tUSDC is `zeroinit-tusdc.testnet`; the older mock `sm1110-tusdc.testnet` is accepted only for the read-only checks
+(`verify`, `status`, `receipt`, `replay`) of documents issued under a history deployment.
+
+**Address check code (v3.3 client).** A `0u…` address has no checksum. `zi invoice new` prints a 4-character check code next to it (`CHECK MVNC` for `INV-1111-V33-A`): Crockford base32 of
+SHA-256 of `zeroinit-check-code/1:` + the address, 20 bits. `zi check <address> <code>` says `PASS` or `FAIL` offline; the MCP server returns it as `check_code` and the dashboard shows it.
+It protects only a payer who checks.
 
 ## Libraries
 

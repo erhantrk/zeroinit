@@ -6,14 +6,15 @@ the fixes and evidence per version are in [HISTORY.md](HISTORY.md).
 
 | Version | Code hash | Status |
 |---|---|---|
-| **v3.2r** | `BQLSk5carin64UMreToJHT15gvow6wqZSyKqDz7zCFry` (publish tx `DYP9bS9hn7Laip759uTCZ1t3uVF9caWKGZxHM7SdUuNs`) | **current**: the v3.2 source built reproducibly, so everything below about v3.2 holds for it |
+| **v3.3** | `CrwuvfSLJoHs4GkkqqL22PeHG2BdcxmnMoxX2zcfaVsb` (publish tx `2Sr5wa1TF117WpEyjBDPFx5jULPJQKVzZ4ooy8hA6TPS`) | **current**: v3.2r plus "parked funds count toward the price", built reproducibly at commit `7727a1c` |
+| v3.2r | `BQLSk5carin64UMreToJHT15gvow6wqZSyKqDz7zCFry` (publish tx `DYP9bS9hn7Laip759uTCZ1t3uVF9caWKGZxHM7SdUuNs`) | history: the v3.2 source built reproducibly, so everything below about v3.2 holds for it |
 | v3.2 | `6YtW5oJ8UtCrzUePQf14zqKMb9G3DUtMynEnZvMCNHJ` (tx `GHHsammf6Mg4nNZWtdB9sBYPJtSojSE46JVUs7nyd3Pg`) | history: v3.1 plus the final audit's contract fixes |
 | v3.1 | `2prMzXHZVWdeHfmdqqxzb5ahLy2pWBWZjuE25EDJDaYX` | history: v3 plus the token-sweep race fix (for the `busy` rejection) |
 | v3 | `Ut7EQhLDrvYVarHb6ZaXk6m7o9kQqYPCpyqiamvreWa` | history: NEP-141 invoices (tUSDC, a testnet mock), `SETTLING`, owed ledger, payout lock |
 | v2 | `4bQ61AgHWWmYXp5c3fwj9NJxS79D9R3cGZAZxHyx9zEA` | history: v1 plus three audit fixes |
 | v1 | `Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k` | history: the first contract |
 
-All six stay on testnet and keep replaying. The account model (one global code hash, one `0u` id derived from code + terms, no init method, no access keys) is the same in all of them.
+All seven stay on testnet and keep replaying. The account model (one global code hash, one `0u` id derived from code + terms, no init method, no access keys) is the same in all of them.
 
 ## Costs measured
 
@@ -45,8 +46,20 @@ The v2 rows come from the re-recorded fixtures ([SPIKES.md "Contract v2 live"](S
 13.71 Tgas / 0.007562 NEAR (v3.2) and 13.70 Tgas / 0.0075612 NEAR (v3.2r); a settling `ft_transfer_call` 13.14 to 13.15 Tgas / about 0.00118 NEAR; a token sweep with state init 22.04 Tgas / about 0.00835 NEAR
 (200 Tgas attached); the sweep that returned `CONCURRENT_PAYMENT` 5.58 to 5.59 Tgas / about 0.00049 NEAR. The token figures were not re-measured on v3.2r. The v3.2r publish burn was not computed.
 
-Issuing an invoice costs nothing and sends no transaction. After a completed payment the account sits at 0 NEAR (v3.2r: 428 B after `pay()`, 400 B after a plain transfer + `sweep`, read from
-`fixtures/v32r/demo-run.json`; every version stays below the zero-balance limit), so there is no per-invoice storage to fund and nothing left behind for the merchant to reclaim.
+**v3.3** (single runs, 2026-11-13; [SPIKES.md "Contract v3.3 live"](SPIKES.md#contract-v33-live-2026-11-13)):
+
+| What | Measured |
+|---|---|
+| Tokens burnt, NEAR `pay` that creates the account (`INV-1111-V33-A`) | **0.0075647 NEAR**, 13.74 Tgas (v3.2r 0.0075612, 13.70 Tgas) |
+| NEAR `pay` on top of 0.3 NEAR already parked (`PARK-V33-N`; the plain transfer created the account) | 0.0013415 NEAR, 14.53 Tgas; the plain transfer itself 0.0070946 NEAR |
+| Token init `[UniversalStateInit, fund]` | 0.0072541 NEAR, 9.96 Tgas |
+| `[storage_deposit, ft_transfer_call]` in one transaction that settles (`TOK-V33-B`) | 0.0016780 NEAR, 18.56 Tgas (tokens burnt only; the 0.00125 NEAR registration deposit comes on top and is kept by the token) |
+| `ft_transfer_call` on top of parked tokens | 17.49 to 17.67 Tgas, about 0.0016 NEAR (`PARK-V33-T`: 17.49 Tgas, 0.0015706 NEAR) |
+| Token sweep with state init (`TOK-1111-V33-A`) | 0.0083572 NEAR, 22.11 Tgas |
+| One-time global publish burn, v3.3 (170,344-byte wasm) | **17.0358 NEAR**, tx `2Sr5wa1TF117WpEyjBDPFx5jULPJQKVzZ4ooy8hA6TPS` |
+
+Issuing an invoice costs nothing and sends no transaction. After a completed payment the account sits at 0 NEAR (v3.3: 422 B after `pay()`, 396 B after a plain transfer + `sweep`, read from
+`fixtures/v33/demo-run.json`; v3.2r: 428 B and 400 B; every version stays below the zero-balance limit), so there is no per-invoice storage to fund and nothing left behind for the merchant to reclaim.
 
 ## v1 → v2
 
@@ -89,5 +102,21 @@ balance read included a credit the token is about to take back answers `CONCURRE
 `paid_at_ms == 0`; `on_settled` decides success from the promise status only. The v3.2 wasm is 164,040 bytes (sha256 `016bf5ba…5e63d`); v3.2r is the same source built reproducibly,
 163,788 bytes (sha256 `9a8f368d…5b92`, [REPRODUCE.md](REPRODUCE.md)).
 
-The race on the `bad_msg` path was produced once on v3.2 and once on v3.2r (`fixtures/v32/race.json`, `fixtures/v32r/race.json`); the other paths and fixes are covered by Rust tests only.
+The race on the `bad_msg` path was produced once on v3.2, once on v3.2r and once on v3.3 (`fixtures/v32/race.json`, `fixtures/v32r/race.json`, `fixtures/v33/race.json`); the other paths and fixes are covered by Rust tests only.
+
+## v3.3: parked funds count toward the price
+
+Same state layout, same methods and the same events, with two new fields in `invoice_paid`; one new private callback. Before v3.3, a payer who first sent part of the price (NEAR) or all
+of it (tokens) by a plain transfer and then paid normally was charged twice: the parked amount was later swept to the merchant side with no refund. Now the parked funds count:
+
+- **NEAR `pay()`** computes `parked` = free balance − deposit − owed, as before. If it covers the price, nothing changed since v2. If it covers part, the payer needs only the rest and
+  gets the remainder of the deposit back; a deposit below the rest is refunded as `underpaid`.
+- **Token `ft_on_transfer`** cannot see parked tokens by itself, so after its usual checks it takes the payout lock, calls `ft_balance_of(self)` on the token, and the private callback
+  `on_pay_balance(sender_id, amount, lock)` decides; its return value is the unused amount the token refunds. The minimum gas for the hook rose from 90 to 100 Tgas; the client attaches 200 Tgas.
+- **No payer for a mixed settlement.** A settlement that used parked funds records no payer (`paid_by` null, `via: "transfer"`), with the new `invoice_paid` fields `parked_applied` and
+  `topped_up_by`. Otherwise whoever topped up could later reclaim undelivered shares with `refund_payer`, including someone else's parked money.
+- **Trade-off.** A token payment now spans 2 to 3 blocks. Another `ft_transfer_call` from the same token in that window changes the lock, and both are returned in full as `busy`.
+  The earlier race residual of the token sweep now applies to this balance read too ([LIMITS.md "Token invoices"](LIMITS.md#token-invoices)).
+
+The wasm is 170,344 bytes (sha256 `b03c1b08…2a8e`, [REPRODUCE.md](REPRODUCE.md)). Why and how it was found: [HISTORY.md "v3.2r → v3.3"](HISTORY.md#v32r--v33).
 What stays open: [LIMITS.md "Token invoices"](LIMITS.md#token-invoices).

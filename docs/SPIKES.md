@@ -2,14 +2,14 @@
 
 Live testnet results and build numbers, in the order they were produced. Every tx hash recorded here is real unless marked synthetic. All times are UTC.
 
-**Current contract: v3.2r** (code hash `BQLSk5carin64UMreToJHT15gvow6wqZSyKqDz7zCFry`, publish tx `DYP9bS9hn7Laip759uTCZ1t3uVF9caWKGZxHM7SdUuNs`), see the last
-section ("Contract v3.2r live"). v3.2 (`6YtW5oJ8UtCrzUePQf14zqKMb9G3DUtMynEnZvMCNHJ`, deploy tx `GHHsammf6Mg4nNZWtdB9sBYPJtSojSE46JVUs7nyd3Pg`, section "Contract v3.2 live") is recorded history. v3.1 (`2prMzXHZVWdeHfmdqqxzb5ahLy2pWBWZjuE25EDJDaYX`, deploy tx `52dRw7RcBom9EbUJ6hCExDF5esWjsHPh5e1sUa87XyvB`, section "Contract v3.1 live") is recorded history. v3 (`Ut7EQhLDrvYVarHb6ZaXk6m7o9kQqYPCpyqiamvreWa`, deploy tx `43D4EifRGJJBtWUVhFPXPFsZqooPwz1czD8LwRz6sjYT`) is recorded history too (section "Contract v3 live"). v2 (`4bQ61AgHWWmYXp5c3fwj9NJxS79D9R3cGZAZxHyx9zEA`, deploy tx `DvNnUtvqMg5Q5e2Mn4fMx7GYBFNFhTo7z9wo64szAFKG`) is recorded
+**Current contract: v3.3** (code hash `CrwuvfSLJoHs4GkkqqL22PeHG2BdcxmnMoxX2zcfaVsb`, publish tx `2Sr5wa1TF117WpEyjBDPFx5jULPJQKVzZ4ooy8hA6TPS`), see the last
+section ("Contract v3.3 live"). v3.2r (`BQLSk5carin64UMreToJHT15gvow6wqZSyKqDz7zCFry`, publish tx `DYP9bS9hn7Laip759uTCZ1t3uVF9caWKGZxHM7SdUuNs`, section "Contract v3.2r live") is recorded history. v3.2 (`6YtW5oJ8UtCrzUePQf14zqKMb9G3DUtMynEnZvMCNHJ`, deploy tx `GHHsammf6Mg4nNZWtdB9sBYPJtSojSE46JVUs7nyd3Pg`, section "Contract v3.2 live") is recorded history. v3.1 (`2prMzXHZVWdeHfmdqqxzb5ahLy2pWBWZjuE25EDJDaYX`, deploy tx `52dRw7RcBom9EbUJ6hCExDF5esWjsHPh5e1sUa87XyvB`, section "Contract v3.1 live") is recorded history. v3 (`Ut7EQhLDrvYVarHb6ZaXk6m7o9kQqYPCpyqiamvreWa`, deploy tx `43D4EifRGJJBtWUVhFPXPFsZqooPwz1czD8LwRz6sjYT`) is recorded history too (section "Contract v3 live"). v2 (`4bQ61AgHWWmYXp5c3fwj9NJxS79D9R3cGZAZxHyx9zEA`, deploy tx `DvNnUtvqMg5Q5e2Mn4fMx7GYBFNFhTo7z9wo64szAFKG`) is recorded
 history (sections "Contract v2 build", "Contract v2 live"). Everything above those is the **v1** log (code hash
 `Amg4WXKyZe2RAyjUjtX2cgU4RW5615abgccyKtiUGW6k`), kept as recorded history too.
 
 **Paths:** the text is a record of the paths used on the day. The v2 contract now lives in `contract-v2/` (wasm
 `contract-v2/res/`), the v2 recordings in `fixtures/v2/` and `invoices/v2/`, and the v1 recordings in `fixtures/v1/`
-and `invoices/v1/`. `contract/` is the v3.2 source (deployed as v3.2r), `fixtures/v32r/` and `invoices/v32r/` are the current live recordings, `fixtures/v32/` and `invoices/v32/` the v3.2 ones, `fixtures/v31/` and `invoices/v31/` the v3.1 ones, `fixtures/v3/` and `invoices/v3/` the v3 ones, and `fixtures/v3-synthetic-token.json` is a **synthetic** parser fixture (not a recording).
+and `invoices/v1/`. `contract/` is the v3.3 source, `fixtures/v33/` and `invoices/v33/` are the current live recordings, `fixtures/v32r/` and `invoices/v32r/` the v3.2r ones, `fixtures/v32/` and `invoices/v32/` the v3.2 ones, `fixtures/v31/` and `invoices/v31/` the v3.1 ones, `fixtures/v3/` and `invoices/v3/` the v3 ones, and `fixtures/v3-synthetic-token.json` is a **synthetic** parser fixture (not a recording).
 
 ## v1 build
 
@@ -868,3 +868,122 @@ The local dashboard (`npm run zi -- serve`) was opened in Chrome against v3.2r. 
 | `DASH-53NMD-C` (0.1 NEAR) | none | none | `NONEXISTENT` |
 
 Re-checked read-only on 2026-11-13: all three transactions succeeded, and `ZI_INVOICE_DIR=invoices/demo npm run zi -- verify DASH-53NMD-<A|B|C>` exits 0 (`PASS code-hash-onchain BQLSk5ca…`, `PASS no-access-keys` and `status=PAID` for A and B; C `state=NONEXISTENT`). Not tried in the browser: token invoices, the `SETTLING`/`REFUNDED` badges, Refund payer.
+
+## Contract v3.3 live (2026-11-13)
+
+v3.3 is v3.2r plus one rule: funds already parked on the invoice by a plain transfer count toward the price, for `pay()` and for token payments ([HISTORY.md "v3.2r → v3.3"](HISTORY.md#v32r--v33)).
+All hashes below are real testnet transactions; each run is a fixture that replays offline (`npm run zi -- replay fixtures/v33/<name>.json`). RPC `https://rpc.testnet.fastnear.com`; transactions were signed with the repo's own encoder
+and the keys from `.env`, never printed. Every account is new; no `sm1110` account or key was used for any v3.3 step.
+
+### Accounts
+
+Created on 2026-11-13 with the testnet faucet, 10 NEAR each, one full-access key each (held by the operator):
+`near account create-account sponsor-by-faucet-service <name>.testnet autogenerate-new-keypair save-to-legacy-keychain network-config testnet create`.
+
+| Account | Role |
+|---|---|
+| `zeroinit-deployer.testnet` | publishes the global contract |
+| `zeroinit-merchant.testnet` | the merchant in every v3.3 run (the v3.2r and older demos used the sweeper account as merchant) |
+| `zeroinit-taxvault.testnet` | the tax vault |
+| `zeroinit-payer.testnet` | the payer |
+| `zeroinit-sweeper.testnet` | sends sweeps; also the second payer in the two-payments run |
+| `zeroinit-tusdc.testnet` | the tUSDC mock token |
+| `zeroinit-unreg.testnet` | not registered on the token; unused so far |
+| `zeroinit-funder1.testnet`, `zeroinit-funder2.testnet` | only funded the deployer |
+
+### The new mock token
+
+- `zeroinit-tusdc.testnet`: tUSDC, 6 decimals, owner-only mint, owner = itself. Source: `github.com/erhantrk/test-usdc` commit `94396e4` (still private), built with `cargo near build non-reproducible-wasm`,
+  wasm sha256 `73294abd57196edf5c22c38770df17185047b2de2d3650074e79a07c65f31a57`.
+- Deploy + `new(owner_id=zeroinit-tusdc.testnet, total_supply=1000000000000)` (1,000,000 tUSDC): tx `1kNMTxuW6fMzuffmbYWjn5WXiPq1wk8KniVussXvMaD`.
+- Registered by the token account (`storage_deposit`): payer `68o2HhLgPSqVKMFhKJT1xmK8VfbqgXjntTFWFjDuiDbi`, merchant `7rRcKwJoBM2uK29XFvSBcrWMWhNdaH2CiE8bjPkWF5z7`, tax vault `EbJ77dKCXA6p83hC93D6PSdH6Cy4ZnSfBhk8AGH2iSWv`, sweeper `3StyDeDm7ZxbuRDSpdKFt2KU6JBdDDTH7AMr6DXsrpNJ`.
+- 1,000 tUSDC to the payer: `8HjgeDX4RvsFMeb4EFzBcSfSaxaoxfPxoQYs8W9kSUzY`; 20 tUSDC to the sweeper (the second payer): `6FVfTMJp7KpejEYD6eV6yLPrte29ih6CKXwcaGUPEKoM`.
+- A token invoice trusts whoever controls the token contract; on testnet that is the operator.
+
+### Build and publish
+
+- wasm: `contract/res/v3.3/zeroinit_invoice.wasm`, 170,344 bytes, from `cd contract && cargo near build reproducible-wasm` at commit `7727a1c` (image `sourcescan/cargo-near:0.23.0-rust-1.99.1`, pinned by digest, the same as v3.2r), sha256
+  `b03c1b08a2b45b9f87163c9b9412e081a221fbb06b229dae26deecc416512a8e`, code hash (base58) `CrwuvfSLJoHs4GkkqqL22PeHG2BdcxmnMoxX2zcfaVsb`. Built twice; the same hash both times.
+- Deployer funding: two 9.9 NEAR transfers, from `zeroinit-funder1.testnet` (tx `TZKtUaBd83n1FuUZNheGgJAQue7eiZDxkxHDF2KhVSS`) and `zeroinit-funder2.testnet` (tx `2pApdQ5t8LjWj5oDDd38bmdFwBYkQCNn332EcMfoyNUP`).
+- Global publish by hash: tx `2Sr5wa1TF117WpEyjBDPFx5jULPJQKVzZ4ooy8hA6TPS`, signer `zeroinit-deployer.testnet`, burn 17.0358 NEAR (the tx's `tokens_burnt`).
+- Read back: `view_global_contract_code` for that hash returned 170,344 bytes with the same sha256 as the committed file.
+
+### The runs (fixtures under `fixtures/v33/`)
+
+2026-11-13, 08:48 to 09:10 UTC. Merchant `zeroinit-merchant.testnet`, tax vault `zeroinit-taxvault.testnet`, payer `zeroinit-payer.testnet`, 800 bps, tUSDC `zeroinit-tusdc.testnet`.
+Scripts: `scripts/demo.sh 1111-V33`, `scripts/demo-token.sh 1111-V33`, `scripts/record-v33.sh V33`, `scripts/record-v32-race.sh V33` (with `RACE_OUT=fixtures/v33/race.json`).
+
+**NEAR demo** (`fixtures/v33/demo-run.json`, recording started 08:48:51 UTC; replay 62 `PASS`):
+
+| Invoice | Transactions | Result |
+|---|---|---|
+| `INV-1111-V33-A` (1 NEAR, `0us40y0dm1767jkzzxynmwjer15h4xy5wc96rg3xv5hfgs8fx421ag`, check code `MVNC`) | pay `GFzvAw8t95XhN1JnvSNY4K9sThv7HQahLp9AnJ2SHQLe` | `PAID`, 0.92 / 0.08, `paid_by` the payer; 13.74 Tgas, 0.0075647 NEAR |
+| `INV-1111-V33-B` (1 NEAR, `0uzr1k9c7qe0fgtzqh9q14221fke5mtwbn9qsrf1d91s6871aay0z0`) | plain transfer 1 NEAR `6yU8ac2g9JpqDdQk2ia9PTo7oZppCZiYX8dCoAjwuJqQ` (account `UNINITIALIZED`, balance 1), sweep `2j8vbU6kcaXu5mmP9ZMnYVMcwsAXmzrit8ZUapQzaxGU` | `PAID`, `paid_by` null, 0.92 / 0.08 |
+| `INV-1111-V33-C` (1 NEAR) | pay 0.5 `A23d28vP6yNGik2HTPeU5Vp9RZ1eujao4K7hYT2qKBZd` | `REFUNDED_UNDERPAID`, status `OPEN`, 0.5 back |
+
+**tUSDC demo** (`fixtures/v33/token-demo-run.json`, recording started 08:49:20 UTC; replay 30 `PASS`):
+
+| Invoice | Transactions | Result |
+|---|---|---|
+| `TOK-1111-V33-A` (1 tUSDC, `0ujs58fhck6903vdbbrzkegv9mmkgz3f06bxak9q913tmqa5fd92bg`) | `[storage_deposit, ft_transfer]` in **one** tx `8Z7Zk7pzQRUE8DfFuMdFZevZhJKMbSurxwuGt2GBfAca` (registration + plain transfer; the account stays `NONEXISTENT`, 1 tUSDC parked), then a sweep (state init + fund + sweep) `DPngLpZB8cGBC9Vs8kk7STyTwdC5kVXCF1VntjgR9dVR` | `PAID`, 0.92 / 0.08 tUSDC; the sweep 22.11 Tgas, 0.0083572 NEAR |
+
+**Payments on top of parked funds** (`fixtures/v33/parked.json`, recording started 08:49:38 UTC; replay 109 `PASS`):
+
+| Invoice | Transactions | Result |
+|---|---|---|
+| `PARK-V33-N` (1 NEAR, `0u0t1hs7vc3e7dghjn62dm8extsfztd1ga8yr2dgw9pbm9p6a3vs40`) | plain transfer 0.3 `9KhxzX5PvYQvduKpzcnhDghvGxQUyYRx34HuaWYbqHgm`, then pay 1 `FJMZyXSp1tm5QD8mDT1xSmEdsquE8nmnebsv3DVDQXJi` | `PAID` once (0.92 / 0.08), 0.3 back to the payer, `paid_by` null, `invoice_paid` `via: "transfer"`, `parked_applied` 0.3, `topped_up_by` the payer. Replay check `pay-parked-applied`. The pay: 14.53 Tgas, 0.0013415 NEAR |
+| `PARK-V33-T` (1 tUSDC, `0u9mjfgrc796g1y8vptnfa3mj9j92s5dk564pvweaq2dfa19cyg5p0`) | `[storage_deposit, ft_transfer 0.4]` `AQCfB6BAngMTJPUhYPuhYPRvF7icLqido3rcxBgA2q7d`; init `AMveWkvmuBhFBZK8jQB9ngLfSa8i9frXKxWn6qj2kA4L`; `ft_transfer_call` 1 `EUz35SNeterYEvGBXTqh4Jh8EBa76ien7B6duoZwUrip` | 0.6 used, 0.4 returned, `PAID` once. Replay check `ft-parked-applied`. 17.49 Tgas, 0.0015706 NEAR |
+| `PARK-V33-F` (1 tUSDC, `0uzstg2nr458hgn3ensmq4x75mwe1wze45m63x39mwenyqedstv8f0`) | `[storage_deposit, ft_transfer 1]` `GJKW4D1Hu1CB8eJDa3EpGgCf12Vfrbyi8K2k6eZ4Srpf`; init `Bk1R5Pm8snjJ6arDTvbFrYNoym64kfPfWg1Um8JaMgEv`; `ft_transfer_call` 1 `FYCzA5C9VpKjBJJtu2d4wvbGj7q6KWxvWGdNsmmuf92Q` | 0 used, the whole 1 returned (`payment_refunded`, `already_funded`); the parked 1 settled, `PAID` via transfer |
+| `PARK-V33-U` (1 tUSDC, `0up96eh4k2d7yhb69naryk7r9p15rkktneee3tzrtw2haf92qx360g`) | `[storage_deposit, ft_transfer 0.3]` `6xrdchdyYqFBj3riGmkxgiGy3cvbLvr7B5exRhjeyELh`; init `Hg7n86iygUuyHvns7mSsbyxgkLtN4PHp5De4P8BccegA`; `ft_transfer_call` 0.5 `HZvKn4G2fD1nmwMo28KWD4rzz6ZsDampoAnxxcrnTB7N` | `payment_rejected underpaid`, 0.5 returned, status `OPEN`, 0.3 still parked |
+
+**One-step token path** (`fixtures/v33/tokens.json`, recording started 08:50:42 UTC; replay 41 `PASS`):
+
+| Invoice | Transactions | Result |
+|---|---|---|
+| `TOK-V33-B` (1 tUSDC, `0uz5swdatbq13rjvd6m3hperd57yvs4r8k1hd75ngwa7f38dcz4e80`) | init `GfiqTBbRWJnTztk3MKbcY5WT1DAMAD7kzmoE2e5zm6UJ`; `[storage_deposit, ft_transfer_call]` in **one** tx `Gn9eax3jf8LNJ8UGk1muAhjJ5o3MXNDGnds4EUJZM5qG` | `PAID` via pay, `paid_by` the payer, final value `"1000000"`; 18.56 Tgas, 0.0016780 NEAR |
+| | second `ft_transfer_call` `8kcmMkdU1kPdLtj3AhdLdrjQxyAjbaYRiGERcfqpQLoB` | `payment_rejected not_open`, final value `"0"` |
+| | the payer calls `on_pay_balance` directly: `E19huFfXaMzPesqGcEnHsJJQdSxYWCfvjsJtvcHqpQ7y` | fails "Method on_pay_balance is private" (replay check `private-callback-refused`) |
+
+**Race on the `bad_msg` path** (`fixtures/v33/race.json`, recording started 08:55:20 UTC; replay 46 `PASS`):
+
+| Invoice | Transactions | Result |
+|---|---|---|
+| `RACE-V33-2` (1 tUSDC, `0u26dx6jdaqhzwqwr9bnm1mkqbkmcwrqbyrbv7c7zzmy8x7ykq5bc0`) | init `5K5rrCWr6mFUuC7LuKoiyChYShWD3iedDjmRdRfrzhfZ`, register the id `2ZeXzDa3FEidnuPgbmSscMjAShMUEekUqEdhjAa3c1tx`; sweep `DCpUvQYnaUyinL3GT9mhdoUvs9juKqZAPx8U8A15DNnp` and `ft_transfer_call` with `msg` `{"action":"x"}` `8wrPQYDA4qn8Y4AeEQKHnzxm8vc4uHfawguioZKAMy6P` sent at the same moment (offset 0 ms); retry `6Rz7TPmBQXRQUeHRe4jJauccJt1fPpVw7bFbWUJLFg4g` | the sweep returned `CONCURRENT_PAYMENT` (no payout); the call got `payment_rejected bad_msg`, final value `"0"`; status `OPEN`, nothing owed; the retry `"1000000"`, `invoice_paid`, `PAID` |
+
+**Two payments at the same moment** (`fixtures/v33/two-payments.json`, one file merged from four recorded runs, recording started 08:56:58 UTC; replay 46 `PASS`):
+
+| Invoice | Transactions | Result |
+|---|---|---|
+| `TWO-V33-2` (1 tUSDC, `0ukvfcrk9t4q4nghhh0xrs7tq77221y99egvqcp9pjsbw5jtvk6n8g`) | init `9E19BnVsayQmpXdC9JSDDrqkLKsPTN1MmLc7MJsnmLsZ`, register the id `FmwhXSAWBSaSH2PtUNcqfmyq6rPPkXKue96GrLjhiPKK`; `ft_transfer_call` 1 from `zeroinit-payer.testnet` `86fZMFwRQUsL3q1NxXr1wzkEqt9bTHMQb7HgiP7VR62j` and from `zeroinit-sweeper.testnet` `3kXAYyvHUqqhiV1Aotm7jLgw5QsWxkEYFEZRJ1aAzh9y` at the same moment | both `payment_rejected busy`, both returned in full (neither payer spent anything), status `OPEN` |
+| | retry from the payer `7Xon5ck4qqCvbnc5D3fTSd2CmpwmTAbi5bN48pzLsKvA` | `PAID` once |
+
+**Two attempts that were not kept.**
+
+- `RACE-V33-1`: stopped before the race. The RPC timed out on the status of the init transaction (`TIMEOUT_ERROR`, `NOT_OBSERVED`), so the recorder stopped; nothing was recorded.
+- `TWO-V33-1`: both calls were sent from one key at the same moment. Both processes built the identical signed transaction, so the chain saw one payment and charged once. That does not test two payments, so it was not kept as a fixture; `TWO-V33-2` uses two accounts.
+
+**What the race and two-payments runs do and do not show.** One run each that hit the right block alignment, **not a rate**. The `expired` / `not_open` race variants, a token payment whose balance
+read fails, and a NEAR `pay` on top of a full parked amount were not run live on v3.3 (Rust unit tests only). The invoice documents are `invoices/v33/*.json` (11 files).
+
+### Measured on v3.3 (single runs; tokens burnt = sum over all receipts, deposits not included)
+
+| What | Measured |
+|---|---|
+| NEAR `pay` creating the account (`INV-1111-V33-A`) | 13.74 Tgas, 0.0075647 NEAR (v3.2r: 13.70 Tgas, 0.0075612) |
+| NEAR `pay` on top of 0.3 NEAR parked (`PARK-V33-N`) | 14.53 Tgas, 0.0013415 NEAR; the plain transfer that created the account 0.0070946 NEAR |
+| token init `[UniversalStateInit, fund]` | 9.96 Tgas, 0.0072541 NEAR |
+| `[storage_deposit, ft_transfer_call]` that settles (`TOK-V33-B`) | 18.56 Tgas, 0.0016780 NEAR (the 0.00125 NEAR storage deposit is attached, not burnt) |
+| `ft_transfer_call` on top of parked tokens | 17.49 to 17.67 Tgas, about 0.0016 NEAR (`PARK-V33-T`: 17.49 Tgas, 0.0015706 NEAR) |
+| token sweep with state init (`TOK-1111-V33-A`) | 22.11 Tgas, 0.0083572 NEAR |
+| one-time global publish | 17.0358 NEAR (170,344 bytes) |
+
+### Verification run (2026-11-13)
+
+| Command | Result |
+|---|---|
+| `npm test` | `# tests 254` / `# pass 254` / `# fail 0` |
+| `cd contract && cargo test` | 104 passed, 0 failed |
+| `bash scripts/judge-offline.sh` | last line `JUDGE-OFFLINE: ALL PASS` |
+| `zi replay fixtures/v33/{demo-run,token-demo-run,parked,tokens,race,two-payments}.json` | 62 / 30 / 109 / 41 / 46 / 46 `PASS`, 0 `FAIL` |
+
+The dashboard was not reopened in a browser on v3.3; the last browser run is the v3.2r one above.

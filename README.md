@@ -28,34 +28,34 @@ The payer's one transaction creates the account, pays the merchant and sets the 
 ZeroInit derives the address from the terms with NEAR's deterministic account ids (protocol 88), so **issuing costs 0 transactions**; the account comes into existence only when someone pays.
 
 - **Live site:** <https://zeroinit.vercel.app>
-- **The one-transaction payment** on testnet: [`GwnQFSjp…`](https://testnet.nearblocks.io/txns/GwnQFSjpCqcPZeSHiTmiu6t5ZMkhM6NQ8vh4NjDzDpWE) (state init + `pay`, 0.92 to the merchant, 0.08 to the tax vault)
+- **The one-transaction payment** on testnet: [`GFzvAw8t…`](https://testnet.nearblocks.io/txns/GFzvAw8t95XhN1JnvSNY4K9sThv7HQahLp9AnJ2SHQLe) (invoice `INV-1111-V33-A`, contract v3.3: state init + `pay`, 0.92 to the merchant, 0.08 to the tax vault)
 - **For AI agents:** an [MCP server](mcp/README.md) with `issue_invoice`, `invoice_status` and `verify_invoice` (read-only, never signs). No clone needed: `claude mcp add zeroinit -- npx -y -p @erhantrk/zeroinit zeroinit-mcp`
 
 Tracks: **Open Innovation** (primary) · **Real-World Money**. Testnet only, mock token only, not audited.
 
-![The local dashboard on the current contract: two invoices paid on testnet, one never paid and so not on chain](docs/img/dashboard-v32r.png)
-*The local dashboard (`npm run zi -- serve`), Chrome, 2026-11-12 UTC, contract v3.2r. The first invoice was paid in one transaction, the second by a plain transfer and a sweep; the third was issued and never paid, so its account does not exist.*
+![The local dashboard on contract v3.2r: two invoices paid on testnet, one never paid and so not on chain](docs/img/dashboard-v32r.png)
+*The local dashboard (`npm run zi -- serve`), Chrome, 2026-11-12 UTC, on the previous contract, v3.2r. It was not retaken on v3.3, so it does not show the new check code next to each address. The first invoice was paid in one transaction, the second by a plain transfer and a sweep; the third was issued and never paid, so its account does not exist.*
 
 ## Try it in 2 minutes
 
-Fastest, with no clone (Node 22 or newer, package [`@erhantrk/zeroinit`](https://www.npmjs.com/package/@erhantrk/zeroinit)):
+Fastest, with no clone (Node 22 or newer, package [`@erhantrk/zeroinit`](https://www.npmjs.com/package/@erhantrk/zeroinit) 0.2.0 or newer, which ships the v3.3 recordings):
 
 ```bash
-npx @erhantrk/zeroinit verify INV-1111-V32R-A               # read-only live check over testnet RPC: every line PASS, ends INFO status=PAID
-npx @erhantrk/zeroinit replay fixtures/v32r/demo-run.json   # the recorded live run, replayed offline: 62 PASS lines, exit 0
+npx -y @erhantrk/zeroinit verify INV-1111-V33-A              # read-only live check over testnet RPC: every line PASS, ends INFO status=PAID
+npx -y @erhantrk/zeroinit replay fixtures/v33/demo-run.json  # the recorded live run, replayed offline: 62 PASS lines, exit 0
 ```
 
 From a clone, the full check. No keys and no `.env` needed. Node 22; `npm ci` needs the npm registry once, everything after that is offline except the last line.
 
 ```bash
 npm ci --include=dev
-npm test                                             # 242 tests, all pass
-npm run zi -- replay fixtures/v32r/demo-run.json     # a recorded live testnet run, replayed offline: every line PASS, exit 0
+npm test                                             # 254 tests, all pass
+npm run zi -- replay fixtures/v33/demo-run.json      # a recorded live testnet run, replayed offline: 62 PASS lines, exit 0
 bash scripts/judge-offline.sh                        # the whole offline check; last line: JUDGE-OFFLINE: ALL PASS
-npm run zi -- verify INV-1111-V32R-A                 # one read-only live check over testnet RPC: every line PASS, ends PASS no-access-keys / INFO status=PAID
+npm run zi -- verify INV-1111-V33-A                  # one read-only live check over testnet RPC: every line PASS, ends PASS no-access-keys / INFO status=PAID
 ```
 
-The replay prints, among 62 `PASS` lines, `PASS pay-tx-success INV-1111-V32R-A GwnQFSjp… []`, `PASS split-merchant INV-1111-V32R-A 0.92` and `PASS split-vault INV-1111-V32R-A 0.08`.
+The replay prints, among 62 `PASS` lines, `PASS pay-tx-success INV-1111-V33-A GFzvAw8t… []`, `PASS split-merchant INV-1111-V33-A 0.92` and `PASS split-vault INV-1111-V33-A 0.08`.
 Every step, with its full expected output, is in [docs/VERIFY.md](docs/VERIFY.md).
 
 ## Headline numbers
@@ -65,15 +65,15 @@ Every step, with its full expected output, is in [docs/VERIFY.md](docs/VERIFY.md
 | **0** | transactions to issue an invoice |
 | **1** | transaction to create the invoice account, pay and split the money |
 | **0** | access keys on an invoice account (`zi verify` prints `PASS no-access-keys`) |
-| **0.0075612 NEAR** | measured cost of that one transaction to the payer (gas plus NEAR's 0.007 NEAR account-creation charge) |
-| **242 + 94** | offline JavaScript tests (`npm test`) + Rust unit tests on the contract (`npm run contract:test`) |
-| **1** | reproducible build: the deployed code `BQLSk5ca…` is what `cargo near build reproducible-wasm` produces at commit `4116e69` ([docs/REPRODUCE.md](docs/REPRODUCE.md)) |
+| **0.0075647 NEAR** | measured cost of that one transaction to the payer (gas plus NEAR's 0.007 NEAR account-creation charge) |
+| **254 + 104** | offline JavaScript tests (`npm test`) + Rust unit tests on the contract (`npm run contract:test`) |
+| **1** | reproducible build: the deployed code `CrwuvfSL…` is what `cargo near build reproducible-wasm` produces at commit `7727a1c` ([docs/REPRODUCE.md](docs/REPRODUCE.md)) |
 
 ## What NEAR does here
 
 - **Deterministic account ids (protocol 88, NEP-655).** An account id can be the SHA3-256 hash of its future code and state, so the invoice address is printed before the account exists. The invoice terms are inside the hashed state, so they cannot change after issuing.
 - **One transaction does everything.** `[UniversalStateInit, FunctionCall pay]` creates the account, runs the contract and splits the payment.
-- **Plain transfers work too.** A plain NEAR transfer from any wallet or exchange waits in the "uninitialized" account, which only the matching state init can unlock; then anyone calls `sweep`.
+- **Plain transfers work too.** A plain NEAR transfer from any wallet or exchange waits in the "uninitialized" account, which only the matching state init can unlock; then anyone calls `sweep`. If the payer later pays with `pay` as well, the contract counts what is already parked and charges the price once.
 - **Global contract by hash.** The invoice code is published once as a global contract; each invoice only references its hash, and nobody can change what that hash runs.
 
 Details, diagrams and every contract rule: [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md).
@@ -83,41 +83,41 @@ Details, diagrams and every contract rule: [docs/HOW-IT-WORKS.md](docs/HOW-IT-WO
 | Claim | Command | Expected |
 |---|---|---|
 | Issuing an invoice sends no transaction | `npm run zi -- invoice new --id TEST-1 --merchant example-zi-merchant.testnet --tax-vault example-zi-taxvault.testnet --tax-bps 800 --amount 0.1 --expires-in 2h --offline` | `INVOICE` / `ACCOUNT 0u…` / `PAY` / `FILE` lines, no RPC call |
-| One transaction creates the account, pays and splits (NEAR) | `npm run zi -- replay fixtures/v32r/demo-run.json` | `PASS pay-tx-success INV-1111-V32R-A GwnQFSjp… []`, `PASS split-merchant … 0.92`, `PASS split-vault … 0.08` |
-| A plain transfer from a wallet or exchange is safe before the account exists | same replay | `PASS transfer-path-uninitialized INV-1111-V32R-B 1`, `PASS sweep-tx-result INV-1111-V32R-B DKFQDCKQ… result=PAID` |
-| A token invoice (tUSDC, a testnet mock) is paid by a plain `ft_transfer` and swept by anyone | `npm run zi -- replay fixtures/v32r/token-demo-run.json` | `PASS register-tx-success TOK-1111-V32R-A …`, `PASS ft-parked-balance TOK-1111-V32R-A 1`, `PASS ft-split-merchant … 0.92`, `PASS ft-split-vault … 0.08` |
-| Nobody holds a key to an invoice account | `npm run zi -- verify INV-1111-V32R-A` (read-only RPC) | `PASS no-access-keys` |
-| The deployed code is the committed wasm, rebuilt from this source | `shasum -a 256 contract/res/v3.2r/zeroinit_invoice.wasm`, then the `verify` above | `9a8f368d…5b92` (base58 `BQLSk5ca…zCFry`); `PASS code-hash-onchain BQLSk5ca…` |
+| One transaction creates the account, pays and splits (NEAR) | `npm run zi -- replay fixtures/v33/demo-run.json` | `PASS pay-tx-success INV-1111-V33-A GFzvAw8t… []`, `PASS split-merchant … 0.92`, `PASS split-vault … 0.08` |
+| A plain transfer from a wallet or exchange is safe before the account exists | same replay | `PASS transfer-path-uninitialized INV-1111-V33-B 1`, `PASS sweep-tx-result INV-1111-V33-B 2j8vbU6k… result=PAID` |
+| A token invoice (tUSDC, a testnet mock) is paid by a plain `ft_transfer` and swept by anyone | `npm run zi -- replay fixtures/v33/token-demo-run.json` | `PASS plain-transfer-tx-success TOK-1111-V33-A 8Z7Zk7pz… []`, `PASS ft-parked-balance TOK-1111-V33-A 1`, `PASS ft-split-merchant … 0.92`, `PASS ft-split-vault … 0.08` |
+| A payment on top of parked funds is charged once | `npm run zi -- replay fixtures/v33/parked.json` | `PASS pay-parked-applied PARK-V33-N …` (NEAR: 0.3 parked, `pay` of 1, 0.3 back) / `PASS ft-parked-applied PARK-V33-T …` (tUSDC: 0.4 parked, 0.6 used, 0.4 back) |
+| Nobody holds a key to an invoice account | `npm run zi -- verify INV-1111-V33-A` (read-only RPC) | `PASS no-access-keys` |
+| The deployed code is the committed wasm, rebuilt from this source | `shasum -a 256 contract/res/v3.3/zeroinit_invoice.wasm`, then the `verify` above | `b03c1b08…2a8e` (base58 `CrwuvfSL…aVsb`); `PASS code-hash-onchain CrwuvfSL…` |
 
-More claims (the address commits to the terms, the token-sweep race, refunds, the dashboard guard) and the older versions' claims: [docs/VERIFY.md](docs/VERIFY.md#all-claims).
+More claims (the address commits to the terms, the token-sweep race, two token payments at once, the private callback, the check code) and the older versions' claims: [docs/VERIFY.md](docs/VERIFY.md#all-claims).
 
 ## Limits
 
 Full list with the evidence: [docs/LIMITS.md](docs/LIMITS.md).
 
 - **Testnet only, mock token only, not audited.** The audit rounds were AI reviews. tUSDC is a testnet mock with no value and no issuer.
-- **Token invoices need one registration transaction.** Before a wallet or exchange can `ft_transfer` to a token invoice, its `0u` id must be registered on the token with `storage_deposit` (0.00125 NEAR, sent by the merchant, the payer or anyone). For tokens only issuing is free; "no transaction until paid" holds for NEAR invoices.
-- **A token payer can be charged twice.** A plain `ft_transfer` of the full price followed by an `ft_transfer_call` is accepted twice; the parked amount is later swept to the merchant side with no refund. The client refuses this order; a hand-built call is not stopped. For NEAR, a partly parked transfer followed by a full `pay` is also charged twice.
+- **A token invoice id must be registered on the token before tokens can reach it.** That is a rule of the token standard (NEP-145), not of this contract. Our client sends the registration (`storage_deposit`, 0.00125 NEAR) in the same transaction as the payment. An exchange withdrawal is a plain `ft_transfer` from someone else's software, so someone (the merchant, the payer or anyone) must register the id first. For tokens only issuing is free; "no transaction until paid" holds fully for NEAR invoices.
 - **Plain-transfer underpayments and overpayments are not refunded** (`sweep` cannot know the payer).
-- **No checksum.** A mistyped `0u…` address is a valid address for other bytes; funds sent there are lost.
-- **Wallet support is untested.** The current dashboard was opened in Chrome on v3.2r for NEAR invoices only; token invoices, the `SETTLING`/`REFUNDED` badges and Refund payer were not tried in a browser.
+- **No checksum in the address.** The `0u…` format belongs to NEAR and has none: a mistyped address is a valid address for other bytes, and funds sent there are lost. `zi invoice new` prints a 4-character check code (`CHECK MVNC` for `INV-1111-V33-A`), and `zi check <address> <code>` says PASS or FAIL offline. It only helps a payer who checks; a raw address pasted into a wallet is still unprotected.
+- **Wallet support is untested.** The dashboard was last opened in Chrome on v3.2r, for NEAR invoices only, and not again on v3.3; token invoices, the `SETTLING`/`REFUNDED` badges and Refund payer were not tried in a browser.
 - **Transaction lookups need an archival RPC** after about 1.5 days; state checks and offline replays keep working.
 
 ## Who holds keys
 
-The invoice contract has no owner and no admin call, and invoice accounts have no keys. The tUSDC mock token and the operator's deployer, merchant, tax-vault, payer and sweeper accounts each hold one full-access key: a **token invoice trusts whoever controls the token contract**, which on testnet is the operator. The full table and the command to re-check it: [docs/LIMITS.md](docs/LIMITS.md#who-holds-keys).
+The invoice contract has no owner and no admin call, and invoice accounts have no keys. The tUSDC mock token (`zeroinit-tusdc.testnet`) and the operator's deployer, merchant, tax-vault, payer and sweeper accounts (`zeroinit-deployer.testnet`, `zeroinit-merchant.testnet` and so on, created for v3.3) each hold one full-access key: a **token invoice trusts whoever controls the token contract**, which on testnet is the operator. The full table and the command to re-check it: [docs/LIMITS.md](docs/LIMITS.md#who-holds-keys).
 
 ## Repo map
 
-- `contract/` — the invoice contract (Rust, near-sdk 5.30.1, 94 unit tests). `contract/res/v3.2r/zeroinit_invoice.wasm` is the deployed wasm; `contract/res/v3.2/` holds the previous build (history). `contract-v2/` is the v2 contract (history, 14 tests).
+- `contract/` — the invoice contract (Rust, near-sdk 5.30.1, 104 unit tests). `contract/res/v3.3/zeroinit_invoice.wasm` is the deployed wasm; `contract/res/v3.2r/` and `contract/res/v3.2/` hold earlier builds (history). `contract-v2/` is the v2 contract (history, 14 tests).
 - `src/` — the `zi` CLI, the byte encoders (`bytes.ts`, `stateinit.ts`, `tx.ts`), RPC client, outcome parser, invoice documents, offline replay, and the local dashboard server (`server.ts`; the page is in `web/`).
-- `cli/` — the npm package `@erhantrk/zeroinit`: the `zi` CLI, the library and the MCP server as bundled files plus the v3.2r recording, assembled by `npm run build:cli`.
+- `cli/` — the npm package `@erhantrk/zeroinit`: the `zi` CLI, the library and the MCP server as bundled files plus the v3.3 recordings, assembled by `npm run build:cli`.
 - `mcp/` — the MCP server (`mcp/dist/zeroinit-mcp.mjs` is the bundled single file), shipped in the npm package as the `zeroinit-mcp` command; each GitHub release rebuilds the bundle and checks it is the committed file (`.github/workflows/release.yml`).
-- `fixtures/` — recorded live RPC sessions that replay offline: `v32r/` (current), `v32/`, `v31/`, `v3/`, `v2/`, `v1/` (history), plus synthetic fixtures used by tests only.
-- `invoices/` — the invoice documents of those runs (`v32r/` current), `demo/` (the three invoices of the v3.2r dashboard run) and `examples/INV-0001.json` (the frozen test vector). No secrets.
+- `fixtures/` — recorded live RPC sessions that replay offline: `v33/` (current), `v32r/`, `v32/`, `v31/`, `v3/`, `v2/`, `v1/` (history), plus synthetic fixtures used by tests only.
+- `invoices/` — the invoice documents of those runs (`v33/` current), `demo/` (the three invoices of the v3.2r dashboard run) and `examples/INV-0001.json` (the frozen test vector). No secrets.
 - `scripts/` — `judge-offline.sh`, the demo and recording scripts that produced the fixtures, and small signing helpers.
-- `site/` — the landing page (Astro), live at <https://zeroinit.vercel.app>. It shows the v3.2r recording `fixtures/v32r/demo-run.json`. Build: `cd site && npm ci && npm run build` (Node >= 22.23.4); the replay data comes from `python3 -I site/scripts/extract-replay.py`.
-- `docs/` — [HOW-IT-WORKS](docs/HOW-IT-WORKS.md), [VERIFY](docs/VERIFY.md), [LIMITS](docs/LIMITS.md), [REPRODUCE](docs/REPRODUCE.md), [RUN-ON-TESTNET](docs/RUN-ON-TESTNET.md) (the keyed walkthrough), [ARCHITECTURE](docs/ARCHITECTURE.md) (measured costs, design by version), [STABLECOIN](docs/STABLECOIN.md) (the token interface spec), [HISTORY](docs/HISTORY.md) (v1 to v3.2), [SPIKES](docs/SPIKES.md) (every live transaction). [SPEC.md](SPEC.md) is the v1 interface spec.
+- `site/` — the landing page (Astro), live at <https://zeroinit.vercel.app>. It still shows the v3.2r recording `fixtures/v32r/demo-run.json` (the previous contract). Build: `cd site && npm ci && npm run build` (Node >= 22.23.4); the replay data comes from `python3 -I site/scripts/extract-replay.py`.
+- `docs/` — [HOW-IT-WORKS](docs/HOW-IT-WORKS.md), [VERIFY](docs/VERIFY.md), [LIMITS](docs/LIMITS.md), [REPRODUCE](docs/REPRODUCE.md), [RUN-ON-TESTNET](docs/RUN-ON-TESTNET.md) (the keyed walkthrough), [ARCHITECTURE](docs/ARCHITECTURE.md) (measured costs, design by version), [STABLECOIN](docs/STABLECOIN.md) (the token interface spec), [HISTORY](docs/HISTORY.md) (v1 to v3.3), [SPIKES](docs/SPIKES.md) (every live transaction). [SPEC.md](SPEC.md) is the v1 interface spec.
 
 ## No code from before the hackathon window
 
@@ -125,7 +125,7 @@ Every commit is inside the hackathon window. The first commit (`ea8d0fb`) is the
 
 ## AI use
 
-The code, tests and docs were written and reviewed with AI models (DeepSeek V4.1 Flash, Claude Sonnet 5.5 and Claude Opus 5.5 built and ran it; Claude Fable 5.2 did the final audit); a human decided, ran the accounts and is responsible. Who did what, round by round: [AI_USE.md](AI_USE.md).
+The code, tests and docs were written and reviewed with AI models (DeepSeek V4.1 Flash, Claude Sonnet 5.5 and Claude Opus 5.5 built and ran it; Claude Fable 5.2 did the final audit and, with Claude Opus 5.5, built v3.3); a human decided, ran the accounts and is responsible. Who did what, round by round: [AI_USE.md](AI_USE.md).
 
 ## Also by the same author: ProvenExit
 
@@ -133,4 +133,4 @@ The code, tests and docs were written and reviewed with AI models (DeepSeek V4.1
 
 ## License
 
-MIT, see [LICENSE](LICENSE). The mock token source, [test-usdc](https://github.com/erhantrk/test-usdc), is not public yet.
+MIT, see [LICENSE](LICENSE). The mock token source, [test-usdc](https://github.com/erhantrk/test-usdc), is not public yet; the deployed mock `zeroinit-tusdc.testnet` is built from its commit `94396e4`.
