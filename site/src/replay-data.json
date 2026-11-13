@@ -1,17 +1,17 @@
 {
- "source": "fixtures/v32r/demo-run.json",
- "recorded_at_iso": "2026-11-12T13:25:41.270Z",
+ "source": "fixtures/v33/demo-run.json",
+ "recorded_at_iso": "2026-11-13T08:48:51.896Z",
  "steps": [
   {
    "name": "before-unknown-account",
-   "inv": "INV-1111-V32R-A",
+   "inv": "INV-1111-V33-A",
    "state": "NONEXISTENT",
    "title": "No account yet.",
    "text": "The invoice already has an address. Asking the chain about it returns UNKNOWN_ACCOUNT.",
    "facts": [
     [
      "Address",
-     "0u7hdnprw7z1gfz4b6qj8pn683cnhwp4ges18hfbsk03nmdees4ppg"
+     "0us40y0dm1767jkzzxynmwjer15h4xy5wc96rg3xv5hfgs8fx421ag"
     ],
     [
      "Chain answer",
@@ -19,25 +19,25 @@
     ],
     [
      "Recorded call",
-     "#6, block 277368747"
+     "#6, block 277487669"
     ]
    ],
    "rest": "NONEXISTENT"
   },
   {
    "name": "pay-tx-success",
-   "inv": "INV-1111-V32R-A",
+   "inv": "INV-1111-V33-A",
    "state": "PAID",
    "title": "One transaction pays and creates the account.",
    "text": "The payer sends 1 NEAR. The same transaction creates the account and runs the payment.",
    "facts": [
     [
      "Transaction",
-     "GwnQFSjpCqcPZeSHiTmiu6t5ZMkhM6NQ8vh4NjDzDpWE"
+     "GFzvAw8t95XhN1JnvSNY4K9sThv7HQahLp9AnJ2SHQLe"
     ],
     [
      "Signed by",
-     "sm1110-zi3-payer.testnet"
+     "zeroinit-payer.testnet"
     ],
     [
      "Actions",
@@ -52,11 +52,11 @@
      "#10"
     ]
    ],
-   "rest": "GwnQFSjpCqcPZeSHiTmiu6t5ZMkhM6NQ8vh4NjDzDpWE []"
+   "rest": "GFzvAw8t95XhN1JnvSNY4K9sThv7HQahLp9AnJ2SHQLe []"
   },
   {
    "name": "invoice-paid-after-callback",
-   "inv": "INV-1111-V32R-A",
+   "inv": "INV-1111-V33-A",
    "state": "PAID",
    "title": "The invoice reads PAID.",
    "text": "After the payment callback, get_invoice on the new account returns PAID and the payer.",
@@ -67,7 +67,7 @@
     ],
     [
      "paid_by",
-     "sm1110-zi3-payer.testnet"
+     "zeroinit-payer.testnet"
     ],
     [
      "paid_amount",
@@ -82,14 +82,14 @@
   },
   {
    "name": "split-merchant",
-   "inv": "INV-1111-V32R-A",
+   "inv": "INV-1111-V33-A",
    "state": "PAID",
    "title": "92% to the merchant.",
    "text": "The first of two transfers in the payment receipt.",
    "facts": [
     [
      "To",
-     "sm1110-zi3-sweeper.testnet"
+     "zeroinit-merchant.testnet"
     ],
     [
      "Amount",
@@ -104,14 +104,14 @@
   },
   {
    "name": "split-vault",
-   "inv": "INV-1111-V32R-A",
+   "inv": "INV-1111-V33-A",
    "state": "PAID",
    "title": "8% to the tax vault.",
    "text": "The invoice sets tax_bps to 800. That is 8%.",
    "facts": [
     [
      "To",
-     "sm1110-zi3-taxvault.testnet"
+     "zeroinit-taxvault.testnet"
     ],
     [
      "Amount",
@@ -130,14 +130,14 @@
   },
   {
    "name": "transfer-path-uninitialized",
-   "inv": "INV-1111-V32R-B",
+   "inv": "INV-1111-V33-B",
    "state": "UNINITIALIZED",
    "title": "A wallet sends money to invoice B.",
    "text": "A plain transfer to the address. The balance arrives and no contract is installed yet.",
    "facts": [
     [
      "Address",
-     "0u9j9t2pzf153jk7wsyhw2scqss2a9ythc55qb4zgps804g39bm95g"
+     "0uzr1k9c7qe0fgtzqh9q14221fke5mtwbn9qsrf1d91s6871aay0z0"
     ],
     [
      "Balance",
@@ -156,18 +156,18 @@
   },
   {
    "name": "sweep-tx-result",
-   "inv": "INV-1111-V32R-B",
+   "inv": "INV-1111-V33-B",
    "state": "PAID",
    "title": "A sweep settles invoice B.",
    "text": "The sweep installs the contract and settles the same split. paid_by is null because sweep does not know who sent the money.",
    "facts": [
     [
      "Transaction",
-     "DKFQDCKQ6xNK1PeRHPDf372nj6zMJ9cPhPxYkLeCroXv"
+     "2j8vbU6kcaXu5mmP9ZMnYVMcwsAXmzrit8ZUapQzaxGU"
     ],
     [
      "Signed by",
-     "sm1110-zi3-sweeper.testnet"
+     "zeroinit-sweeper.testnet"
     ],
     [
      "Result",
@@ -182,7 +182,7 @@
      "#28"
     ]
    ],
-   "rest": "DKFQDCKQ6xNK1PeRHPDf372nj6zMJ9cPhPxYkLeCroXv result=PAID"
+   "rest": "2j8vbU6kcaXu5mmP9ZMnYVMcwsAXmzrit8ZUapQzaxGU result=PAID"
   }
  ]
 }

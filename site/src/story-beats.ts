@@ -1,4 +1,4 @@
-// Text of the four beats of the map story. Every sentence is a line of TRUTH.md or a value in fixtures/v32r/demo-run.json.
+// Text of the four beats of the map story. Every sentence is a line of TRUTH.md or a value in fixtures/v33/demo-run.json.
 // Live state labels (invoice + state) are computed from scroll progress in scripts/story.ts; `state` here is the
 // state at the end of the beat and is what the no-JS stills show.
 export const BEATS = [

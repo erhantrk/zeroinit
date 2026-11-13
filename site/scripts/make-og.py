@@ -20,7 +20,4 @@ for line in ["An invoice gets its own", "address before it costs", "anything."]:
     d.text((72, y), line, font=med, fill=INK)
     y += 88
 d.text((72, 548), "NEAR testnet only. Not audited.", font=mono, fill=MUTED)
-# the mark at the top right
-mark = Image.open(root.parent / "docs/img/mark.png").convert("RGBA").resize((112, 112), Image.LANCZOS)
-img.paste(mark, (W - 72 - 112, 48), mark)
 img.save(root / "public/og.png", optimize=True)
