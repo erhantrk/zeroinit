@@ -13650,8 +13650,10 @@ var V3_CODE_HASH = "Ut7EQhLDrvYVarHb6ZaXk6m7o9kQqYPCpyqiamvreWa";
 var V31_CODE_HASH = "2prMzXHZVWdeHfmdqqxzb5ahLy2pWBWZjuE25EDJDaYX";
 var V32_CODE_HASH = "6YtW5oJ8UtCrzUePQf14zqKMb9G3DUtMynEnZvMCNHJ";
 var V32R_CODE_HASH = "BQLSk5carin64UMreToJHT15gvow6wqZSyKqDz7zCFry";
+var V33_CODE_HASH = "CrwuvfSLJoHs4GkkqqL22PeHG2BdcxmnMoxX2zcfaVsb";
 var KNOWN_DEPLOYMENTS = [
-  { version: "v3.2r", hash: V32R_CODE_HASH, label: "v3.2r (current, deployed on testnet: the v3.2 source built reproducibly, rebuild commit 4116e69)", fixes: ["contract-1", "contract-2", "contract-3", "settling", "owed-ledger", "tax-extras", "tokens", "token-sweep-race", "token-sweep-race-all-rejections", "late-release-by-sweep", "paid-at-ms-first-settlement", "status-from-promise"], layout: 3, historical: false },
+  { version: "v3.3", hash: V33_CODE_HASH, label: "v3.3 (current, deployed on testnet: parked funds count toward the price; reproducible build of commit 7727a1c)", fixes: ["contract-1", "contract-2", "contract-3", "settling", "owed-ledger", "tax-extras", "tokens", "token-sweep-race", "token-sweep-race-all-rejections", "late-release-by-sweep", "paid-at-ms-first-settlement", "status-from-promise", "parked-counted"], layout: 3, historical: false },
+  { version: "v3.2r", hash: V32R_CODE_HASH, label: "v3.2r (history, frozen: the v3.2 source built reproducibly, rebuild commit 4116e69; a payment on top of parked funds is charged twice; verify and replay only)", fixes: ["contract-1", "contract-2", "contract-3", "settling", "owed-ledger", "tax-extras", "tokens", "token-sweep-race", "token-sweep-race-all-rejections", "late-release-by-sweep", "paid-at-ms-first-settlement", "status-from-promise"], layout: 3, historical: true },
   { version: "v3.2", hash: V32_CODE_HASH, label: "v3.2 (history, frozen: the same source as v3.2r but a non-reproducible build; verify and replay only)", fixes: ["contract-1", "contract-2", "contract-3", "settling", "owed-ledger", "tax-extras", "tokens", "token-sweep-race", "token-sweep-race-all-rejections", "late-release-by-sweep", "paid-at-ms-first-settlement", "status-from-promise"], layout: 3, historical: true },
   { version: "v3.1", hash: V31_CODE_HASH, label: "v3.1 (history, frozen: v3 plus the token-sweep race fix for the busy rejection only; verify and replay only)", fixes: ["contract-1", "contract-2", "contract-3", "settling", "owed-ledger", "tax-extras", "tokens", "token-sweep-race"], layout: 3, historical: true },
   { version: "v3", hash: V3_CODE_HASH, label: "v3 (history, frozen: NEP-141, SETTLING, owed ledger; has the token-sweep race; verify and replay only)", fixes: ["contract-1", "contract-2", "contract-3", "settling", "owed-ledger", "tax-extras", "tokens"], layout: 3, historical: true },
@@ -13660,18 +13662,24 @@ var KNOWN_DEPLOYMENTS = [
 ];
 var deploymentOf = (hash) => KNOWN_DEPLOYMENTS.find((d) => d.hash === hash) ?? null;
 var deploymentLabel = (hash) => deploymentOf(hash)?.label ?? "custom (not a known ZeroInit deployment)";
-var DEPLOYED_CODE_HASH = V32R_CODE_HASH;
+var DEPLOYED_CODE_HASH = V33_CODE_HASH;
 var trustedCodeHash = (cfg) => cfg.codeHashB58 ?? DEPLOYED_CODE_HASH;
 function pinForVerification(trusted, docCodeHash) {
   const d = deploymentOf(docCodeHash);
   return docCodeHash !== trusted && d?.historical ? d.hash : trusted;
 }
-var DEFAULT_TUSDC_ACCOUNT = "sm1110-tusdc.testnet";
+var DEFAULT_TUSDC_ACCOUNT = "zeroinit-tusdc.testnet";
 function allowedTokens(env = process.env) {
   const id = (env.ZI_TUSDC_ACCOUNT ?? DEFAULT_TUSDC_ACCOUNT).trim();
   return id ? [{ symbol: "tUSDC", decimals: 6, accountId: id }] : [];
 }
 var tokenBySymbol = (allowed, symbol) => allowed.find((t) => t.symbol === symbol) ?? null;
+var HISTORICAL_TOKENS = [{ symbol: "tUSDC", decimals: 6, accountId: "sm1110-tusdc.testnet" }];
+function readOnlyAllowList(cfg, docCodeHash, docTokenAccount) {
+  if (!deploymentOf(docCodeHash)?.historical) return cfg.allowedTokens;
+  if (docTokenAccount === null || cfg.allowedTokens.some((t) => t.accountId === docTokenAccount)) return cfg.allowedTokens;
+  return HISTORICAL_TOKENS;
+}
 function signer(env, prefix) {
   const accountId = env[`ZI_${prefix}_ACCOUNT`];
   const secret = env[`ZI_${prefix}_KEY`];
@@ -21800,91 +21808,6 @@ var EMPTY_COMPLETION_RESULT = {
   }
 };
 
-// src/bytes.ts
-var te = new TextEncoder();
-function concat(...parts) {
-  const n = parts.reduce((s, p) => s + p.length, 0);
-  const out = new Uint8Array(n);
-  let o = 0;
-  for (const p of parts) {
-    out.set(p, o);
-    o += p.length;
-  }
-  return out;
-}
-var u8 = (n) => Uint8Array.of(n & 255);
-function u16(n) {
-  const b = new Uint8Array(2);
-  new DataView(b.buffer).setUint16(0, n, true);
-  return b;
-}
-function u32(n) {
-  const b = new Uint8Array(4);
-  new DataView(b.buffer).setUint32(0, n, true);
-  return b;
-}
-function u64(n) {
-  const v = BigInt(n);
-  if (v < 0n || v >= 1n << 64n) throw new Error(`u64 out of range: ${v}`);
-  const b = new Uint8Array(8);
-  new DataView(b.buffer).setBigUint64(0, v, true);
-  return b;
-}
-function u128(n) {
-  if (n < 0n || n >= 1n << 128n) throw new Error(`u128 out of range: ${n}`);
-  const b = new Uint8Array(16);
-  let x = n;
-  for (let i = 0; i < 16; i++) {
-    b[i] = Number(x & 0xffn);
-    x >>= 8n;
-  }
-  return b;
-}
-var bytesVec = (b) => concat(u32(b.length), b);
-var str = (s) => bytesVec(te.encode(s));
-var utf8 = (s) => te.encode(s);
-function toHex(b) {
-  return Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
-}
-function cmpBytes(a, b) {
-  const n = Math.min(a.length, b.length);
-  for (let i = 0; i < n; i++) if (a[i] !== b[i]) return a[i] - b[i];
-  return a.length - b.length;
-}
-function parseNear(s) {
-  const m = /^(\d+)(?:\.(\d{1,24}))?$/.exec(s.trim());
-  if (!m) throw new Error(`bad NEAR amount: ${s}`);
-  return BigInt(m[1]) * 10n ** 24n + BigInt((m[2] ?? "").padEnd(24, "0") || "0");
-}
-function formatNear(y) {
-  const whole = y / 10n ** 24n;
-  const frac = (y % 10n ** 24n).toString().padStart(24, "0").replace(/0+$/, "");
-  return frac ? `${whole}.${frac}` : `${whole}`;
-}
-
-// node_modules/@noble/hashes/_u64.js
-var U32_MASK64 = /* @__PURE__ */ BigInt(2 ** 32 - 1);
-var _32n = /* @__PURE__ */ BigInt(32);
-function fromBig(n, le = false) {
-  if (le)
-    return { h: Number(n & U32_MASK64), l: Number(n >> _32n & U32_MASK64) };
-  return { h: Number(n >> _32n & U32_MASK64) | 0, l: Number(n & U32_MASK64) | 0 };
-}
-function split(lst, le = false) {
-  const len = lst.length;
-  let Ah = new Uint32Array(len);
-  let Al = new Uint32Array(len);
-  for (let i = 0; i < len; i++) {
-    const { h, l } = fromBig(lst[i], le);
-    [Ah[i], Al[i]] = [h, l];
-  }
-  return [Ah, Al];
-}
-var rotlSH = (h, l, s) => h << s | l >>> 32 - s;
-var rotlSL = (h, l, s) => l << s | h >>> 32 - s;
-var rotlBH = (h, l, s) => l << s - 32 | h >>> 64 - s;
-var rotlBL = (h, l, s) => h << s - 32 | l >>> 64 - s;
-
 // node_modules/@noble/hashes/utils.js
 function isBytes2(a) {
   return a instanceof Uint8Array || ArrayBuffer.isView(a) && a.constructor.name === "Uint8Array" && "BYTES_PER_ELEMENT" in a && a.BYTES_PER_ELEMENT === 1;
@@ -21927,13 +21850,19 @@ function aoutput(out, instance) {
     throw new RangeError('"digestInto() output" expected to be of length >=' + min);
   }
 }
-function u322(arr) {
+function u32(arr) {
   return new Uint32Array(arr.buffer, arr.byteOffset, Math.floor(arr.byteLength / 4));
 }
 function clean(...arrays) {
   for (let i = 0; i < arrays.length; i++) {
     arrays[i].fill(0);
   }
+}
+function createView(arr) {
+  return new DataView(arr.buffer, arr.byteOffset, arr.byteLength);
+}
+function rotr(word, shift) {
+  return word << 32 - shift | word >>> shift;
 }
 var isLE = /* @__PURE__ */ (() => new Uint8Array(new Uint32Array([287454020]).buffer)[0] === 68)();
 function byteSwap(word) {
@@ -21961,6 +21890,367 @@ var oidNist = (suffix) => ({
   // Larger suffix values would need base-128 OID encoding and a different length byte.
   oid: Uint8Array.from([6, 9, 96, 134, 72, 1, 101, 3, 4, 2, suffix])
 });
+
+// node_modules/@noble/hashes/_md.js
+function Chi(a, b, c) {
+  return a & b ^ ~a & c;
+}
+function Maj(a, b, c) {
+  return a & b ^ a & c ^ b & c;
+}
+var HashMD = class {
+  blockLen;
+  outputLen;
+  canXOF = false;
+  padOffset;
+  isLE;
+  // For partial updates less than block size
+  buffer;
+  view;
+  finished = false;
+  length = 0;
+  pos = 0;
+  destroyed = false;
+  constructor(blockLen, outputLen, padOffset, isLE2) {
+    this.blockLen = blockLen;
+    this.outputLen = outputLen;
+    this.padOffset = padOffset;
+    this.isLE = isLE2;
+    this.buffer = new Uint8Array(blockLen);
+    this.view = createView(this.buffer);
+  }
+  update(data) {
+    aexists(this);
+    abytes2(data);
+    const { view: view2, buffer, blockLen } = this;
+    const len = data.length;
+    for (let pos = 0; pos < len; ) {
+      const take = Math.min(blockLen - this.pos, len - pos);
+      if (take === blockLen) {
+        const dataView = createView(data);
+        for (; blockLen <= len - pos; pos += blockLen)
+          this.process(dataView, pos);
+        continue;
+      }
+      buffer.set(data.subarray(pos, pos + take), this.pos);
+      this.pos += take;
+      pos += take;
+      if (this.pos === blockLen) {
+        this.process(view2, 0);
+        this.pos = 0;
+      }
+    }
+    this.length += data.length;
+    this.roundClean();
+    return this;
+  }
+  digestInto(out) {
+    aexists(this);
+    aoutput(out, this);
+    this.finished = true;
+    const { buffer, view: view2, blockLen, isLE: isLE2 } = this;
+    let { pos } = this;
+    buffer[pos++] = 128;
+    clean(this.buffer.subarray(pos));
+    if (this.padOffset > blockLen - pos) {
+      this.process(view2, 0);
+      pos = 0;
+    }
+    for (let i = pos; i < blockLen; i++)
+      buffer[i] = 0;
+    view2.setBigUint64(blockLen - 8, BigInt(this.length * 8), isLE2);
+    this.process(view2, 0);
+    const oview = createView(out);
+    const len = this.outputLen;
+    if (len % 4)
+      throw new Error("_sha2: outputLen must be aligned to 32bit");
+    const outLen = len / 4;
+    const state = this.get();
+    if (outLen > state.length)
+      throw new Error("_sha2: outputLen bigger than state");
+    for (let i = 0; i < outLen; i++)
+      oview.setUint32(4 * i, state[i], isLE2);
+  }
+  digest() {
+    const { buffer, outputLen } = this;
+    this.digestInto(buffer);
+    const res = buffer.slice(0, outputLen);
+    this.destroy();
+    return res;
+  }
+  _cloneInto(to) {
+    to ||= new this.constructor();
+    to.set(...this.get());
+    const { blockLen, buffer, length, finished, destroyed, pos } = this;
+    to.destroyed = destroyed;
+    to.finished = finished;
+    to.length = length;
+    to.pos = pos;
+    if (length % blockLen)
+      to.buffer.set(buffer);
+    return to;
+  }
+  clone() {
+    return this._cloneInto();
+  }
+};
+var SHA256_IV = /* @__PURE__ */ Uint32Array.from([
+  1779033703,
+  3144134277,
+  1013904242,
+  2773480762,
+  1359893119,
+  2600822924,
+  528734635,
+  1541459225
+]);
+
+// node_modules/@noble/hashes/_u64.js
+var U32_MASK64 = /* @__PURE__ */ BigInt(2 ** 32 - 1);
+var _32n = /* @__PURE__ */ BigInt(32);
+function fromBig(n, le = false) {
+  if (le)
+    return { h: Number(n & U32_MASK64), l: Number(n >> _32n & U32_MASK64) };
+  return { h: Number(n >> _32n & U32_MASK64) | 0, l: Number(n & U32_MASK64) | 0 };
+}
+function split(lst, le = false) {
+  const len = lst.length;
+  let Ah = new Uint32Array(len);
+  let Al = new Uint32Array(len);
+  for (let i = 0; i < len; i++) {
+    const { h, l } = fromBig(lst[i], le);
+    [Ah[i], Al[i]] = [h, l];
+  }
+  return [Ah, Al];
+}
+var rotlSH = (h, l, s) => h << s | l >>> 32 - s;
+var rotlSL = (h, l, s) => l << s | h >>> 32 - s;
+var rotlBH = (h, l, s) => l << s - 32 | h >>> 64 - s;
+var rotlBL = (h, l, s) => h << s - 32 | l >>> 64 - s;
+
+// node_modules/@noble/hashes/sha2.js
+var SHA256_K = /* @__PURE__ */ Uint32Array.from([
+  1116352408,
+  1899447441,
+  3049323471,
+  3921009573,
+  961987163,
+  1508970993,
+  2453635748,
+  2870763221,
+  3624381080,
+  310598401,
+  607225278,
+  1426881987,
+  1925078388,
+  2162078206,
+  2614888103,
+  3248222580,
+  3835390401,
+  4022224774,
+  264347078,
+  604807628,
+  770255983,
+  1249150122,
+  1555081692,
+  1996064986,
+  2554220882,
+  2821834349,
+  2952996808,
+  3210313671,
+  3336571891,
+  3584528711,
+  113926993,
+  338241895,
+  666307205,
+  773529912,
+  1294757372,
+  1396182291,
+  1695183700,
+  1986661051,
+  2177026350,
+  2456956037,
+  2730485921,
+  2820302411,
+  3259730800,
+  3345764771,
+  3516065817,
+  3600352804,
+  4094571909,
+  275423344,
+  430227734,
+  506948616,
+  659060556,
+  883997877,
+  958139571,
+  1322822218,
+  1537002063,
+  1747873779,
+  1955562222,
+  2024104815,
+  2227730452,
+  2361852424,
+  2428436474,
+  2756734187,
+  3204031479,
+  3329325298
+]);
+var SHA256_W = /* @__PURE__ */ new Uint32Array(64);
+var SHA2_32B = class extends HashMD {
+  constructor(outputLen) {
+    super(64, outputLen, 8, false);
+  }
+  get() {
+    const { A, B, C, D, E, F, G, H } = this;
+    return [A, B, C, D, E, F, G, H];
+  }
+  // prettier-ignore
+  set(A, B, C, D, E, F, G, H) {
+    this.A = A | 0;
+    this.B = B | 0;
+    this.C = C | 0;
+    this.D = D | 0;
+    this.E = E | 0;
+    this.F = F | 0;
+    this.G = G | 0;
+    this.H = H | 0;
+  }
+  process(view2, offset) {
+    for (let i = 0; i < 16; i++, offset += 4)
+      SHA256_W[i] = view2.getUint32(offset, false);
+    for (let i = 16; i < 64; i++) {
+      const W15 = SHA256_W[i - 15];
+      const W2 = SHA256_W[i - 2];
+      const s0 = rotr(W15, 7) ^ rotr(W15, 18) ^ W15 >>> 3;
+      const s1 = rotr(W2, 17) ^ rotr(W2, 19) ^ W2 >>> 10;
+      SHA256_W[i] = s1 + SHA256_W[i - 7] + s0 + SHA256_W[i - 16] | 0;
+    }
+    let { A, B, C, D, E, F, G, H } = this;
+    for (let i = 0; i < 64; i++) {
+      const sigma1 = rotr(E, 6) ^ rotr(E, 11) ^ rotr(E, 25);
+      const T1 = H + sigma1 + Chi(E, F, G) + SHA256_K[i] + SHA256_W[i] | 0;
+      const sigma0 = rotr(A, 2) ^ rotr(A, 13) ^ rotr(A, 22);
+      const T2 = sigma0 + Maj(A, B, C) | 0;
+      H = G;
+      G = F;
+      F = E;
+      E = D + T1 | 0;
+      D = C;
+      C = B;
+      B = A;
+      A = T1 + T2 | 0;
+    }
+    A = A + this.A | 0;
+    B = B + this.B | 0;
+    C = C + this.C | 0;
+    D = D + this.D | 0;
+    E = E + this.E | 0;
+    F = F + this.F | 0;
+    G = G + this.G | 0;
+    H = H + this.H | 0;
+    this.set(A, B, C, D, E, F, G, H);
+  }
+  roundClean() {
+    clean(SHA256_W);
+  }
+  destroy() {
+    this.destroyed = true;
+    this.set(0, 0, 0, 0, 0, 0, 0, 0);
+    clean(this.buffer);
+  }
+};
+var _SHA256 = class extends SHA2_32B {
+  // We cannot use array here since array allows indexing by variable
+  // which means optimizer/compiler cannot use registers.
+  A = SHA256_IV[0] | 0;
+  B = SHA256_IV[1] | 0;
+  C = SHA256_IV[2] | 0;
+  D = SHA256_IV[3] | 0;
+  E = SHA256_IV[4] | 0;
+  F = SHA256_IV[5] | 0;
+  G = SHA256_IV[6] | 0;
+  H = SHA256_IV[7] | 0;
+  constructor() {
+    super(32);
+  }
+};
+var sha256 = /* @__PURE__ */ createHasher(
+  () => new _SHA256(),
+  /* @__PURE__ */ oidNist(1)
+);
+
+// src/bytes.ts
+var te = new TextEncoder();
+function concat(...parts) {
+  const n = parts.reduce((s, p) => s + p.length, 0);
+  const out = new Uint8Array(n);
+  let o = 0;
+  for (const p of parts) {
+    out.set(p, o);
+    o += p.length;
+  }
+  return out;
+}
+var u8 = (n) => Uint8Array.of(n & 255);
+function u16(n) {
+  const b = new Uint8Array(2);
+  new DataView(b.buffer).setUint16(0, n, true);
+  return b;
+}
+function u322(n) {
+  const b = new Uint8Array(4);
+  new DataView(b.buffer).setUint32(0, n, true);
+  return b;
+}
+function u64(n) {
+  const v = BigInt(n);
+  if (v < 0n || v >= 1n << 64n) throw new Error(`u64 out of range: ${v}`);
+  const b = new Uint8Array(8);
+  new DataView(b.buffer).setBigUint64(0, v, true);
+  return b;
+}
+function u128(n) {
+  if (n < 0n || n >= 1n << 128n) throw new Error(`u128 out of range: ${n}`);
+  const b = new Uint8Array(16);
+  let x = n;
+  for (let i = 0; i < 16; i++) {
+    b[i] = Number(x & 0xffn);
+    x >>= 8n;
+  }
+  return b;
+}
+var bytesVec = (b) => concat(u322(b.length), b);
+var str = (s) => bytesVec(te.encode(s));
+var utf8 = (s) => te.encode(s);
+function toHex(b) {
+  return Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
+}
+function cmpBytes(a, b) {
+  const n = Math.min(a.length, b.length);
+  for (let i = 0; i < n; i++) if (a[i] !== b[i]) return a[i] - b[i];
+  return a.length - b.length;
+}
+function parseNear(s) {
+  const m = /^(\d+)(?:\.(\d{1,24}))?$/.exec(s.trim());
+  if (!m) throw new Error(`bad NEAR amount: ${s}`);
+  return BigInt(m[1]) * 10n ** 24n + BigInt((m[2] ?? "").padEnd(24, "0") || "0");
+}
+function formatNear(y) {
+  const whole = y / 10n ** 24n;
+  const frac = (y % 10n ** 24n).toString().padStart(24, "0").replace(/0+$/, "");
+  return frac ? `${whole}.${frac}` : `${whole}`;
+}
+
+// src/checkcode.ts
+var ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+var CHECK_CODE_LENGTH = 4;
+function checkCode(accountId) {
+  const h = sha256(utf8(`zeroinit-check-code/1:${accountId}`));
+  const bits = h[0] << 16 | h[1] << 8 | h[2];
+  let out = "";
+  for (let i = 0; i < CHECK_CODE_LENGTH; i++) out += ALPHABET[bits >>> 19 - 5 * i & 31];
+  return out;
+}
 
 // node_modules/@noble/hashes/sha3.js
 var _0n = BigInt(0);
@@ -22064,7 +22354,7 @@ var Keccak = class _Keccak {
     if (!(0 < blockLen && blockLen < 200))
       throw new Error("only keccak-f1600 function is supported");
     this.state = new Uint8Array(200);
-    this.state32 = u322(this.state);
+    this.state32 = u32(this.state);
   }
   clone() {
     return this._cloneInto();
@@ -22264,7 +22554,7 @@ function globalContractIdentifier(code) {
 function dataMap(entries) {
   const sorted = [...entries].sort((a, b) => cmpBytes(a[0], b[0]));
   for (let i = 1; i < sorted.length; i++) if (cmpBytes(sorted[i - 1][0], sorted[i][0]) === 0) throw new Error("duplicate key");
-  return concat(u32(sorted.length), ...sorted.map(([k, v]) => concat(bytesVec(k), bytesVec(v))));
+  return concat(u322(sorted.length), ...sorted.map(([k, v]) => concat(bytesVec(k), bytesVec(v))));
 }
 function universalStateInitBytes(code, entries) {
   return concat(
@@ -22274,7 +22564,7 @@ function universalStateInitBytes(code, entries) {
     // Option<GlobalContractIdentifier>
     dataMap(entries),
     // BTreeMap<Vec<u8>,Vec<u8>>
-    u32(0)
+    u322(0)
     // access_keys: BTreeSet<PublicKeyHandle> = empty
   );
 }
@@ -22654,7 +22944,7 @@ async function tokenBalanceOrError(cfg, token, account) {
 }
 async function statusLine(cfg, doc, label) {
   const pin = pinForVerification(trustedCodeHash(cfg), doc.code_hash);
-  const bad = docProblem(doc, pin, cfg.allowedTokens);
+  const bad = docProblem(doc, pin, readOnlyAllowList(cfg, doc.code_hash, docToken(doc)));
   if (bad) return { line: `STATE UNVERIFIED ${bad}`, obj: { state: "UNVERIFIED", reason: bad } };
   const s = await viewAccount(cfg, doc.account_id, label);
   const token = docToken(doc);
@@ -22680,9 +22970,10 @@ async function statusLine(cfg, doc, label) {
 // src/verify.ts
 async function verifyDoc(cfg, doc, offline) {
   const trusted = pinForVerification(trustedCodeHash(cfg), doc.code_hash);
-  const c = checkDoc(doc, trusted, cfg.allowedTokens);
   const token = docToken(doc);
-  const entry = token ? tokenBySymbol(cfg.allowedTokens, isV3Doc(doc) && doc.asset.kind === "ft" ? doc.asset.symbol : "") : null;
+  const allowed = readOnlyAllowList(cfg, doc.code_hash, token);
+  const c = checkDoc(doc, trusted, allowed);
+  const entry = token ? tokenBySymbol(allowed, isV3Doc(doc) && doc.asset.kind === "ft" ? doc.asset.symbol : "") : null;
   const tokenAllowed = token === null || entry !== null && entry.accountId === token;
   const lines = [
     `${c.codeHashTrusted ? "PASS" : "FAIL"} code-hash-trusted ${doc.code_hash}${c.codeHashTrusted ? "" : ` (trusted ${trusted})`}`,
@@ -22872,6 +23163,8 @@ async function issueInvoice(cfg, a, now = Date.now()) {
     transaction_sent: false,
     cost: "Issuing sent no transaction and cost nothing: the address is computed from the terms. The payer's own transaction creates the account, pays the merchant and sets the tax aside. This server never signs.",
     pay_address: doc.account_id,
+    check_code: checkCode(doc.account_id),
+    check_code_note: "Show this code next to the pay address. A payer who types the address into a wallet can check it first with `npx -y @erhantrk/zeroinit check <address> <code>`: a mistyped 0u address is a valid address of other bytes and funds sent there are lost.",
     deployment: deploymentLabel(codeHash),
     invoice: doc,
     pay_instructions: payInstructions(doc, cfg),

@@ -5,9 +5,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { DEPLOYED, tempDir, makeTokenDoc, makeDoc, writeDoc, throwawaySigner, fakeRpc, handlers, statusResult, viewResult,
+import { DEPLOYED, FOREIGN, terms, tempDir, makeTokenDoc, makeDoc, writeDoc, throwawaySigner, fakeRpc, handlers, statusResult, viewResult,
   unknownAccount, onchainInvoice, runCli, decodeSignedTx, b64, type Chain } from './helpers.ts';
-import type { InvoiceDoc } from '../src/invoice.ts';
+import { createInvoiceDoc, type InvoiceDoc } from '../src/invoice.ts';
 
 const TOKEN = 'tusdc.example.testnet';
 const MIN = '1250000000000000000000';
@@ -260,7 +260,7 @@ test('invoice new --token: display units, the allow-list, and the online registr
   // No ZI_TUSDC_ACCOUNT at all: the client defaults to the deployed testnet tUSDC mock.
   const dflt = await runCli(args('INV-TOK-0', ['--offline']), { ZI_INVOICE_DIR: dir });
   assert.equal(dflt.code, 0, dflt.stderr);
-  assert.equal(JSON.parse(readFileSync(join(dir, 'INV-TOK-0.json'), 'utf8')).asset.contract, 'sm1110-tusdc.testnet');
+  assert.equal(JSON.parse(readFileSync(join(dir, 'INV-TOK-0.json'), 'utf8')).asset.contract, 'zeroinit-tusdc.testnet');
   const offline = await runCli(args('INV-TOK-1', ['--offline']), { ZI_INVOICE_DIR: dir, ZI_TUSDC_ACCOUNT: TOKEN });
   assert.equal(offline.code, 0, offline.stderr);
   const doc = JSON.parse(readFileSync(join(dir, 'INV-TOK-1.json'), 'utf8'));
@@ -328,23 +328,35 @@ test('pay token: an unregistered merchant (ft_transfer fails on the token) is a 
 });
 
 // audit claims-3: ft_on_transfer cannot see tokens parked by a plain ft_transfer, so a one-step payment on top would be charged twice.
-test('pay token refuses when tokens are already parked (no transaction sent); --allow-parked and --plain go through', async () => {
+test('pay token with tokens already parked: v3.3 counts them, so it pays; on a deployment without that rule it refuses (no transaction sent)', async () => {
   const doc = makeTokenDoc();
   const chain: Chain = { storageBalance: { total: MIN, available: '0' }, ftBalance: '1500000', invoice: onchainInvoice(doc, { status: 'OPEN' }), txResult: txResult(doc, '0', [paidEvent(doc)]) };
-  const a = await setup(doc, chain);
+  const v33 = await setup(doc, chain);
+  try {
+    const r = await runCli(['pay', doc.invoice_id], v33.env);
+    assert.equal(r.code, 0, r.stdout + r.stderr);
+    assert.equal(v33.sent().at(-1)?.actions[0].method, 'ft_transfer_call');
+  } finally { await v33.rpc.close(); }
+});
+
+test('pay token on an own deployment (no parked-funds rule) refuses when tokens are already parked; --allow-parked and --plain go through', async () => {
+  const doc = createInvoiceDoc('0u', FOREIGN, terms({ token: 'tusdc.example.testnet', token_symbol: 'tUSDC', token_decimals: 6, amount: 1_500_000n, layout: 3, grace_ms: 604_800_000n }));
+  const chain: Chain = { storageBalance: { total: MIN, available: '0' }, ftBalance: '1500000', invoice: onchainInvoice(doc, { status: 'OPEN' }), txResult: txResult(doc, '0', [paidEvent(doc)]) };
+  const own = { ZI_CODE_HASH: FOREIGN };
+  const a = await setup(doc, chain, own);
   try {
     const r = await runCli(['pay', doc.invoice_id], a.env);
     assert.equal(r.code, 2, r.stdout + r.stderr);
     assert.match(r.stdout + r.stderr, /already holds 1\.5 \w+ from a plain transfer: run `zi sweep /);
     assert.equal(a.sent().length, 0, 'nothing may be signed');
   } finally { await a.rpc.close(); }
-  const b = await setup(doc, chain);
+  const b = await setup(doc, chain, own);
   try {
     const r = await runCli(['pay', doc.invoice_id, '--allow-parked'], b.env);
     assert.equal(r.code, 0, r.stdout + r.stderr);
     assert.equal(b.sent().at(-1)?.actions[0].method, 'ft_transfer_call');
   } finally { await b.rpc.close(); }
-  const c = await setup(doc, { ...chain, txResult: txResult(doc, '') });
+  const c = await setup(doc, { ...chain, txResult: txResult(doc, '') }, own);
   try {
     const r = await runCli(['pay', doc.invoice_id, '--plain'], c.env);
     assert.equal(r.code, 0, r.stdout + r.stderr);

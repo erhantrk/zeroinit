@@ -6,12 +6,12 @@ The command line and library of [ZeroInit](https://github.com/erhantrk/zeroinit)
 
 ## Try it, no keys needed
 
-Node 22 or newer. The package has no dependencies; the recorded run of the current contract (v3.2r) and its invoices ship with it.
+Node 22 or newer. The package has no dependencies; the recorded run of the current contract (v3.3) and its invoices ship with it.
 
 ```bash
-npx @erhantrk/zeroinit verify INV-1111-V32R-A               # read-only live check over testnet RPC: every line PASS, ends INFO status=PAID
-npx @erhantrk/zeroinit replay fixtures/v32r/demo-run.json   # the recorded live run, replayed offline: every line PASS
-npx @erhantrk/zeroinit status INV-1111-V32R-A               # the live state of that invoice
+npx @erhantrk/zeroinit verify INV-1111-V33-A               # read-only live check over testnet RPC: every line PASS, ends INFO status=PAID
+npx @erhantrk/zeroinit replay fixtures/v33/demo-run.json   # the recorded live run, replayed offline: every line PASS
+npx @erhantrk/zeroinit status INV-1111-V33-A               # the live state of that invoice
 npx @erhantrk/zeroinit invoice new --id TEST-1 --merchant example-zi-merchant.testnet --tax-vault example-zi-taxvault.testnet \
     --tax-bps 800 --amount 0.1 --expires-in 2h --offline    # issues an invoice: no transaction, writes ./invoices/TEST-1.json
 ```

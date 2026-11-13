@@ -1,4 +1,4 @@
-// Hand-built live calls for the failure runs (docs/STABLECOIN.md §11.4 L11, L12, L16, L19). Signed with the payer key, recorded
+// Hand-built live calls for the failure runs (docs/STABLECOIN.md §11.4 L11, L12, L16, L19) and the v3.3 private-callback check. Signed with the payer key, recorded
 // through ZI_RECORD like every other step (labels `<label>: tx_status`, then `after: view_account` / `after: get_invoice`).
 //   node scripts/live-call.ts near-on-token <invoice-id>
 //       pay() with 0.1 NEAR attached on a token invoice: the contract must refund it (REFUNDED_WRONG_ASSET).
@@ -62,4 +62,16 @@ if (mode === 'near-on-token') {
   console.log(`SENT ${formatUnits(amount, docDecimals(doc))} on ${token}, msg kind ${msgKind}, gas ${gasT} Tgas`);
   await after(doc.account_id);
   process.exitCode = p.success ? 0 : 1;
-} else throw new Error('usage: live-call.ts near-on-token <id> | ft-call <token> <id> <amount> <pay|empty|bad> <gas-Tgas> <label>');
+} else if (mode === 'private-callback') {
+  // v3.3: on_pay_balance decides how much of a token payment is used. It must only run as the hook's own callback: a direct call
+  // from any account must fail on the contract's private check and change nothing.
+  const doc = loadDoc(cfg.invoiceDir, a[0]);
+  setRecordInvoice(doc.invoice_id);
+  const args = { sender_id: payer.accountId, amount: '1', lock: '0' };
+  const p = await sendActions(cfg, payer, doc.account_id, [actFunctionCall('on_pay_balance', utf8(JSON.stringify(args)), 30n * T, 0n)], 'private-callback');
+  show(p, 'private-callback');
+  await after(doc.account_id);
+  const refused = !p.success && JSON.stringify(p.failures).includes('private');
+  console.log(refused ? 'PASS on_pay_balance refuses a direct call' : 'FAIL on_pay_balance accepted a direct call');
+  process.exitCode = refused ? 0 : 1;
+} else throw new Error('usage: live-call.ts near-on-token <id> | ft-call <token> <id> <amount> <pay|empty|bad> <gas-Tgas> <label> | private-callback <id>');

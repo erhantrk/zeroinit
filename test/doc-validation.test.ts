@@ -44,7 +44,7 @@ test('createInvoiceDoc writes /2 (v3 layout) for the v3.2r, v3.2, v3.1 and v3 de
   assert.equal(makeDoc(V2).format, 'zeroinit-invoice/1');
   assert.equal(makeDoc(V1).format, 'zeroinit-invoice/1');
   // a /1 document on the v3 hash would initialize an account with bytes the v3 contract cannot read: refused at creation
-  assert.throws(() => createInvoiceDoc('0u', DEPLOYED, terms({ layout: 1 })), /v3\.2r deployment needs the v3 state layout/);
+  assert.throws(() => createInvoiceDoc('0u', DEPLOYED, terms({ layout: 1 })), /v3\.3 deployment needs the v3 state layout/);
   assert.throws(() => createInvoiceDoc('0u', V31, terms({ layout: 1 })), /v3\.1 deployment needs the v3 state layout/);
   assert.throws(() => createInvoiceDoc('0u', V3, terms({ layout: 1 })), /v3 deployment needs the v3 state layout/);
 });

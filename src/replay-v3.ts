@@ -430,6 +430,9 @@ export function replayV3Invoice(f: any, doc: InvoiceDoc, trusted: string | undef
         // S-F2: ft_transfer_call to an invoice id that was never initialized. The receipt on the nonexistent account fails; the token
         // refunds everything (proved by the accounting check below). The invoice stays NONEXISTENT.
         add(!p.success && p.failures.length > 0 && p.failures.every((f) => JSON.stringify(f).includes('AccountDoesNotExist')), 'uninitialized-call-fails', id, `${p.txHash} ${p.failures.length} failure(s)`);
+      } else if (prefix === 'private-callback') {
+        // v3.3: a direct call of the private callback on_pay_balance must fail on the contract's private check.
+        add(!p.success && JSON.stringify(p.failures).includes('Method on_pay_balance is private'), 'private-callback-refused', id, `${p.txHash} ${p.success ? 'ACCEPTED' : 'refused'}`);
       } else if (prefix === 'init' || prefix === 'pay' || prefix === 'plain-transfer' || prefix === 'register' || prefix === 'token-register') {
         add(p.success, `${prefix}-tx-success`, id, `${p.txHash} ${JSON.stringify(p.failures)}`);
       } else {

@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { replayFixture } from '../src/replay.ts';
-import { DEPLOYED, V2, tempDir } from './helpers.ts';
+import { V32R as DEPLOYED, V2, tempDir } from './helpers.ts';
 
 const FIXTURE = 'fixtures/v3-synthetic-token.json';
 const load = () => JSON.parse(readFileSync(FIXTURE, 'utf8'));

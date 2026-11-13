@@ -11,7 +11,7 @@ import { parseTxStatus, type ParsedTx } from '../src/outcome.ts';
 import { decodeViewResult } from '../src/rpc.ts';
 import { checkDoc } from '../src/invoice.ts';
 import { V32R_CODE_HASH, V32_CODE_HASH, V31_CODE_HASH } from '../src/config.ts';
-import { DEPLOYED, tempDir } from './helpers.ts';
+import { V32R as DEPLOYED, tempDir } from './helpers.ts';
 
 const FILES = ['demo-run', 'token-demo-run', 'tokens', 'race'].map((n) => `fixtures/v32r/${n}.json`);
 const load = (file: string) => JSON.parse(readFileSync(file, 'utf8'));

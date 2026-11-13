@@ -32,9 +32,9 @@ const call = async (client: Client, name: string, args: Record<string, unknown>)
   return { isError: !!r.isError, text: r.content[0].text as string, data: r.structuredContent as any };
 };
 
-const RECORDED = { merchant: 'sm1110-zi3-sweeper.testnet', tax_vault: 'sm1110-zi3-taxvault.testnet', tax_bps: 800, amount: '1', invoice_number: 'INV-1111-V32R-A',
-  expires_at: '2026-11-12T15:25:41.094Z', salt: '2503984667641585463', offline: true };
-const RECORDED_NOW = Date.parse('2026-11-12T13:25:41.406Z');
+const RECORDED = { merchant: 'zeroinit-merchant.testnet', tax_vault: 'zeroinit-taxvault.testnet', tax_bps: 800, amount: '1', invoice_number: 'INV-1111-V33-A',
+  expires_at: '2026-11-13T10:48:51.764Z', salt: '5754866504318508017', offline: true };
+const RECORDED_NOW = Date.parse('2026-11-13T08:48:52.094Z');
 
 test('tool list: the three read-only tools', async () => {
   const client = await connect();
@@ -43,10 +43,11 @@ test('tool list: the three read-only tools', async () => {
   for (const t of tools) assert.equal(t.annotations?.readOnlyHint, true);
 });
 
-test('issue_invoice reproduces the recorded v3.2r invoice byte for byte (same id, same fields, same layout)', async () => {
+test('issue_invoice reproduces the recorded v3.3 invoice byte for byte (same id, same fields, same layout)', async () => {
   const r = await issueInvoice(cfg(), RECORDED, RECORDED_NOW) as any;
-  assert.deepEqual(r.invoice, readDoc('invoices/v32r/INV-1111-V32R-A.json'));
-  assert.equal(r.pay_address, '0u7hdnprw7z1gfz4b6qj8pn683cnhwp4ges18hfbsk03nmdees4ppg');
+  assert.deepEqual(r.invoice, readDoc('invoices/v33/INV-1111-V33-A.json'));
+  assert.equal(r.pay_address, '0us40y0dm1767jkzzxynmwjer15h4xy5wc96rg3xv5hfgs8fx421ag');
+  assert.equal(r.check_code, 'MVNC');
   assert.equal(r.invoice.format, 'zeroinit-invoice/2');
   assert.equal(r.invoice.code_hash, DEPLOYED);
   assert.equal(r.transaction_sent, false);

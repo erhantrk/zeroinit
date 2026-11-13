@@ -6,7 +6,7 @@ import { checkCode } from './checkcode.ts';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { parseNear, formatNear, utf8 } from './bytes.ts';
 import { actFunctionCall, actTransfer } from './tx.ts';
-import { trustedCodeHash, pinForVerification, deploymentOf, tokenBySymbol, type Config, type AllowedToken } from './config.ts';
+import { trustedCodeHash, pinForVerification, deploymentOf, tokenBySymbol, readOnlyAllowList, type Config, type AllowedToken } from './config.ts';
 import { viewAccount, viewInvoice } from './rpc.ts';
 import { sendActions } from './send.ts';
 import { createInvoiceDoc, saveDoc, loadDoc, listDocs, assertDocTrusted, docProblem, onchainProblem, assertAccountsUsable, stateInitAction, randomSalt,
@@ -131,7 +131,7 @@ export function serve(cfg: Config, port: number, opts: { token?: string } = {}):
             const raw = docAmountRaw(d);
             const display = isV3Doc(d) ? (d.asset.kind === 'ft' ? formatUnits(raw, d.asset.decimals) : formatNear(raw)) : formatNear(raw);
             return { ...d, amount_display: display, unit: docUnit(d), amount_near: docToken(d) === null ? display : undefined, check_code: checkCode(d.account_id),
-              unverified_reason: docProblem(d, pinForVerification(trustedCodeHash(cfg), d.code_hash), cfg.allowedTokens) };
+              unverified_reason: docProblem(d, pinForVerification(trustedCodeHash(cfg), d.code_hash), readOnlyAllowList(cfg, d.code_hash, docToken(d))) };
           } catch { return { ...d, unverified_reason: 'unreadable amount' }; }
         }));
       }
@@ -178,7 +178,7 @@ export function serve(cfg: Config, port: number, opts: { token?: string } = {}):
         if (m[2] === 'status' && req.method === 'GET') {
           // Only a document that is the invoice its own terms derive gets an on-chain state: a forged file must not show another account's PAID.
           const pin = pinForVerification(trustedCodeHash(cfg), doc.code_hash);
-          const bad = docProblem(doc, pin, cfg.allowedTokens);
+          const bad = docProblem(doc, pin, readOnlyAllowList(cfg, doc.code_hash, docToken(doc)));
           if (bad) return send(res, 200, { state: 'UNVERIFIED', reason: bad, invoice: null });
           const s = await viewAccount(cfg, doc.account_id);
           const invoice = s.kind === 'INITIALIZED' ? await viewInvoice(cfg, doc.account_id) : null;

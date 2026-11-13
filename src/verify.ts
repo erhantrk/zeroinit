@@ -1,15 +1,16 @@
 // The `zi verify` checks (shared by the CLI and the MCP server): offline re-derivation, plus the on-chain checks unless `offline`.
 import { formatNear } from './bytes.ts';
-import { trustedCodeHash, pinForVerification, deploymentLabel, tokenBySymbol, type Config } from './config.ts';
+import { trustedCodeHash, pinForVerification, deploymentLabel, tokenBySymbol, readOnlyAllowList, type Config } from './config.ts';
 import { checkNetwork, viewAccount, viewInvoice, rpcCall } from './rpc.ts';
 import { checkDoc, termsMatchOnchain, isV3Doc, docToken, docUnit, type InvoiceDoc } from './invoice.ts';
 import { ftBalanceOf, ftMetadata, formatUnits } from './ft.ts';
 
 export async function verifyDoc(cfg: Config, doc: InvoiceDoc, offline: boolean): Promise<{ ok: boolean; lines: string[] }> {
     const trusted = pinForVerification(trustedCodeHash(cfg), doc.code_hash);   // v1/v2 history docs verify against their own hash (read-only); the rest against the trusted hash
-    const c = checkDoc(doc, trusted, cfg.allowedTokens);
     const token = docToken(doc);
-    const entry = token ? tokenBySymbol(cfg.allowedTokens, isV3Doc(doc) && doc.asset.kind === 'ft' ? doc.asset.symbol : '') : null;
+    const allowed = readOnlyAllowList(cfg, doc.code_hash, token);
+    const c = checkDoc(doc, trusted, allowed);
+    const entry = token ? tokenBySymbol(allowed, isV3Doc(doc) && doc.asset.kind === 'ft' ? doc.asset.symbol : '') : null;
     const tokenAllowed = token === null || (entry !== null && entry.accountId === token);
     const lines = [`${c.codeHashTrusted ? 'PASS' : 'FAIL'} code-hash-trusted ${doc.code_hash}${c.codeHashTrusted ? '' : ` (trusted ${trusted})`}`,
       `INFO deployment ${c.codeHashTrusted ? deploymentLabel(trusted) : 'none: the invoice uses a code hash that is not trusted'}`,

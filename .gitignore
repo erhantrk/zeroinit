@@ -10,6 +10,7 @@ invoices/*.receipt.json
 !invoices/v31/
 !invoices/v32/
 !invoices/v32r/
+!invoices/v33/
 !invoices/demo/
 *.log
 .DS_Store

@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { parseNear, formatNear, utf8 } from './bytes.ts';
 import { invoiceStateBytes } from './stateinit.ts';
 import { actFunctionCall } from './tx.ts';
-import { loadConfig, trustedCodeHash, pinForVerification, deploymentLabel, deploymentOf, fixesParkedFunds, fixesFinding, tokenBySymbol, type Config, type Signer, type AllowedToken } from './config.ts';
+import { loadConfig, trustedCodeHash, pinForVerification, deploymentLabel, deploymentOf, fixesParkedFunds, fixesFinding, tokenBySymbol, readOnlyAllowList, type Config, type Signer, type AllowedToken } from './config.ts';
 import { checkNetwork, viewAccount, viewInvoice, setRecordInvoice, recordInvoiceDoc, rpcCall } from './rpc.ts';
 import { sendActions } from './send.ts';
 import { createInvoiceDoc, loadDoc, saveDoc, checkDoc, assertDocTrusted, assertAccountsUsable, stateInitAction, termsMatchOnchain, docProblem, onchainProblem, randomSalt,
@@ -361,7 +361,7 @@ async function main(argv: string[]): Promise<number> {
       if (!ours) throw new Error(`--tx ${v.tx}: tx does not belong to this invoice (${doc.invoice_id} / ${doc.account_id}): no event or call for it`);
       events = p.events; ftTransfers = p.ftTransfers.map((t) => ({ ...t, amount: t.amount.toString() })); txHash = p.txHash;
     }
-    const c = checkDoc(doc, trusted, cfg.allowedTokens);
+    const c = checkDoc(doc, trusted, readOnlyAllowList(cfg, doc.code_hash, docToken(doc)));
     const checks = { id_matches_terms: c.idFromTerms && c.rawFromTerms && c.fieldsConsistent, code_hash_matches: c.codeHashTrusted && s.globalContractHash === trusted,
       terms_match_onchain: termsMatchOnchain(doc, inv), status: inv.status };
     const failed = [!checks.id_matches_terms && 'id_matches_terms', !checks.code_hash_matches && 'code_hash_matches', !checks.terms_match_onchain && 'terms_match_onchain',

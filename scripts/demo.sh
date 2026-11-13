@@ -7,7 +7,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 set -a; source .env; set +a
 S="${1:?give a unique suffix}"
-M="${ZI_SWEEPER_ACCOUNT}"            # merchant = sweeper account in the demo
+M="${ZI_MERCHANT_ACCOUNT:-$ZI_SWEEPER_ACCOUNT}"   # the merchant account (the v3.2r and older runs used the sweeper account)
 V="${ZI_TAXVAULT_ACCOUNT:?set ZI_TAXVAULT_ACCOUNT in .env}"
 pause() { read -r -p "── $1 (enter) " _ || true; }
 pause "Shot 2: merchant issues an invoice (no transaction)"

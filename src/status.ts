@@ -1,6 +1,6 @@
 // Live status of an invoice account (shared by `zi status` and the MCP server).
 import { formatNear } from './bytes.ts';
-import { trustedCodeHash, pinForVerification, type Config } from './config.ts';
+import { trustedCodeHash, pinForVerification, readOnlyAllowList, type Config } from './config.ts';
 import { viewAccount, viewInvoice } from './rpc.ts';
 import { docProblem, onchainProblem, docToken, docUnit, docDecimals, type InvoiceDoc } from './invoice.ts';
 import { ftBalanceOf, formatUnits } from './ft.ts';
@@ -14,7 +14,7 @@ async function tokenBalanceOrError(cfg: Config, token: string | null, account: s
 export async function statusLine(cfg: Config, doc: InvoiceDoc, label?: string): Promise<{ line: string; obj: any }> {
   // A status is only shown for a document that is the invoice its own terms derive: a forged file must not borrow another account's PAID state.
   const pin = pinForVerification(trustedCodeHash(cfg), doc.code_hash);
-  const bad = docProblem(doc, pin, cfg.allowedTokens);
+  const bad = docProblem(doc, pin, readOnlyAllowList(cfg, doc.code_hash, docToken(doc)));
   if (bad) return { line: `STATE UNVERIFIED ${bad}`, obj: { state: 'UNVERIFIED', reason: bad } };
   const s = await viewAccount(cfg, doc.account_id, label);
   const token = docToken(doc);

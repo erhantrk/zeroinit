@@ -9,7 +9,7 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 set -a; source .env; set +a
 S="${1:-V32}"; MAX="${2:-8}"; FIRST="${3:-1}"
-M="${ZI_SWEEPER_ACCOUNT:?}"; V="${ZI_TAXVAULT_ACCOUNT:?}"
+M="${ZI_MERCHANT_ACCOUNT:-$ZI_SWEEPER_ACCOUNT}"; V="${ZI_TAXVAULT_ACCOUNT:?}"
 OFFSETS=(0 150 -150 300 -300 450 -450 600 -600 0)
 OUT="${RACE_SCRATCH:-${TMPDIR:-/tmp}}"
 for ((n=FIRST; n<FIRST+MAX; n++)); do
