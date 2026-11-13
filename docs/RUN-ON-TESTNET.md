@@ -163,7 +163,7 @@ near account create-account sponsor-by-faucet-service <name>.testnet autogenerat
 | `zeroinit-tusdc.testnet` | the tUSDC mock token |
 | `zeroinit-unreg.testnet` | not registered on the token; unused so far |
 
-**The token.** `zeroinit-tusdc.testnet` runs the `test-usdc` mock from commit `94396e4` (the repository is still private), built with `cargo near build non-reproducible-wasm`
+**The token.** `zeroinit-tusdc.testnet` runs the `test-usdc` mock from commit `94396e4` ([github.com/erhantrk/test-usdc](https://github.com/erhantrk/test-usdc), public), built with `cargo near build non-reproducible-wasm`
 (wasm sha256 `73294abd57196edf5c22c38770df17185047b2de2d3650074e79a07c65f31a57`). One transaction deployed it and called `new(owner_id=zeroinit-tusdc.testnet, total_supply=1000000000000)`,
 which is 1,000,000 tUSDC (6 decimals) owned by the token account itself. The token account then registered the payer, merchant, tax vault and sweeper (`storage_deposit`), sent 1,000 tUSDC to the
 payer and 20 tUSDC to the sweeper. The transaction hashes are in [SPIKES.md "Contract v3.3 live"](SPIKES.md#contract-v33-live-2026-11-13).

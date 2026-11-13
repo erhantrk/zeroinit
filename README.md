@@ -133,4 +133,4 @@ The code, tests and docs were written and reviewed with AI models (DeepSeek V4.1
 
 ## License
 
-MIT, see [LICENSE](LICENSE). The mock token source, [test-usdc](https://github.com/erhantrk/test-usdc), is not public yet; the deployed mock `zeroinit-tusdc.testnet` is built from its commit `94396e4`.
+MIT, see [LICENSE](LICENSE). The mock token source is [test-usdc](https://github.com/erhantrk/test-usdc) (public, MIT); the deployed mock `zeroinit-tusdc.testnet` is built from its commit `94396e4`.

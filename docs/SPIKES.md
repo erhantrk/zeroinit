@@ -893,7 +893,7 @@ Created on 2026-11-13 with the testnet faucet, 10 NEAR each, one full-access key
 
 ### The new mock token
 
-- `zeroinit-tusdc.testnet`: tUSDC, 6 decimals, owner-only mint, owner = itself. Source: `github.com/erhantrk/test-usdc` commit `94396e4` (still private), built with `cargo near build non-reproducible-wasm`,
+- `zeroinit-tusdc.testnet`: tUSDC, 6 decimals, owner-only mint, owner = itself. Source: `github.com/erhantrk/test-usdc` commit `94396e4` (public), built with `cargo near build non-reproducible-wasm`,
   wasm sha256 `73294abd57196edf5c22c38770df17185047b2de2d3650074e79a07c65f31a57`.
 - Deploy + `new(owner_id=zeroinit-tusdc.testnet, total_supply=1000000000000)` (1,000,000 tUSDC): tx `1kNMTxuW6fMzuffmbYWjn5WXiPq1wk8KniVussXvMaD`.
 - Registered by the token account (`storage_deposit`): payer `68o2HhLgPSqVKMFhKJT1xmK8VfbqgXjntTFWFjDuiDbi`, merchant `7rRcKwJoBM2uK29XFvSBcrWMWhNdaH2CiE8bjPkWF5z7`, tax vault `EbJ77dKCXA6p83hC93D6PSdH6Cy4ZnSfBhk8AGH2iSWv`, sweeper `3StyDeDm7ZxbuRDSpdKFt2KU6JBdDDTH7AMr6DXsrpNJ`.
