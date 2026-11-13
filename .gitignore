@@ -18,3 +18,4 @@ cli/web/
 cli/invoices/
 cli/fixtures/
 cli/LICENSE
+.claude/

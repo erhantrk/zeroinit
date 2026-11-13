@@ -17,12 +17,12 @@ export function escapeHtml(v) {
 /** One invoice row for the list. Every dynamic value is escaped; the id is only ever read back through dataset.id. */
 export function rowHtml({ doc: d, status, label }) {
   return `<p><a href="#" data-id="${escapeHtml(d.invoice_id)}">${escapeHtml(d.invoice_id)}</a> <span class="badge ${escapeHtml(label)}">${escapeHtml(label)}</span>`
-    + `<br><code>${escapeHtml(d.account_id)}</code><br>${escapeHtml(amountLabel(d, status))}`
+    + `<br><code>${escapeHtml(d.account_id)}</code>${d.check_code ? ` <small>check ${escapeHtml(d.check_code)}</small>` : ''}<br>${escapeHtml(amountLabel(d, status))}`
     + `${status && status.reason ? `<br><small>${escapeHtml(status.reason)}</small>` : ''}</p>`;
 }
 /** The selected-invoice header of the payer card. */
 export function selectedHtml(sel) {
-  return `<p><b>${escapeHtml(sel.id)}</b>: pay <b>${escapeHtml(sel.amountLabel)}</b> to<br><code>${escapeHtml(sel.accountId)}</code></p>`;
+  return `<p><b>${escapeHtml(sel.id)}</b>: pay <b>${escapeHtml(sel.amountLabel)}</b> to<br><code>${escapeHtml(sel.accountId)}</code>${sel.checkCode ? ` <small>check ${escapeHtml(sel.checkCode)}</small>` : ''}</p>`;
 }
 
 /** Raw u128 -> canonical display amount (no floating point). */
@@ -60,5 +60,5 @@ export function selection(rows, id) {
   const row = rows.find((r) => r.doc.invoice_id === id);
   if (!row) return null;
   return { id, amountDisplay: row.doc.amount_display ?? row.doc.amount_near, unit: row.doc.unit ?? 'NEAR',
-    amountLabel: amountLabel(row.doc, row.status), accountId: row.doc.account_id, label: row.label };
+    amountLabel: amountLabel(row.doc, row.status), accountId: row.doc.account_id, checkCode: row.doc.check_code ?? null, label: row.label };
 }

@@ -2,6 +2,7 @@
 // Signs with server-side env keys (demo only).
 import { createServer, type IncomingMessage, type ServerResponse, type Server } from 'node:http';
 import { readFileSync } from 'node:fs';
+import { checkCode } from './checkcode.ts';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { parseNear, formatNear, utf8 } from './bytes.ts';
 import { actFunctionCall, actTransfer } from './tx.ts';
@@ -54,24 +55,24 @@ function tokenForDoc(cfg: Config, doc: InvoiceDoc): AllowedToken {
   return entry;
 }
 
-/** Register the invoice id on the token if needed, init it if needed, then run the payer's token action. */
+/**
+ * Init the invoice if needed, then run the payer's token action. An invoice id not yet registered on the token is registered in the
+ * same transaction (storage_deposit before the transfer), so the payer signs one transaction to the token, not two.
+ */
 async function tokenPay(cfg: Config, doc: InvoiceDoc, entry: AllowedToken, plain: boolean, amount: bigint) {
   const signer = cfg.payer;
   if (!signer) throw new Error('server has no payer key');
   const trusted = trustedCodeHash(cfg);
   const txs: any[] = [];
   const sb = await storageBalanceOf(cfg, entry.accountId, doc.account_id);
-  if (sb === null) {
-    const bounds = await storageBalanceBounds(cfg, entry.accountId);
-    txs.push(await sendActions(cfg, signer, entry.accountId, [actStorageDeposit(doc.account_id, bounds.min)], 'register'));
-  }
+  const register = sb === null ? [actStorageDeposit(doc.account_id, (await storageBalanceBounds(cfg, entry.accountId)).min)] : [];
   if (!plain) {
     const s = await viewAccount(cfg, doc.account_id);
     if (s.kind !== 'INITIALIZED') txs.push(await sendActions(cfg, signer, doc.account_id, [stateInitAction(doc, trusted), actFund()], 'init'));
   }
   const last = plain
-    ? await sendActions(cfg, signer, entry.accountId, [actFtTransfer(doc.account_id, amount)], 'plain')
-    : await sendActions(cfg, signer, entry.accountId, [actFtTransferCall(doc.account_id, amount, payMsg(doc.invoice_id))], 'pay', doc.account_id);
+    ? await sendActions(cfg, signer, entry.accountId, [...register, actFtTransfer(doc.account_id, amount)], 'plain')
+    : await sendActions(cfg, signer, entry.accountId, [...register, actFtTransferCall(doc.account_id, amount, payMsg(doc.invoice_id))], 'pay', doc.account_id);
   txs.push(last);
   return { txs, last };
 }
@@ -129,7 +130,7 @@ export function serve(cfg: Config, port: number, opts: { token?: string } = {}):
             // Derive the display amount from the raw amount (what the contract moves), never from the file's display field.
             const raw = docAmountRaw(d);
             const display = isV3Doc(d) ? (d.asset.kind === 'ft' ? formatUnits(raw, d.asset.decimals) : formatNear(raw)) : formatNear(raw);
-            return { ...d, amount_display: display, unit: docUnit(d), amount_near: docToken(d) === null ? display : undefined,
+            return { ...d, amount_display: display, unit: docUnit(d), amount_near: docToken(d) === null ? display : undefined, check_code: checkCode(d.account_id),
               unverified_reason: docProblem(d, pinForVerification(trustedCodeHash(cfg), d.code_hash), cfg.allowedTokens) };
           } catch { return { ...d, unverified_reason: 'unreadable amount' }; }
         }));

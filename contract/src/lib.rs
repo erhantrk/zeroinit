@@ -1,10 +1,11 @@
-//! ZeroInit invoice contract v3. One instance = one invoice = one `0u` universal account.
+//! ZeroInit invoice contract v3.3. One instance = one invoice = one `0u` universal account.
 //! The instance never has an init method: its whole state (key "STATE") is written by the
 //! protocol's UniversalStateInit action from the invoice terms. See docs/STABLECOIN.md.
 //!
 //! v3 adds NEP-141 invoices (one token per invoice, named in the terms), a settlement batch
 //! whose private callback `on_settled` is the only place that emits `invoice_paid`, an owed
-//! ledger that retries failed payouts to their own recipient, and a payout lock.
+//! ledger that retries failed payouts to their own recipient, and a payout lock. v3.3 counts funds
+//! already parked by a plain transfer toward the price in `pay` and in token payments.
 use near_sdk::json_types::{U128, U64};
 use near_sdk::serde::Deserialize;
 use near_sdk::serde_json;
@@ -35,7 +36,8 @@ const FT_TRANSFER_GAS_TGAS: u64 = 15;
 const ON_SETTLED_GAS_TGAS: u64 = 20;
 const FT_BALANCE_OF_GAS_TGAS: u64 = 5;
 const MIN_TOKEN_SWEEP_GAS_TGAS: u64 = 150;
-const MIN_FT_ACCEPT_GAS_TGAS: u64 = 90;
+const MIN_FT_ACCEPT_GAS_TGAS: u64 = 100;
+const ON_PAY_BALANCE_GAS_TGAS: u64 = 70;
 
 /// Borsh layout is FROZEN for v3 (docs/STABLECOIN.md section 3). Field order matters.
 #[near(contract_state)]
@@ -116,6 +118,11 @@ pub struct Batch {
     pub merchant_part: u128,
     pub tax_part: u128,
     pub lock: bool,
+    /// v3.3: parked funds a payment counted toward the price, and who sent the rest. Such a settlement
+    /// records no payer (`paid_by` stays None): the parked part may be someone else's money, so nobody
+    /// may later reclaim it with `refund_payer`. Both go into `invoice_paid` for indexers.
+    pub parked_applied: u128,
+    pub topped_up_by: Option<AccountId>,
     pub payouts: Vec<Payout>,
 }
 
@@ -285,7 +292,7 @@ impl Invoice {
         }
         let p = Payout { role: ROLE_PAYER, to: payer.clone(), amount: d, from_owed: false, near: true };
         let batch = Batch { kind: KIND_REFUND, result: result.to_string(), late: false, excess: 0, refund_reason: reason.to_string(),
-            merchant_part: 0, tax_part: 0, lock: false, payouts: vec![p] };
+            merchant_part: 0, tax_part: 0, lock: false, parked_applied: 0, topped_up_by: None, payouts: vec![p] };
         self.dispatch(batch)
     }
 
@@ -347,7 +354,7 @@ impl Invoice {
             }
             st.lock_until = Some(now + BUSY_MS);
             let batch = Batch { kind: KIND_RESEND, result: resend, late: false, excess: 0, refund_reason: String::new(),
-                merchant_part: 0, tax_part: 0, lock: true, payouts };
+                merchant_part: 0, tax_part: 0, lock: true, parked_applied: 0, topped_up_by: None, payouts };
             return SweepOutcome::Pay(batch, st);
         }
 
@@ -376,14 +383,14 @@ impl Invoice {
                 st.tax_amount += tax;
                 st.lock_until = Some(now + BUSY_MS);
                 let batch = Batch { kind: KIND_TRANSFER, result: "PAID".to_string(), late: now > self.expires_at_ms, excess: 0,
-                    refund_reason: String::new(), merchant_part: 0, tax_part: 0, lock: true, payouts };
+                    refund_reason: String::new(), merchant_part: 0, tax_part: 0, lock: true, parked_applied: 0, topped_up_by: None, payouts };
                 return SweepOutcome::Pay(batch, st);
             }
             if eff_status == STATUS_OPEN {
                 if owed_paid {
                     st.lock_until = Some(now + BUSY_MS);
                     let batch = Batch { kind: KIND_RESEND, result: resend, late: false, excess: 0, refund_reason: String::new(),
-                        merchant_part: 0, tax_part: 0, lock: true, payouts };
+                        merchant_part: 0, tax_part: 0, lock: true, parked_applied: 0, topped_up_by: None, payouts };
                     return SweepOutcome::Pay(batch, st);
                 }
                 return SweepOutcome::Panic(format!("UNDERPAID: available {} < amount {}", avail, self.amount));
@@ -393,7 +400,7 @@ impl Invoice {
                 if owed_paid {
                     st.lock_until = Some(now + BUSY_MS);
                     let batch = Batch { kind: KIND_RESEND, result: resend, late: false, excess: 0, refund_reason: String::new(),
-                        merchant_part: 0, tax_part: 0, lock: true, payouts };
+                        merchant_part: 0, tax_part: 0, lock: true, parked_applied: 0, topped_up_by: None, payouts };
                     return SweepOutcome::Pay(batch, st);
                 }
                 return SweepOutcome::Panic("NOTHING_TO_SWEEP".to_string());
@@ -405,7 +412,7 @@ impl Invoice {
             st.tax_amount += tax;
             st.lock_until = Some(now + BUSY_MS);
             let batch = Batch { kind: KIND_EXTRA, result: "EXTRA_SWEPT".to_string(), late: true, excess: 0,
-                refund_reason: String::new(), merchant_part: 0, tax_part: 0, lock: true, payouts };
+                refund_reason: String::new(), merchant_part: 0, tax_part: 0, lock: true, parked_applied: 0, topped_up_by: None, payouts };
             return SweepOutcome::Pay(batch, st);
         }
 
@@ -414,7 +421,7 @@ impl Invoice {
             if owed_paid {
                 st.lock_until = Some(now + BUSY_MS);
                 let batch = Batch { kind: KIND_RESEND, result: resend, late: false, excess: 0, refund_reason: String::new(),
-                    merchant_part: 0, tax_part: 0, lock: true, payouts };
+                    merchant_part: 0, tax_part: 0, lock: true, parked_applied: 0, topped_up_by: None, payouts };
                 return SweepOutcome::Pay(batch, st);
             }
             return SweepOutcome::Panic("NOTHING_TO_SWEEP".to_string());
@@ -426,7 +433,7 @@ impl Invoice {
         st.tax_amount += tax;
         st.lock_until = Some(now + BUSY_MS);
         let batch = Batch { kind: KIND_EXTRA, result: "EXTRA_SWEPT".to_string(), late: false, excess: 0,
-            refund_reason: String::new(), merchant_part: 0, tax_part: 0, lock: true, payouts };
+            refund_reason: String::new(), merchant_part: 0, tax_part: 0, lock: true, parked_applied: 0, topped_up_by: None, payouts };
         SweepOutcome::Pay(batch, st)
     }
 }
@@ -469,32 +476,38 @@ impl Invoice {
             self.tax_amount = tax;
             self.busy_until_ms = now + BUSY_MS;
             let batch = Batch { kind: KIND_TRANSFER, result: "PAID".to_string(), late: now > self.expires_at_ms, excess: d,
-                refund_reason: "already_funded".to_string(), merchant_part: 0, tax_part: 0, lock: true, payouts };
+                refund_reason: "already_funded".to_string(), merchant_part: 0, tax_part: 0, lock: true, parked_applied: 0, topped_up_by: None, payouts };
             return self.dispatch(batch);
         }
-        if d < self.amount {
+        // v3.3: funds already parked by a plain transfer count toward the price, so a payer who sent
+        // part of it as a plain transfer and then calls pay() is charged the price once, not twice.
+        let need = self.amount - parked;
+        if d < need {
             return self.refund(d, &payer, "underpaid", "REFUNDED_UNDERPAID");
         }
         let (net, tax) = self.split();
-        let excess = d - self.amount;
+        let excess = d - need;
         let mut payouts = vec![];
         if let Some(p) = self.payout(ROLE_MERCHANT, self.merchant.clone(), net, false, false) { payouts.push(p); }
         if let Some(p) = self.payout(ROLE_TAX, self.tax_vault.clone(), tax, false, false) { payouts.push(p); }
         if let Some(p) = self.payout(ROLE_PAYER, payer.clone(), excess, false, true) { payouts.push(p); }
         self.status = STATUS_SETTLING;
-        self.paid_by = Some(payer);
+        // A settlement that used parked funds records no payer (see `Batch::parked_applied`).
+        let (paid_by, topped_up_by) = if parked > 0 { (None, Some(payer)) } else { (Some(payer), None) };
+        self.paid_by = paid_by;
         self.paid_at_ms = now;
         self.paid_amount = self.amount;
         self.tax_amount = tax;
         self.busy_until_ms = now + BUSY_MS;
         let batch = Batch { kind: KIND_PAY, result: "PAID".to_string(), late: false, excess,
-            refund_reason: String::new(), merchant_part: 0, tax_part: 0, lock: true, payouts };
+            refund_reason: String::new(), merchant_part: 0, tax_part: 0, lock: true, parked_applied: parked, topped_up_by, payouts };
         self.dispatch(batch)
     }
 
-    /// NEP-141 hook: the token contract already credited `amount` to this invoice. Returns the
-    /// unused amount (the token refunds it to `sender_id`); on acceptance the payouts run in a
-    /// detached batch and `on_settled` records what was delivered.
+    /// NEP-141 hook: the token contract already credited `amount` to this invoice. Rejections return
+    /// the whole amount at once (the token refunds it to `sender_id`). Otherwise the hook reads this
+    /// account's token balance and `on_pay_balance` settles: its value is the unused amount, the
+    /// payouts run in a detached batch and `on_settled` records what was delivered.
     pub fn ft_on_transfer(&mut self, sender_id: AccountId, amount: U128, msg: String) -> PromiseOrValue<U128> {
         let amount = amount.0;
         let predecessor = env::predecessor_account_id();
@@ -538,7 +551,8 @@ impl Invoice {
             return reject(self, "busy");
         }
         let (net, tax) = self.split();
-        let payouts_len = (net > 0) as u128 + (tax > 0) as u128;
+        // The settlement in `on_pay_balance` sends at most two token payouts, each with 1 yocto.
+        let payouts_len = 2u128.max((net > 0) as u128 + (tax > 0) as u128);
         if env::account_balance().as_yoctonear() < payouts_len {
             return reject(self, "no_yocto");
         }
@@ -546,25 +560,103 @@ impl Invoice {
         if remaining < MIN_FT_ACCEPT_GAS_TGAS * 1_000_000_000_000 {
             return reject(self, "low_gas");
         }
-        if amount < self.amount {
+        // v3.3: tokens already parked by a plain ft_transfer count toward the price, but the hook
+        // cannot see them: read this account's balance on the token first, holding the payout lock so
+        // no sweep or other payment can move funds meanwhile. `on_pay_balance` decides; its value is
+        // the unused amount the token returns to the sender.
+        let lock = now + BUSY_MS;
+        self.busy_until_ms = lock;
+        let args = serde_json::to_vec(&FtBalanceArgs { account_id: env::current_account_id() }).expect("ft_balance_of args");
+        PromiseOrValue::Promise(
+            Promise::new(predecessor)
+                .function_call("ft_balance_of".to_string(), args, NearToken::from_yoctonear(0), Gas::from_tgas(FT_BALANCE_OF_GAS_TGAS))
+                .then(
+                    Invoice::ext(env::current_account_id())
+                        .with_static_gas(Gas::from_tgas(ON_PAY_BALANCE_GAS_TGAS))
+                        .with_unused_gas_weight(1)
+                        .on_pay_balance(sender_id, U128(amount), U64(lock)),
+                ),
+        )
+    }
+
+    /// The `ft_balance_of` callback of a token payment (`ft_on_transfer`). `balance` includes this
+    /// payment's `amount`; what is left after the owed ledger is parked from plain transfers and
+    /// counts toward the price. Returns the unused amount, which the token refunds to `sender_id`.
+    /// Never panics: a panic would make the token refund everything while the lock stays held.
+    #[private]
+    pub fn on_pay_balance(&mut self, sender_id: AccountId, amount: U128, lock: U64) -> U128 {
+        let amount = amount.0;
+        let now = env::block_timestamp_ms();
+        let reject = |inv: &mut Invoice, reason: &str| {
+            inv.busy_until_ms = 0;
+            inv.emit_event("payment_rejected", serde_json::json!({
+                "invoice_id": inv.invoice_id, "account_id": env::current_account_id(),
+                "sender": sender_id, "amount": amount.to_string(), "reason": reason,
+                "predecessor": inv.token,
+            }));
+            U128(amount)
+        };
+        // Another call from the token arrived while the balance was read (it changed the lock value,
+        // contract-1): the balance may hold its credit, which the token is about to take back.
+        if self.busy_until_ms != lock.0 {
+            return reject(self, "busy");
+        }
+        let bal = match env::promise_result_checked(0, 128) {
+            Ok(bytes) => match serde_json::from_slice::<U128>(&bytes) {
+                Ok(v) => v.0,
+                Err(_) => return reject(self, "balance_unavailable"),
+            },
+            Err(_) => return reject(self, "balance_unavailable"),
+        };
+        let parked = bal.saturating_sub(amount).saturating_sub(self.owed_total());
+        let mut payouts = vec![];
+        if parked >= self.amount {
+            // The parked tokens already cover the invoice: settle them like a sweep and give this
+            // payment back in full (the token refunds the returned amount to the sender).
+            let (net, tax) = self.split_of(parked);
+            if let Some(p) = self.payout(ROLE_MERCHANT, self.merchant.clone(), net, false, false) { payouts.push(p); }
+            if let Some(p) = self.payout(ROLE_TAX, self.tax_vault.clone(), tax, false, false) { payouts.push(p); }
+            self.status = STATUS_SETTLING;
+            self.paid_by = None;
+            self.paid_at_ms = now;
+            self.paid_amount = parked;
+            self.tax_amount = tax;
+            self.busy_until_ms = now + BUSY_MS;
+            // Emitted when the contract hands the amount back; the token's `ft_resolve_transfer` then
+            // returns it to the sender (NEP-141: burned if the sender unregistered meanwhile).
+            self.emit_event("payment_refunded", serde_json::json!({
+                "invoice_id": self.invoice_id, "account_id": env::current_account_id(),
+                "payer": sender_id, "amount": amount.to_string(), "reason": "already_funded",
+            }));
+            let batch = Batch { kind: KIND_TRANSFER, result: "PAID".to_string(), late: now > self.expires_at_ms, excess: amount,
+                refund_reason: "already_funded".to_string(), merchant_part: 0, tax_part: 0, lock: true, parked_applied: 0, topped_up_by: None, payouts };
+            if let PromiseOrValue::Promise(p) = self.dispatch(batch) {
+                p.detach();
+            }
+            return U128(amount);
+        }
+        let need = self.amount - parked;
+        if amount < need {
             return reject(self, "underpaid");
         }
-        let excess = amount - self.amount;
-        let mut payouts = vec![];
+        let excess = amount - need;
+        let (net, tax) = self.split();
         if let Some(p) = self.payout(ROLE_MERCHANT, self.merchant.clone(), net, false, false) { payouts.push(p); }
         if let Some(p) = self.payout(ROLE_TAX, self.tax_vault.clone(), tax, false, false) { payouts.push(p); }
         self.status = STATUS_SETTLING;
-        self.paid_by = Some(sender_id);
+        // A settlement that used parked tokens records no payer (see `Batch::parked_applied`).
+        let (paid_by, topped_up_by) = if parked > 0 { (None, Some(sender_id)) } else { (Some(sender_id), None) };
+        self.paid_by = paid_by;
         self.paid_at_ms = now;
         self.paid_amount = self.amount;
         self.tax_amount = tax;
         self.busy_until_ms = now + BUSY_MS;
-        let batch = Batch { kind: KIND_PAY, result: "PAID".to_string(), late: false, excess,
-            refund_reason: String::new(), merchant_part: 0, tax_part: 0, lock: true, payouts };
+        let batch = Batch { kind: KIND_PAY, result: "PAID".to_string(), late: now > self.expires_at_ms, excess,
+            refund_reason: String::new(), merchant_part: 0, tax_part: 0, lock: true, parked_applied: parked, topped_up_by, payouts };
         if let PromiseOrValue::Promise(p) = self.dispatch(batch) {
             p.detach();
         }
-        PromiseOrValue::Value(U128(excess))
+        U128(excess)
     }
 
     /// Settle funds that arrived without a call (plain transfer). Anyone may call.
@@ -681,7 +773,7 @@ impl Invoice {
         }
         self.busy_until_ms = now + BUSY_MS;
         let batch = Batch { kind: KIND_RECLAIM, result: "REFUNDED".to_string(), late: false, excess: 0,
-            refund_reason: String::new(), merchant_part, tax_part, lock: true,
+            refund_reason: String::new(), merchant_part, tax_part, lock: true, parked_applied: 0, topped_up_by: None,
             payouts: vec![Payout { role: ROLE_PAYER, to: payer, amount, from_owed: true, near: false }] };
         self.dispatch(batch)
     }
@@ -796,6 +888,7 @@ impl Invoice {
                 "merchant_amount": (self.paid_amount - self.tax_amount).to_string(),
                 "tax_amount": self.tax_amount.to_string(),
                 "excess_refunded": batch.excess.to_string(),
+                "parked_applied": batch.parked_applied.to_string(), "topped_up_by": batch.topped_up_by,
                 "late": late, "retried": batch.kind == KIND_RESEND,
             }));
             return "PAID".to_string();
@@ -1027,11 +1120,11 @@ mod tests {
     }
     fn batch(kind: u8, result: &str, payouts: Vec<Payout>) -> Batch {
         Batch { kind, result: result.to_string(), late: false, excess: 0, refund_reason: String::new(),
-            merchant_part: 0, tax_part: 0, lock: true, payouts }
+            merchant_part: 0, tax_part: 0, lock: true, parked_applied: 0, topped_up_by: None, payouts }
     }
     fn refund_batch(result: &str, reason: &str, payouts: Vec<Payout>) -> Batch {
         Batch { kind: KIND_REFUND, result: result.to_string(), late: false, excess: 0, refund_reason: reason.to_string(),
-            merchant_part: 0, tax_part: 0, lock: false, payouts }
+            merchant_part: 0, tax_part: 0, lock: false, parked_applied: 0, topped_up_by: None, payouts }
     }
     fn tax_of(x: u128) -> u128 {
         x * 800 / 10_000
@@ -1321,34 +1414,68 @@ mod tests {
     // ---- 14-18: fix 3 (tax) ----
 
     #[test]
-    fn partial_parked_then_pay_then_sweep_taxes_parked() {
+    fn partial_parked_counts_toward_the_price_in_pay() {
+        // v3.3: 0.05 parked by a plain transfer, then pay() with the full price: the price is settled once,
+        // the 0.05 comes back as excess, and every yocto on the account leaves it (nothing for a later sweep).
         let price = ONE_NEAR;
         let half = ONE_NEAR / 20; // 0.05
         ctx(price, NOW, price + half);
         let mut inv = near_invoice();
-        inv.pay();
-        let mut merchant_total = sent_to(MERCHANT);
-        let mut tax_total = sent_to(VAULT);
-        let b = batch(KIND_PAY, "PAID", payouts_from_transfers(false));
-        ctx_cb(vec![ok(), ok()], NOW + 1000, 0);
+        drop(inv.pay());
+        assert_eq!(sent_to(MERCHANT), price - tax_of(price));
+        assert_eq!(sent_to(VAULT), tax_of(price));
+        assert_eq!(sent_to(PAYER), half, "the parked part comes back as excess");
+        assert_eq!(sent_to(MERCHANT) + sent_to(VAULT) + sent_to(PAYER), price + half, "the whole balance is paid out");
+        assert_eq!(inv.paid_by, None, "a settlement that used parked funds records no payer");
+        assert_eq!(inv.paid_amount, price);
+        let b = Batch { excess: half, parked_applied: half, topped_up_by: Some(PAYER.parse().unwrap()),
+            ..batch(KIND_PAY, "PAID", payouts_from_transfers(false)) };
+        ctx_cb(vec![ok(), ok(), ok()], NOW + 1000, 0);
         assert_eq!(inv.on_settled(b), "PAID");
-        assert_eq!(inv.status, STATUS_PAID);
+        let ev = logs_with("\"event\":\"invoice_paid\"");
+        assert_eq!(ev.len(), 1);
+        assert!(ev[0].contains("\"via\":\"transfer\"") && ev[0].contains("\"payer\":null"), "{}", ev[0]);
+        assert!(ev[0].contains(&format!("\"parked_applied\":\"{half}\"")) && ev[0].contains(&format!("\"topped_up_by\":\"{PAYER}\"")), "{}", ev[0]);
+    }
 
-        ctx(0, NOW + 2000, half);
-        let r = inv.sweep();
-        assert!(matches!(r, PromiseOrValue::Promise(_)));
-        drop(r);
-        merchant_total += sent_to(MERCHANT);
-        tax_total += sent_to(VAULT);
-        assert_eq!(sent_to(VAULT), tax_of(half));
-        assert_eq!(merchant_total, price - tax_of(price) + (half - tax_of(half)));
-        assert_eq!(tax_total, tax_of(price) + tax_of(half));
-        assert_eq!(tax_total, tax_of(price + half), "vault gets 8% of 0.15, never an untaxed share");
-        let b = batch(KIND_EXTRA, "EXTRA_SWEPT", payouts_from_transfers(false));
-        ctx_cb(vec![ok(), ok()], NOW + 3000, 0);
-        assert_eq!(inv.on_settled(b), "EXTRA_SWEPT");
-        assert_eq!(inv.paid_amount, price + half);
-        assert_eq!(inv.tax_amount, tax_of(price + half));
+    #[test]
+    fn partial_parked_settlement_cannot_be_reclaimed_by_the_topper() {
+        // A 1-yocto top-up on someone else's parked funds must not make the sender the payer who may
+        // later reclaim undelivered shares with refund_payer.
+        let price = ONE_NEAR;
+        let mut inv = near_invoice();
+        ctx(1, NOW, price);
+        drop(inv.pay());
+        assert_eq!(inv.status, STATUS_SETTLING);
+        assert_eq!(inv.paid_by, None);
+        // the merchant payout fails: the share is owed and stays owed to the merchant
+        let b = Batch { parked_applied: price - 1, topped_up_by: Some(PAYER.parse().unwrap()), ..batch(KIND_PAY, "PAID", payouts_from_transfers(false)) };
+        ctx_cb(vec![PromiseResult::Failed, ok()], NOW + 1000, 0);
+        assert_eq!(inv.on_settled(b), "PAYOUT_PENDING");
+        assert!(inv.owed_merchant > 0);
+        ctx(0, EXPIRES + GRACE + 1, 0);
+        assert!(panic_message(|| { inv.refund_payer(); }).contains("NO_PAYER"));
+    }
+
+    #[test]
+    fn partial_parked_pay_needs_only_the_rest() {
+        let price = ONE_NEAR;
+        let parked = ONE_NEAR / 2;
+        // 0.4 on top of 0.5 parked is short: refunded as underpaid, the parked 0.5 stays
+        let mut short = near_invoice();
+        ctx(ONE_NEAR * 4 / 10, NOW, parked + ONE_NEAR * 4 / 10);
+        drop(short.pay());
+        assert_eq!(short.status, STATUS_OPEN);
+        assert_eq!(sent_to(PAYER), ONE_NEAR * 4 / 10);
+        assert_eq!(logs_with("\"reason\":\"underpaid\"").len(), 0, "the refund event comes from on_settled");
+        // exactly the rest settles the full price with no excess
+        let mut inv = near_invoice();
+        ctx(price - parked, NOW, price);
+        drop(inv.pay());
+        assert_eq!(inv.status, STATUS_SETTLING);
+        assert_eq!(sent_to(MERCHANT), price - tax_of(price));
+        assert_eq!(sent_to(VAULT), tax_of(price));
+        assert_eq!(sent_to(PAYER), 0);
     }
 
     #[test]
@@ -1549,7 +1676,7 @@ mod tests {
         assert_eq!(inv.owed_tax, 0);
         assert_eq!(inv.status, STATUS_SETTLING);
         let b = Batch { kind: KIND_RECLAIM, result: "REFUNDED".to_string(), late: false, excess: 0,
-            refund_reason: String::new(), merchant_part: ONE_NEAR / 2, tax_part: ONE_NEAR / 100, lock: true,
+            refund_reason: String::new(), merchant_part: ONE_NEAR / 2, tax_part: ONE_NEAR / 100, lock: true, parked_applied: 0, topped_up_by: None,
             payouts: payouts_from_transfers(true) };
         ctx_cb(vec![ok()], now + 1, 0);
         assert_eq!(inv.on_settled(b), "REFUNDED");
@@ -1577,7 +1704,7 @@ mod tests {
         ctx(0, now, amount);
         inv.refund_payer();
         let b = Batch { kind: KIND_RECLAIM, result: "REFUNDED".to_string(), late: false, excess: 0,
-            refund_reason: String::new(), merchant_part: ONE_NEAR / 2, tax_part: ONE_NEAR / 100, lock: true,
+            refund_reason: String::new(), merchant_part: ONE_NEAR / 2, tax_part: ONE_NEAR / 100, lock: true, parked_applied: 0, topped_up_by: None,
             payouts: payouts_from_transfers(true) };
         ctx_cb(vec![PromiseResult::Failed], now + 1, 0);
         assert_eq!(inv.on_settled(b), "RECLAIM_FAILED");
@@ -1626,7 +1753,7 @@ mod tests {
         ctx(0, now, amount);
         inv.refund_payer();
         let b = Batch { kind: KIND_RECLAIM, result: "REFUNDED".to_string(), late: false, excess: 0,
-            refund_reason: String::new(), merchant_part: ONE_NEAR / 2, tax_part: ONE_NEAR / 100, lock: true,
+            refund_reason: String::new(), merchant_part: ONE_NEAR / 2, tax_part: ONE_NEAR / 100, lock: true, parked_applied: 0, topped_up_by: None,
             payouts: payouts_from_transfers(true) };
         ctx_cb(vec![ok()], now + 1, 0);
         inv.on_settled(b);
@@ -1738,8 +1865,28 @@ mod tests {
     // ---- 33-48: token ----
 
     fn accept(inv: &mut Invoice, sender: &str, amount: u128, msg: &str, balance: u128, gas: u64) -> PromiseOrValue<U128> {
-        ctx_at(TOKEN, 0, NOW, balance, gas);
-        inv.ft_on_transfer(sender.parse().unwrap(), U128(amount), msg.to_string())
+        accept_full(inv, sender, amount, msg, balance, gas, NOW, 0)
+    }
+    /// A token payment end to end: the hook, then (if it reads the balance) the `on_pay_balance`
+    /// callback with the token balance the read would report: `parked` tokens from plain transfers,
+    /// this payment's `amount` and the owed ledger. `balance` is the account's NEAR balance.
+    fn accept_full(inv: &mut Invoice, sender: &str, amount: u128, msg: &str, balance: u128, gas: u64, now: u64, parked: u128) -> PromiseOrValue<U128> {
+        ctx_at(TOKEN, 0, now, balance, gas);
+        match inv.ft_on_transfer(sender.parse().unwrap(), U128(amount), msg.to_string()) {
+            v @ PromiseOrValue::Value(_) => v,
+            PromiseOrValue::Promise(p) => {
+                drop(p); // a Promise creates its receipts when dropped
+                let calls = ft_calls();
+                assert!(calls.iter().any(|(to, m, a, d, _)| to == TOKEN && m == "ft_balance_of" && a["account_id"] == SELF && *d == 0),
+                    "the hook reads this account's token balance");
+                assert_eq!(callback_calls(), vec!["on_pay_balance".to_string()]);
+                assert!(inv.busy_until_ms > now, "the hook holds the payout lock while the balance is read");
+                let lock = inv.busy_until_ms;
+                let tok_bal = parked + amount + inv.owed_total();
+                ctx_cb(vec![PromiseResult::Successful(format!("\"{}\"", tok_bal).into_bytes())], now, balance);
+                PromiseOrValue::Value(inv.on_pay_balance(sender.parse().unwrap(), U128(amount), U64(lock)))
+            }
+        }
     }
     fn rejected(v: PromiseOrValue<U128>, amount: u128) {
         match v {
@@ -1838,6 +1985,127 @@ mod tests {
         assert_eq!(ev.len(), 1);
         assert!(ev[0].contains("\"payer\":\"sender.testnet\""));
         assert!(ev[0].contains("\"token\":\"tusdc.example.testnet\""));
+    }
+
+    #[test]
+    fn token_parked_part_counts_toward_the_price() {
+        // v3.3: 400k parked by a plain ft_transfer, then ft_transfer_call of the full price: 400k comes back.
+        let mut inv = token_invoice();
+        let r = accept_full(&mut inv, "sender.testnet", 1_000_000, "{\"action\":\"pay\"}", 1000, 300, NOW, 400_000);
+        rejected(r, 400_000);
+        assert_eq!(inv.status, STATUS_SETTLING);
+        assert_eq!(inv.paid_by, None, "a settlement that used parked tokens records no payer");
+        assert_eq!(inv.paid_amount, 1_000_000);
+        let calls: Vec<_> = ft_calls().into_iter().filter(|(_, m, _, _, _)| m == "ft_transfer").collect();
+        assert_eq!(calls.len(), 2);
+        assert!(calls.iter().any(|(_, _, a, _, _)| a["receiver_id"] == MERCHANT && a["amount"] == "920000"));
+        assert!(calls.iter().any(|(_, _, a, _, _)| a["receiver_id"] == VAULT && a["amount"] == "80000"));
+    }
+
+    #[test]
+    fn token_parked_full_settles_and_returns_the_payment() {
+        // The parked tokens already cover the invoice: they settle like a sweep and the payment comes back in full.
+        let mut inv = token_invoice();
+        let r = accept_full(&mut inv, "sender.testnet", 1_000_000, "{\"action\":\"pay\"}", 1000, 300, NOW, 1_200_000);
+        rejected(r, 1_000_000);
+        assert_eq!(inv.status, STATUS_SETTLING);
+        assert_eq!(inv.paid_by, None, "settled from parked tokens, like a sweep");
+        assert_eq!(inv.paid_amount, 1_200_000);
+        assert_eq!(inv.tax_amount, tax_of(1_200_000));
+        let calls: Vec<_> = ft_calls().into_iter().filter(|(_, m, _, _, _)| m == "ft_transfer").collect();
+        assert!(calls.iter().any(|(_, _, a, _, _)| a["receiver_id"] == MERCHANT && a["amount"] == "1104000"));
+        assert!(calls.iter().any(|(_, _, a, _, _)| a["receiver_id"] == VAULT && a["amount"] == "96000"));
+        let ev = logs_with("\"event\":\"payment_refunded\"");
+        assert_eq!(ev.len(), 1);
+        assert!(ev[0].contains("\"reason\":\"already_funded\"") && ev[0].contains("\"amount\":\"1000000\""));
+        let b = Batch { excess: 1_000_000, refund_reason: "already_funded".into(), ..batch(KIND_TRANSFER, "PAID", payouts_from_ft(false)) };
+        ctx_cb(vec![ok(), ok()], NOW + 1000, 0);
+        assert_eq!(inv.on_settled(b), "PAID");
+        assert_eq!(logs_with("\"event\":\"payment_refunded\"").len(), 0, "on_settled does not emit it a second time");
+        let paid = logs_with("\"event\":\"invoice_paid\"");
+        assert_eq!(paid.len(), 1);
+        assert!(paid[0].contains("\"amount\":\"1200000\"") && paid[0].contains("\"excess_refunded\":\"1000000\""), "{}", paid[0]);
+    }
+
+    #[test]
+    fn token_parked_and_owed_together() {
+        // owed ledger 50k + parked 300k + payment 700k: only the parked 300k counts, the owed 50k stays.
+        let mut inv = token_invoice();
+        inv.owed_tax = 50_000;
+        let r = accept_full(&mut inv, "sender.testnet", 700_000, "{\"action\":\"pay\"}", 1000, 300, NOW, 300_000);
+        rejected(r, 0);
+        assert_eq!(inv.status, STATUS_SETTLING);
+        assert_eq!(inv.owed_tax, 50_000);
+        let paid: u128 = ft_calls().iter().filter(|(_, m, _, _, _)| m == "ft_transfer")
+            .map(|(_, _, a, _, _)| a["amount"].as_str().unwrap().parse::<u128>().unwrap()).sum();
+        assert_eq!(paid, 1_000_000);
+    }
+
+    #[test]
+    fn token_parked_part_plus_short_payment_is_underpaid() {
+        let mut inv = token_invoice();
+        let r = accept_full(&mut inv, "sender.testnet", 600_000, "{\"action\":\"pay\"}", 1000, 300, NOW, 300_000);
+        rejected(r, 600_000);
+        assert_eq!(inv.status, STATUS_OPEN);
+        assert_eq!(inv.busy_until_ms, 0, "a rejection in the callback releases the lock");
+        assert_eq!(logs_with("\"reason\":\"underpaid\"").len(), 1);
+        assert!(ft_calls().is_empty(), "no payout");
+    }
+
+    #[test]
+    fn token_owed_ledger_is_not_counted_as_parked() {
+        let mut inv = token_invoice();
+        inv.owed_tax = 50_000;
+        let r = accept(&mut inv, "sender.testnet", 1_000_000, "{\"action\":\"pay\"}", 1000, 300);
+        rejected(r, 0);
+        assert_eq!(inv.paid_by, Some("sender.testnet".parse().unwrap()));
+        assert_eq!(inv.paid_amount, 1_000_000);
+    }
+
+    #[test]
+    fn token_payment_racing_another_token_call_is_returned() {
+        // A second ft_transfer_call arrives while the first one's balance is being read: the second is
+        // rejected as busy and changes the lock, so the first one's callback plans nothing either.
+        let mut inv = token_invoice();
+        ctx_at(TOKEN, 0, NOW, 1000, 300);
+        let r = inv.ft_on_transfer("a.testnet".parse().unwrap(), U128(1_000_000), "{\"action\":\"pay\"}".into());
+        assert!(matches!(r, PromiseOrValue::Promise(_)));
+        drop(r);
+        let lock = inv.busy_until_ms;
+        ctx_at(TOKEN, 0, NOW + 1, 1000, 300);
+        rejected(inv.ft_on_transfer("b.testnet".parse().unwrap(), U128(1_000_000), "{\"action\":\"pay\"}".into()), 1_000_000);
+        assert_ne!(inv.busy_until_ms, lock);
+        ctx_cb(vec![PromiseResult::Successful(b"\"2000000\"".to_vec())], NOW + 2, 1000);
+        assert_eq!(inv.on_pay_balance("a.testnet".parse().unwrap(), U128(1_000_000), U64(lock)).0, 1_000_000);
+        assert_eq!(inv.status, STATUS_OPEN);
+        assert_eq!(inv.busy_until_ms, 0);
+        assert!(ft_calls().is_empty());
+        assert_eq!(logs_with("\"reason\":\"busy\"").len(), 1);
+    }
+
+    #[test]
+    fn token_payment_balance_unavailable_is_returned() {
+        let mut inv = token_invoice();
+        ctx_at(TOKEN, 0, NOW, 1000, 300);
+        drop(inv.ft_on_transfer("a.testnet".parse().unwrap(), U128(1_000_000), "{\"action\":\"pay\"}".into()));
+        let lock = inv.busy_until_ms;
+        ctx_cb(vec![PromiseResult::Failed], NOW + 1, 1000);
+        assert_eq!(inv.on_pay_balance("a.testnet".parse().unwrap(), U128(1_000_000), U64(lock)).0, 1_000_000);
+        assert_eq!(inv.status, STATUS_OPEN);
+        assert_eq!(inv.busy_until_ms, 0);
+        ctx_cb(vec![PromiseResult::Successful(b"not json".to_vec())], NOW + 2, 1000);
+        inv.busy_until_ms = lock;
+        assert_eq!(inv.on_pay_balance("a.testnet".parse().unwrap(), U128(1_000_000), U64(lock)).0, 1_000_000);
+        assert_eq!(logs_with("\"reason\":\"balance_unavailable\"").len(), 1);
+    }
+
+    #[test]
+    fn token_sweep_waits_while_a_payment_reads_the_balance() {
+        let mut inv = token_invoice();
+        ctx_at(TOKEN, 0, NOW, 1000, 300);
+        drop(inv.ft_on_transfer("a.testnet".parse().unwrap(), U128(1_000_000), "{\"action\":\"pay\"}".into()));
+        ctx_at("anyone.testnet", 0, NOW + 1, 1000, 300);
+        assert!(panic_message(|| { inv.sweep(); }).contains("PAYOUT_IN_FLIGHT"));
     }
 
     #[test]
@@ -2041,7 +2309,7 @@ mod tests {
         assert_eq!(fts[0].2["amount"], "1000000");
         assert_eq!(fts[0].3, 1);
         let b = Batch { kind: KIND_RECLAIM, result: "REFUNDED".to_string(), late: false, excess: 0,
-            refund_reason: String::new(), merchant_part: 920_000, tax_part: 80_000, lock: true,
+            refund_reason: String::new(), merchant_part: 920_000, tax_part: 80_000, lock: true, parked_applied: 0, topped_up_by: None,
             payouts: payouts_from_ft(true) };
         ctx_cb(vec![ok()], now + 1, 0);
         assert_eq!(inv.on_settled(b), "REFUNDED");
@@ -2606,13 +2874,13 @@ mod tests {
     // ---- tests-8: thresholds and boundaries ----
 
     #[test]
-    fn ft_accept_gas_boundary_is_about_90_tgas() {
+    fn ft_accept_gas_boundary_is_about_100_tgas() {
         let mut low = token_invoice();
-        rejected(accept(&mut low, "s.testnet", 1_000_000, "{\"action\":\"pay\"}", 1000, 89), 1_000_000);
+        rejected(accept(&mut low, "s.testnet", 1_000_000, "{\"action\":\"pay\"}", 1000, 99), 1_000_000);
         assert!(logs_with("\"reason\":\"low_gas\"").len() == 1);
         let mut ok_inv = token_invoice();
         // the hook measures prepaid minus what it has already burned (a fraction of a Tgas in the mock)
-        let r = accept(&mut ok_inv, "s.testnet", 1_000_000, "{\"action\":\"pay\"}", 1000, 91);
+        let r = accept(&mut ok_inv, "s.testnet", 1_000_000, "{\"action\":\"pay\"}", 1000, 101);
         rejected(r, 0);
         assert_eq!(ok_inv.status, STATUS_SETTLING);
     }
@@ -2663,8 +2931,7 @@ mod tests {
         assert_eq!(late.status, STATUS_EXPIRED);
 
         let mut tok = token_invoice();
-        ctx_at(TOKEN, 0, EXPIRES, 1000, 300);
-        let r = tok.ft_on_transfer("s.testnet".parse().unwrap(), U128(1_000_000), "{\"action\":\"pay\"}".into());
+        let r = accept_full(&mut tok, "s.testnet", 1_000_000, "{\"action\":\"pay\"}", 1000, 300, EXPIRES, 0);
         rejected(r, 0);
         assert_eq!(tok.status, STATUS_SETTLING, "ft_on_transfer at now == expires_at_ms");
         // and a sweep at now == expires_at_ms is not yet "lapsed": a short balance is UNDERPAID, not released

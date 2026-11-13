@@ -2,7 +2,7 @@
 // Run: node --test test/dashboard-state.test.ts
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { FORM_FIELDS, badgeLabel, formBody, invoiceRows, selection, amountLabel, formatRaw } from '../web/state.js';
+import { FORM_FIELDS, badgeLabel, formBody, invoiceRows, selection, amountLabel, formatRaw, selectedHtml } from '../web/state.js';
 
 test('badgeLabel turns the status API response into the badge text', () => {
   assert.equal(badgeLabel({ state: 'NONEXISTENT' }), 'NONEXISTENT');
@@ -32,8 +32,9 @@ test('formBody and selection feed the create/pay paths', () => {
   assert.deepEqual(formBody(values), Object.fromEntries(FORM_FIELDS.map((k) => [k, (values as Record<string, string>)[k]])));
   assert.deepEqual(Object.keys(formBody(values)), FORM_FIELDS);
 
-  const rows = invoiceRows([{ invoice_id: 'INV-WEB-1', amount_display: '1', unit: 'NEAR', account_id: '0ua' }], [{ state: 'UNINITIALIZED' }]);
-  assert.deepEqual(selection(rows, 'INV-WEB-1'), { id: 'INV-WEB-1', amountDisplay: '1', unit: 'NEAR', amountLabel: '1 NEAR', accountId: '0ua', label: 'UNINITIALIZED' });
+  const rows = invoiceRows([{ invoice_id: 'INV-WEB-1', amount_display: '1', unit: 'NEAR', account_id: '0ua', check_code: 'AB12' }], [{ state: 'UNINITIALIZED' }]);
+  assert.deepEqual(selection(rows, 'INV-WEB-1'), { id: 'INV-WEB-1', amountDisplay: '1', unit: 'NEAR', amountLabel: '1 NEAR', accountId: '0ua', checkCode: 'AB12', label: 'UNINITIALIZED' });
+  assert.match(selectedHtml(selection(rows, 'INV-WEB-1')!), /check AB12/);
   assert.equal(selection(rows, 'MISSING'), null);
 });
 

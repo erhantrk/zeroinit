@@ -1,5 +1,6 @@
 // ZeroInit MCP tools (plain functions; mcp/server.ts wraps them). Read-only: nothing here signs or sends a transaction, and no key is ever read.
 // Everything is computed by the existing library code (stateinit, invoice, verify, status, rpc); nothing is re-implemented.
+import { checkCode } from '../src/checkcode.ts';
 import { parseNear, formatNear } from '../src/bytes.ts';
 import { trustedCodeHash, pinForVerification, deploymentOf, deploymentLabel, tokenBySymbol, type Config } from '../src/config.ts';
 import { invoiceStateBytes } from '../src/stateinit.ts';
@@ -112,6 +113,8 @@ export async function issueInvoice(cfg: Config, a: IssueArgs, now = Date.now()):
     transaction_sent: false,
     cost: 'Issuing sent no transaction and cost nothing: the address is computed from the terms. The payer\'s own transaction creates the account, pays the merchant and sets the tax aside. This server never signs.',
     pay_address: doc.account_id,
+    check_code: checkCode(doc.account_id),
+    check_code_note: 'Show this code next to the pay address. A payer who types the address into a wallet can check it first with `npx -y @erhantrk/zeroinit check <address> <code>`: a mistyped 0u address is a valid address of other bytes and funds sent there are lost.',
     deployment: deploymentLabel(codeHash),
     invoice: doc,
     pay_instructions: payInstructions(doc, cfg),

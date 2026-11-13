@@ -120,6 +120,12 @@ function checkFtCallAccounting(result: any, doc: InvoiceDoc, p: ParsedTx, reject
     add(refunded === decimal(paid.excess_refunded) && used === decimal(paid.amount), 'ft-excess-refunded', id,
       `used ${used} = amount ${String(paid.amount)}, refunded ${refunded} = excess ${String(paid.excess_refunded)}`);
   }
+  // v3.3: a payment on top of parked tokens settles the price once; the event names the parked part and who sent the rest.
+  const parkedApplied = paid ? decimal(paid.parked_applied ?? '0') : null;
+  if (paid && paid.via === 'transfer' && parkedApplied !== null && parkedApplied > 0n) {
+    add(paid.topped_up_by === sender && used + parkedApplied === decimal(paid.amount) && refunded === decimal(paid.excess_refunded), 'ft-parked-applied', id,
+      `used ${used} + parked ${parkedApplied} = amount ${String(paid.amount)}, refunded ${refunded} = excess ${String(paid.excess_refunded)}, topped up by ${String(paid.topped_up_by)}`);
+  }
 }
 
 
@@ -174,6 +180,15 @@ function checkNearPay(result: any, doc: InvoiceDoc, p: ParsedTx, add: Add): void
     const excess = decimal(paid.excess_refunded);
     const ok = settled !== null && excess !== null && deposit === settled + excess && toSigner === excess;
     add(ok, 'pay-deposit-accounted', id, `deposit ${formatNear(deposit)} = settled ${String(paid.amount)} + excess ${String(paid.excess_refunded)}; ${formatNear(toSigner)} back to the signer`);
+  }
+  // v3.3: pay() on top of parked NEAR: deposit + parked = price + excess, no payer recorded, the signer named as the one who topped up.
+  const parkedApplied = paid ? decimal(paid.parked_applied ?? '0') : null;
+  if (ret === 'PAID' && paid && paid.via === 'transfer' && !refund && parkedApplied !== null && parkedApplied > 0n) {
+    const settled = decimal(paid.amount);
+    const excess = decimal(paid.excess_refunded);
+    const ok = settled !== null && excess !== null && deposit + parkedApplied === settled + excess && toSigner === excess
+      && paid.payer === null && paid.topped_up_by === signer;
+    add(ok, 'pay-parked-applied', id, `deposit ${formatNear(deposit)} + parked ${formatNear(parkedApplied)} = settled ${String(paid.amount)} + excess ${String(paid.excess_refunded)}; ${formatNear(toSigner)} back to ${String(signer)}`);
   }
 }
 

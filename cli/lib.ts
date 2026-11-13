@@ -6,3 +6,4 @@ export { verifyDoc } from '../src/verify.ts';
 export { statusLine } from '../src/status.ts';
 export { loadConfig, trustedCodeHash, DEPLOYED_CODE_HASH, KNOWN_DEPLOYMENTS, deploymentOf } from '../src/config.ts';
 export { parseNear, formatNear } from '../src/bytes.ts';
+export { checkCode, checkCodeMatches } from '../src/checkcode.ts';

@@ -14,6 +14,7 @@ No keys needed:
   zeroinit status INV-1111-V32R-A              its live state
   zeroinit replay fixtures/v32r/demo-run.json  the recorded live run, replayed offline
   zeroinit vectors                             the byte-encoding test vectors
+  zeroinit check <0u address> <check code>     before sending from a wallet: does the address match its check code?
   zeroinit invoice new --id TEST-1 --merchant example-zi-merchant.testnet --tax-vault example-zi-taxvault.testnet \\
       --tax-bps 800 --amount 0.1 --expires-in 2h --offline
                                                issue an invoice: sends no transaction, writes ./invoices/TEST-1.json

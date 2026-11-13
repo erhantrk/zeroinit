@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { parseNear, formatNear, utf8 } from './bytes.ts';
 import { invoiceStateBytes } from './stateinit.ts';
 import { actFunctionCall } from './tx.ts';
-import { loadConfig, trustedCodeHash, pinForVerification, deploymentLabel, deploymentOf, fixesParkedFunds, tokenBySymbol, type Config, type Signer, type AllowedToken } from './config.ts';
+import { loadConfig, trustedCodeHash, pinForVerification, deploymentLabel, deploymentOf, fixesParkedFunds, fixesFinding, tokenBySymbol, type Config, type Signer, type AllowedToken } from './config.ts';
 import { checkNetwork, viewAccount, viewInvoice, setRecordInvoice, recordInvoiceDoc, rpcCall } from './rpc.ts';
 import { sendActions } from './send.ts';
 import { createInvoiceDoc, loadDoc, saveDoc, checkDoc, assertDocTrusted, assertAccountsUsable, stateInitAction, termsMatchOnchain, docProblem, onchainProblem, randomSalt,
@@ -14,6 +14,7 @@ import { createInvoiceDoc, loadDoc, saveDoc, checkDoc, assertDocTrusted, assertA
 import { statusLine } from './status.ts';
 import { verifyDoc } from './verify.ts';
 import { runVectors } from './vectors.ts';
+import { checkCode, checkCodeMatches } from './checkcode.ts';
 import { replayFixture, fixturePin } from './replay.ts';
 import { parseTxStatus, type ParsedTx } from './outcome.ts';
 import { GAS, FLOAT_YOCTO, actFund, actFtTransfer, actFtTransferCall, actStorageDeposit, payMsg, parseUnits, formatUnits,
@@ -105,7 +106,7 @@ function failureText(p: ParsedTx): string {
 
 async function main(argv: string[]): Promise<number> {
   const [cmd, ...rest] = argv;
-  const KNOWN = ['vectors', 'replay', 'invoice', 'status', 'pay', 'init', 'sweep', 'verify', 'receipt', 'serve', 'token', 'refund-payer'];
+  const KNOWN = ['vectors', 'replay', 'check', 'invoice', 'status', 'pay', 'init', 'sweep', 'verify', 'receipt', 'serve', 'token', 'refund-payer'];
   if (!cmd || !KNOWN.includes(cmd)) throw new UsageError(`unknown command ${cmd ?? '(none)'}. Commands: ${KNOWN.join(', ')}`);
   const args = cmd === 'invoice' ? rest.slice(1) : cmd === 'token' ? rest.slice(1) : rest;
   const { values: v, positionals: pos } = parseArgs({ args, allowPositionals: true, options: {
@@ -128,6 +129,14 @@ async function main(argv: string[]): Promise<number> {
     const r = replayFixture(pos[0], pin);
     out(json, r, [`INFO deployment ${deploymentLabel(pin)} ${pin}`, ...r.map((c) => `${c.ok ? 'PASS' : 'FAIL'} ${c.name} ${c.id}${c.detail ? ' ' + c.detail : ''}`)]);
     return r.length > 0 && r.every((c) => c.ok) ? 0 : 1;
+  }
+
+  if (cmd === 'check') {
+    // Offline: does this address match the check code the issuer gave next to it? Catches a mistyped or altered address.
+    if (!pos[0] || !pos[1]) throw new UsageError('usage: zi check <0u address> <check code>');
+    const ok = checkCodeMatches(pos[0], pos[1]);
+    out(json, { address: pos[0], ok }, [ok ? `PASS check-code ${pos[0]}` : `FAIL check-code ${pos[0]}: the code does not match this address; do not send funds to it`]);
+    return ok ? 0 : 1;
   }
 
   const cfg = loadConfig();
@@ -193,7 +202,7 @@ async function main(argv: string[]): Promise<number> {
     const doc = createInvoiceDoc(scheme, codeHash, terms);
     const file = saveDoc(cfg.invoiceDir, doc);
     recordInvoiceDoc(cfg, doc);
-    out(json, doc, [`INVOICE ${doc.invoice_id}`, `ACCOUNT ${doc.account_id}`, `PAY ${docAmountDisplay(doc)} ${docUnit(doc)} before ${doc.expires_at_iso}`, `FILE ${file}`]);
+    out(json, { ...doc, check_code: checkCode(doc.account_id) }, [`INVOICE ${doc.invoice_id}`, `ACCOUNT ${doc.account_id}`, `CHECK ${checkCode(doc.account_id)}`, `PAY ${docAmountDisplay(doc)} ${docUnit(doc)} before ${doc.expires_at_iso}`, `FILE ${file}`]);
     return 0;
   }
 
@@ -241,28 +250,27 @@ async function main(argv: string[]): Promise<number> {
     const dec = docDecimals(doc);
 
     if (cmd === 'pay' && entry) {
-      // token path: register the invoice id if needed -> init + fund if the account does not exist -> ft_transfer_call / plain ft_transfer
+      // token path: init + fund if the account does not exist -> [storage_deposit if not registered, ft_transfer_call / plain ft_transfer]
+      // in ONE transaction to the token, so registering costs the payer no extra signature.
       const amount = v.amount ? parseUnits(v.amount, entry.decimals) : docAmountRaw(doc);
-      // audit claims-3: ft_on_transfer cannot see tokens already parked by a plain ft_transfer, so a one-step payment on top of them is charged
-      // twice (the parked amount is later swept as an extra). Refuse and point at `zi sweep`; --allow-parked overrides on purpose.
-      if (!v.plain && !v['allow-parked']) {
+      // audit claims-3: before v3.3, ft_on_transfer cannot see tokens already parked by a plain ft_transfer, so a one-step payment on top
+      // of them is charged twice (the parked amount is later swept as an extra). Refuse and point at `zi sweep`; --allow-parked overrides
+      // on purpose. v3.3 reads the balance and counts parked tokens toward the price, so nothing to refuse.
+      if (!v.plain && !v['allow-parked'] && !fixesFinding(trusted, 'parked-counted')) {
         const parked = await ftBalanceOf(cfg, entry.accountId, doc.account_id);
         if (parked > 0n) {
           throw new UsageError(`invoice ${doc.invoice_id} already holds ${formatUnits(parked, entry.decimals)} ${entry.symbol} from a plain transfer: run \`zi sweep ${doc.invoice_id}\` instead of paying again (or pass --allow-parked)`);
         }
       }
       const sb = await storageBalanceOf(cfg, entry.accountId, doc.account_id);
-      if (sb === null) {
-        const bounds = await storageBalanceBounds(cfg, entry.accountId);
-        const reg = await sendActions(cfg, signer, entry.accountId, [actStorageDeposit(doc.account_id, bounds.min)], 'register');
-        out(json, reg, [...txLines(reg), `REGISTERED ${doc.account_id} on ${entry.accountId} (${formatNear(bounds.min)} NEAR storage deposit)`]);
-        if (!reg.success) return 1;
-      }
+      const regDeposit = sb === null ? (await storageBalanceBounds(cfg, entry.accountId)).min : null;
+      const register = regDeposit === null ? [] : [actStorageDeposit(doc.account_id, regDeposit)];
+      const regLine = regDeposit === null ? [] : [`REGISTERED ${doc.account_id} on ${entry.accountId} in the same transaction (${formatNear(regDeposit)} NEAR storage deposit)`];
       if (v.plain) {
         // The exchange path: no state init, no init transaction. The tokens sit on the token contract until a sweep.
-        const p = await sendActions(cfg, signer, entry.accountId, [actFtTransfer(doc.account_id, amount)], 'plain-transfer');
+        const p = await sendActions(cfg, signer, entry.accountId, [...register, actFtTransfer(doc.account_id, amount)], 'plain-transfer');
         const after = await statusLine(cfg, doc, 'after: view_account');
-        out(json, { tx: p, after: after.obj }, [...txLines(p, dec, unit), after.line]);
+        out(json, { tx: p, after: after.obj }, [...txLines(p, dec, unit), ...(p.success ? regLine : []), after.line]);
         console.error(`PLAIN: a bare ft_transfer; anyone can run \`zi sweep ${doc.invoice_id}\` to settle it`);
         return p.success ? 0 : 1;
       }
@@ -272,15 +280,15 @@ async function main(argv: string[]): Promise<number> {
         out(json, init, [...txLines(init), `INITIALIZED ${doc.account_id}`]);
         if (!init.success) return 1;
       }
-      const p = await sendActions(cfg, signer, entry.accountId, [actFtTransferCall(doc.account_id, amount, payMsg(doc.invoice_id))], 'pay', doc.account_id);
+      const p = await sendActions(cfg, signer, entry.accountId, [...register, actFtTransferCall(doc.account_id, amount, payMsg(doc.invoice_id))], 'pay', doc.account_id);
       const after = await statusLine(cfg, doc, 'after: view_account');
-      out(json, { tx: p, after: after.obj }, [...txLines(p, dec, unit), after.line]);
+      out(json, { tx: p, after: after.obj }, [...txLines(p, dec, unit), ...(p.success ? regLine : []), after.line]);
       const paid = p.events.some((e) => e.event === 'invoice_paid');
       const rejected = p.events.find((e) => e.event === 'payment_rejected');
       const failed = p.events.filter((e) => e.event === 'transfer_failed');
       if (rejected) {
         const reason = (rejected.data[0] as Record<string, unknown>)?.reason;
-        console.error(`NOT PAID: payment_rejected ${String(reason)} (the token returned the amount)`);
+        console.error(`NOT PAID: payment_rejected ${String(reason)} (the token returned the amount)${reason === 'busy' ? '; another payment or sweep was in flight, try again in a moment' : ''}`);
       } else if (failed.length) {
         console.error(`WARNING ${failed.length} payout(s) failed; the shares are owed. Fix the recipient, then run \`zi sweep ${doc.invoice_id}\``);
       } else if (!paid) {

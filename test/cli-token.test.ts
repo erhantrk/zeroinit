@@ -44,28 +44,26 @@ async function setup(doc: InvoiceDoc, ch: Chain, extraEnv: Record<string, string
   return { dir, rpc, env, sent };
 }
 
-test('pay token: register the id, init+fund, then ft_transfer_call (1 yocto, 200 Tgas, exact msg)', async () => {
+test('pay token: init+fund, then [storage_deposit, ft_transfer_call] in one transaction (1 yocto, 200 Tgas, exact msg)', async () => {
   const doc = makeTokenDoc();
   const { rpc, env, sent } = await setup(doc, { storageBalance: null, txResult: txResult(doc, '0', [paidEvent(doc)]) });
   try {
     const r = await runCli(['pay', doc.invoice_id], env);
     assert.equal(r.code, 0, r.stdout + r.stderr);
+    assert.match(r.stdout, /REGISTERED .* in the same transaction/);
     const txs = sent();
-    assert.equal(txs.length, 3, `${txs.length} transactions`);
-    assert.equal(txs[0].receiver, TOKEN);
-    assert.deepEqual(txs[0].actions.map((a) => a.kind), ['FunctionCall']);
-    assert.equal(txs[0].actions[0].method, 'storage_deposit');
-    assert.equal(txs[0].actions[0].deposit, 1_250_000_000_000_000_000_000n);
-    assert.deepEqual(JSON.parse(txs[0].actions[0].args ?? ''), { account_id: doc.account_id, registration_only: true });
-    assert.equal(txs[1].receiver, doc.account_id);
-    assert.deepEqual(txs[1].actions.map((a) => a.kind), ['UniversalStateInit', 'FunctionCall']);
-    assert.equal(txs[1].actions[1].method, 'fund');
-    assert.equal(txs[1].actions[1].deposit, 1000n);
-    assert.equal(txs[2].receiver, TOKEN);
-    assert.equal(txs[2].actions[0].method, 'ft_transfer_call');
-    assert.equal(txs[2].actions[0].deposit, 1n);
-    assert.equal(txs[2].actions[0].gas, 200_000_000_000_000n);
-    assert.deepEqual(JSON.parse(txs[2].actions[0].args ?? ''), { receiver_id: doc.account_id, amount: '1500000', msg: `{"action":"pay","invoice_id":"${doc.invoice_id}"}` });
+    assert.equal(txs.length, 2, `${txs.length} transactions`);
+    assert.equal(txs[0].receiver, doc.account_id);
+    assert.deepEqual(txs[0].actions.map((a) => a.kind), ['UniversalStateInit', 'FunctionCall']);
+    assert.equal(txs[0].actions[1].method, 'fund');
+    assert.equal(txs[0].actions[1].deposit, 1000n);
+    assert.equal(txs[1].receiver, TOKEN);
+    assert.deepEqual(txs[1].actions.map((a) => a.method), ['storage_deposit', 'ft_transfer_call']);
+    assert.equal(txs[1].actions[0].deposit, 1_250_000_000_000_000_000_000n);
+    assert.deepEqual(JSON.parse(txs[1].actions[0].args ?? ''), { account_id: doc.account_id, registration_only: true });
+    assert.equal(txs[1].actions[1].deposit, 1n);
+    assert.equal(txs[1].actions[1].gas, 200_000_000_000_000n);
+    assert.deepEqual(JSON.parse(txs[1].actions[1].args ?? ''), { receiver_id: doc.account_id, amount: '1500000', msg: `{"action":"pay","invoice_id":"${doc.invoice_id}"}` });
   } finally { await rpc.close(); }
 });
 
@@ -100,18 +98,17 @@ test('pay token exit codes: 0 only with invoice_paid; rejections and pending are
   }
 });
 
-test('pay --plain: register + ft_transfer, no state init', async () => {
+test('pay --plain: [storage_deposit, ft_transfer] in one transaction, no state init', async () => {
   const doc = makeTokenDoc();
   const { rpc, env, sent } = await setup(doc, { storageBalance: null, txResult: txResult(doc, '') });
   try {
     const r = await runCli(['pay', doc.invoice_id, '--plain'], env);
     assert.equal(r.code, 0, r.stdout + r.stderr);
     const txs = sent();
-    assert.equal(txs.length, 2);
-    assert.equal(txs[0].actions[0].method, 'storage_deposit');
-    assert.equal(txs[1].receiver, TOKEN);
-    assert.equal(txs[1].actions[0].method, 'ft_transfer');
-    assert.equal(txs[1].actions[0].deposit, 1n);
+    assert.equal(txs.length, 1);
+    assert.equal(txs[0].receiver, TOKEN);
+    assert.deepEqual(txs[0].actions.map((a) => a.method), ['storage_deposit', 'ft_transfer']);
+    assert.equal(txs[0].actions[1].deposit, 1n);
     assert.ok(txs.every((t) => t.actions.every((a) => a.kind !== 'UniversalStateInit')));
   } finally { await rpc.close(); }
 });
