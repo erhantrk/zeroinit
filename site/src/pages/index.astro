@@ -6,12 +6,12 @@ import replayData from '../replay-data.json';
 
 const repoUrl = (import.meta.env.PUBLIC_REPO_URL as string | undefined) || 'https://github.com/erhantrk/zeroinit';
 const mcpUrl = repoUrl + '/tree/main/mcp#readme';
-const account = '0u7hdnprw7z1gfz4b6qj8pn683cnhwp4ges18hfbsk03nmdees4ppg';
-const accountShort = '0u7hdnprw7z1…ees4ppg';
-const codeHash = 'BQLSk5carin64UMreToJHT15gvow6wqZSyKqDz7zCFry';
-const replayCmd = 'npm run zi -- replay fixtures/v32r/demo-run.json';
+const account = '0us40y0dm1767jkzzxynmwjer15h4xy5wc96rg3xv5hfgs8fx421ag';
+const accountShort = '0us40y0dm176…fx421ag';
+const codeHash = 'CrwuvfSLJoHs4GkkqqL22PeHG2BdcxmnMoxX2zcfaVsb';
+const replayCmd = 'npm run zi -- replay fixtures/v33/demo-run.json';
 // the live demo invoice the npm command checks; change it here when a new contract version ships
-const demoInvoice = 'INV-1111-V32R-A';
+const demoInvoice = 'INV-1111-V33-A';
 const npmUrl = 'https://www.npmjs.com/package/@erhantrk/zeroinit';
 const npmVerifyCmd = `npx -y @erhantrk/zeroinit verify ${demoInvoice}`;
 const npmMcpCmd = 'claude mcp add zeroinit -- npx -y -p @erhantrk/zeroinit zeroinit-mcp';
@@ -58,7 +58,7 @@ const steps = replayData.steps;
           </p>
         </div>
         <aside class="hero-card" aria-label="The demo invoice" data-hc>
-          <div class="hc-head"><span class="mono">INV-1111-V32R-A</span><span class="status-chip" data-hc-chip data-s="NONEXISTENT"><i></i><b>NONEXISTENT</b></span></div>
+          <div class="hc-head"><span class="mono">INV-1111-V33-A</span><span class="status-chip" data-hc-chip data-s="NONEXISTENT"><i></i><b>NONEXISTENT</b></span></div>
           <p class="hc-addr mono"><span class="sr-only">{accountShort}</span><span aria-hidden="true" data-hc-addr data-final={accountShort}>{accountShort}</span></p>
           <dl class="hc-rows">
             <div><dt>Chain says</dt><dd class="mono" data-hc-chain>UNKNOWN_ACCOUNT</dd></div>
@@ -74,7 +74,7 @@ const steps = replayData.steps;
         <div><dt>transactions to issue an invoice</dt><dd>0</dd></div>
         <div><dt>transaction to pay it</dt><dd>1</dd></div>
         <div><dt>demo split to merchant and tax vault</dt><dd>92 / 8</dd></div>
-        <div><dt>tests pass</dt><dd>242</dd></div>
+        <div><dt>tests pass</dt><dd>254</dd></div>
       </dl>
     </div>
 
@@ -112,7 +112,7 @@ memo: <span class="dim">none needed</span></pre>
           <canvas aria-hidden="true"></canvas>
           <div class="story-shade" aria-hidden="true"></div>
           <div class="wrap story-hud" aria-hidden="true">
-            <p class="story-chip mono"><span data-story-inv>INV-1111-V32R-A</span><span class="status-chip" data-story-chip data-s="NONEXISTENT"><i></i><b>NONEXISTENT</b></span></p>
+            <p class="story-chip mono"><span data-story-inv>INV-1111-V33-A</span><span class="status-chip" data-story-chip data-s="NONEXISTENT"><i></i><b>NONEXISTENT</b></span></p>
             <p class="story-bars"><span></span><span></span><span></span><span></span></p>
           </div>
           <div class="wrap story-text">
@@ -159,10 +159,10 @@ memo: <span class="dim">none needed</span></pre>
     --tax-bps 800 --amount 0.1 --expires-in 2h --offline</code></pre>
                 </div>
                 <div class="card">
-                  <p class="label">Terms of INV-1111-V32R-A, the demo invoice</p>
+                  <p class="label">Terms of INV-1111-V33-A, the demo invoice</p>
                   <dl class="kv">
-                    <div><dt>merchant</dt><dd class="mono">sm1110-zi3-sweeper.testnet</dd></div>
-                    <div><dt>tax_vault</dt><dd class="mono">sm1110-zi3-taxvault.testnet</dd></div>
+                    <div><dt>merchant</dt><dd class="mono">zeroinit-merchant.testnet</dd></div>
+                    <div><dt>tax_vault</dt><dd class="mono">zeroinit-taxvault.testnet</dd></div>
                     <div><dt>tax_bps</dt><dd class="mono">800</dd></div>
                     <div><dt>amount</dt><dd class="mono">1 NEAR</dd></div>
                     <div><dt>address</dt><dd class="mono">{account}</dd></div>
@@ -177,23 +177,23 @@ memo: <span class="dim">none needed</span></pre>
             <div class="more-body">
               <div class="m-text">
                 <p>The transaction has two actions. The first installs the contract at the address. The second calls <span class="mono">pay</span> with the deposit. The contract sends the tax share to the vault and the rest to the merchant.</p>
-                <p>The payer covers gas and the protocol's account-creation charge. For a v3.2r NEAR payment that measured <span class="mono">0.0075612</span> NEAR.</p>
+                <p>The payer covers gas and the protocol's account-creation charge. For a v3.3 NEAR payment that measured <span class="mono">0.0075647</span> NEAR.</p>
               </div>
               <div class="m-visual">
                 <div class="code">
                   <div class="code-head"><span>the payment, as recorded</span><span class="mono ok">PAID</span></div>
-<pre><code><span class="k">signer   </span> sm1110-zi3-payer.testnet
+<pre><code><span class="k">signer   </span> zeroinit-payer.testnet
 <span class="k">receiver </span> {accountShort}
 <span class="k">actions  </span> UniversalStateInit {'{'}raw{'}'}
           FunctionCall {'{'}"pay", "{'{}'}", 100 Tgas, deposit = 1 NEAR{'}'}
-<span class="k">tx       </span> GwnQFSjpCqcPZeSHiTmiu6t5ZMkhM6NQ8vh4NjDzDpWE</code></pre>
+<span class="k">tx       </span> GFzvAw8t95XhN1JnvSNY4K9sThv7HQahLp9AnJ2SHQLe</code></pre>
                 </div>
                 <div class="card">
                   <p class="label">Where the 1 NEAR went</p>
                   <div class="split" role="img" aria-label="92 percent to the merchant, 8 percent to the tax vault"><span style="flex:92"></span><span style="flex:8"></span></div>
                   <dl class="kv">
-                    <div><dt>0.92 NEAR</dt><dd class="mono">sm1110-zi3-sweeper.testnet <span class="muted">(merchant)</span></dd></div>
-                    <div><dt>0.08 NEAR</dt><dd class="mono">sm1110-zi3-taxvault.testnet <span class="muted">(tax vault)</span></dd></div>
+                    <div><dt>0.92 NEAR</dt><dd class="mono">zeroinit-merchant.testnet <span class="muted">(merchant)</span></dd></div>
+                    <div><dt>0.08 NEAR</dt><dd class="mono">zeroinit-taxvault.testnet <span class="muted">(tax vault)</span></dd></div>
                   </dl>
                 </div>
               </div>
@@ -205,7 +205,8 @@ memo: <span class="dim">none needed</span></pre>
             <div class="more-body">
               <div class="m-text">
                 <p>Money sent to the address with no call lands in an account that has no code. <span class="mono">sweep</span> installs the contract and settles with the same split. It does not know who sent the money, so <span class="mono">paid_by</span> is null.</p>
-                <p>Token invoices need one more step: the <span class="mono">0u</span> id must be registered on the token first, with a <span class="mono">storage_deposit</span> of 0.00125 NEAR that anyone can send.</p>
+                <p>If part of the price was sent this way and the payer then pays normally, the parked part counts toward the price and the rest comes back. Nobody is charged twice.</p>
+                <p>Token invoices need one more step: the <span class="mono">0u</span> id must be registered on the token, with a <span class="mono">storage_deposit</span> of 0.00125 NEAR. The CLI does it in the same transaction as the payment; for a transfer from an exchange, anyone can send it first.</p>
               </div>
               <div class="m-visual">
                 <div class="card">
@@ -218,8 +219,8 @@ memo: <span class="dim">none needed</span></pre>
                 </div>
                 <div class="code">
                   <div class="code-head"><span>the invoice paid by a plain transfer</span></div>
-<pre><code><span class="p">$</span> npm run zi -- status INV-1111-V32R-B
-STATE INITIALIZED status=PAID paid_by=null balance=0 storage=400</code></pre>
+<pre><code><span class="p">$</span> npm run zi -- status INV-1111-V33-B
+STATE INITIALIZED status=PAID paid_by=null balance=0 storage=396</code></pre>
                 </div>
               </div>
             </div>
@@ -234,24 +235,24 @@ STATE INITIALIZED status=PAID paid_by=null balance=0 storage=400</code></pre>
               </div>
               <div class="m-visual">
                 <div class="code">
-                  <div class="code-head"><span>zi verify INV-1111-V32R-A</span></div>
-<pre><code><span class="ok">PASS</span> code-hash-trusted BQLSk5carin64UMreToJHT15gvow6wqZSyKqDz7zCFry
-<span class="p">INFO</span> deployment v3.2r (current, deployed on testnet: the v3.2 source built reproducibly, rebuild commit 4116e69)
+                  <div class="code-head"><span>zi verify INV-1111-V33-A</span></div>
+<pre><code><span class="ok">PASS</span> code-hash-trusted CrwuvfSLJoHs4GkkqqL22PeHG2BdcxmnMoxX2zcfaVsb
+<span class="p">INFO</span> deployment v3.3 (current, deployed on testnet: parked funds count toward the price; reproducible build of commit 7727a1c)
 <span class="ok">PASS</span> format-matches-deployment zeroinit-invoice/2
-<span class="ok">PASS</span> id-from-terms 0u7hdnprw7z1gfz4b6qj8pn683cnhwp4ges18hfbsk03nmdees4ppg
+<span class="ok">PASS</span> id-from-terms 0us40y0dm1767jkzzxynmwjer15h4xy5wc96rg3xv5hfgs8fx421ag
 <span class="ok">PASS</span> raw-from-terms
 <span class="ok">PASS</span> doc-fields-from-terms
-<span class="ok">PASS</span> code-hash-onchain BQLSk5carin64UMreToJHT15gvow6wqZSyKqDz7zCFry
+<span class="ok">PASS</span> code-hash-onchain CrwuvfSLJoHs4GkkqqL22PeHG2BdcxmnMoxX2zcfaVsb
 <span class="ok">PASS</span> terms-onchain
 <span class="ok">PASS</span> no-access-keys
 <span class="p">INFO</span> status=PAID</code></pre>
                 </div>
                 <div class="card flush">
                   <dl class="facts">
-                    <div><dt>Contract (v3.2r)</dt><dd><span class="mono val">{codeHash}</span><button class="copy" type="button" data-copy={codeHash} aria-label="Copy the contract hash" hidden>Copy</button></dd></div>
+                    <div><dt>Contract (v3.3)</dt><dd><span class="mono val">{codeHash}</span><button class="copy" type="button" data-copy={codeHash} aria-label="Copy the contract hash" hidden>Copy</button></dd></div>
                     <div><dt>Demo account</dt><dd><span class="mono val">{account}</span><button class="copy" type="button" data-copy={account} aria-label="Copy the demo invoice account" hidden>Copy</button></dd></div>
                     <div><dt>Address kind</dt><dd><span class="val">0u…, NEP-655, protocol 88</span></dd></div>
-                    <div><dt>Tests</dt><dd><span class="val">242 pass. The recorded demo replays offline.</span></dd></div>
+                    <div><dt>Tests</dt><dd><span class="val">254 pass, plus 104 on the contract. The recorded demo replays offline.</span></dd></div>
                     <div><dt>License</dt><dd><span class="val">MIT</span></dd></div>
                   </dl>
                 </div>
@@ -267,7 +268,7 @@ STATE INITIALIZED status=PAID paid_by=null balance=0 storage=400</code></pre>
         <div class="sec-head">
           <p class="label">Replay</p>
           <h2 id="replay-h" class="rv">The recorded demo run, check by check.</h2>
-          <p class="lead">These are the checks the CLI makes on <span class="mono">fixtures/v32r/demo-run.json</span>. Each value is read from that recording. Nothing here uses a wallet, keys or the network.</p>
+          <p class="lead">These are the checks the CLI makes on <span class="mono">fixtures/v33/demo-run.json</span>. Each value is read from that recording. Nothing here uses a wallet, keys or the network.</p>
         </div>
         <div class="replay" data-replay>
           <ol class="term replay-list" aria-label="Recorded checks, in order">
@@ -342,9 +343,11 @@ STATE INITIALIZED status=PAID paid_by=null balance=0 storage=400</code></pre>
             <ul class="limits">
               <li>NEAR testnet only. No mainnet use was tried.</li>
               <li>Not audited. The audit rounds were AI reviews.</li>
-              <li>The v3.2 race fixes other than the <span class="mono">bad_msg</span> path were not run live.</li>
+              <li>The race fixes other than the <span class="mono">bad_msg</span> path were not run live. Two token payments at the same moment were: both came back in full.</li>
               <li>The wallet path is a plain transfer from a wallet. No exchange was tested.</li>
-              <li>Token (NEP-141) invoices need the <span class="mono">0u</span> id registered on the token first: one <span class="mono">storage_deposit</span> of 0.00125 NEAR, sent by anyone. “Costs nothing until paid” describes issuing.</li>
+              <li>Token (NEP-141) invoices need the <span class="mono">0u</span> id registered on the token: one <span class="mono">storage_deposit</span> of 0.00125 NEAR. The CLI sends it in the same transaction as the payment; before a transfer from an exchange, someone has to send it first. “Costs nothing until paid” describes issuing.</li>
+              <li>A <span class="mono">0u</span> address has no checksum of its own. The issuer shows a 4-character check code next to it, and <span class="mono">zi check</span> tests an address against it. An address pasted straight into a wallet is not checked.</li>
+              <li>Plain-transfer underpayments and overpayments are not refunded: a sweep cannot know who sent them.</li>
             </ul>
           </div>
         </div>
