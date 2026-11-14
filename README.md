@@ -130,7 +130,9 @@ The invoice contract has no owner and no admin call, and invoice accounts have n
 
 ## No code from before the hackathon window
 
-Every commit is inside the hackathon window. The first commit (`ea8d0fb`) is the plan with a reference implementation drafted with Claude during the planning phase of this hackathon; the next commits copied it into `src/` and `contract/`, and everything after was built on top. Detail and how to check it: [AI_USE.md](AI_USE.md#code-provenance).
+The hackathon counts work from its announcement on 2026-10-19 (rule Q-001). This repository's first commit (`ea8d0fb`, 2026-11-09 21:52 UTC) is later than that and later than the 2026-11-01 start, so every line here was written during the hackathon and there is no `pre-hackathon` baseline. The tag [`hackathon-submission`](https://github.com/erhantrk/zeroinit/tree/hackathon-submission) marks the submitted state; the whole history is the hackathon diff: [`ea8d0fb...hackathon-submission`](https://github.com/erhantrk/zeroinit/compare/ea8d0fb...hackathon-submission).
+
+The first commit is the plan with a reference implementation drafted with Claude during the planning phase of this hackathon; the next commits copied it into `src/` and `contract/`, and everything after was built on top. The mock token [test-usdc](https://github.com/erhantrk/test-usdc) is a separate repository, also written during the hackathon. Detail and how to check it: [AI_USE.md](AI_USE.md#code-provenance).
 
 ## AI use
 
