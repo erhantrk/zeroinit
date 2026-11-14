@@ -2,7 +2,7 @@
 // and the single-file bundle started alone over stdio. No real network. Run: node --test test/mcp.test.ts
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, mkdtempSync, copyFileSync } from 'node:fs';
+import { readFileSync, mkdtempSync, copyFileSync, writeFileSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
@@ -12,7 +12,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { build } from 'esbuild';
 import { loadConfig } from '../src/config.ts';
 import { createServer } from '../mcp/server.ts';
-import { issueInvoice, invoiceStatus, verifyInvoice, InputError } from '../mcp/tools.ts';
+import { issueInvoice, invoiceStatus, verifyInvoice, exportInvoices, checkAddress, InputError } from '../mcp/tools.ts';
 import { makeDoc, makeTokenDoc, fakeRpc, handlers, onchainInvoice, DEPLOYED, V3, V2 } from './helpers.ts';
 
 process.env.ZI_RPC_BACKOFF_MS = '1';
@@ -36,11 +36,43 @@ const RECORDED = { merchant: 'zeroinit-merchant.testnet', tax_vault: 'zeroinit-t
   expires_at: '2026-11-13T10:48:51.764Z', salt: '5754866504318508017', offline: true };
 const RECORDED_NOW = Date.parse('2026-11-13T08:48:52.094Z');
 
-test('tool list: three tools; status and verify are read-only, issue may save a local file (never a transaction)', async () => {
+test('tool list: five tools; issue and export may write a local file (never a transaction), the rest are read-only', async () => {
   const client = await connect();
   const { tools } = await client.listTools();
-  assert.deepEqual(tools.map((t) => t.name).sort(), ['invoice_status', 'issue_invoice', 'verify_invoice']);
-  for (const t of tools) assert.equal(t.annotations?.readOnlyHint, t.name !== 'issue_invoice', t.name);
+  assert.deepEqual(tools.map((t) => t.name).sort(), ['check_address', 'export_invoices', 'invoice_status', 'issue_invoice', 'verify_invoice']);
+  for (const t of tools) assert.equal(t.annotations?.readOnlyHint, !['issue_invoice', 'export_invoices'].includes(t.name), t.name);
+});
+
+test('check_address: the recorded address passes with its code, a one-character change fails', async () => {
+  const addr = '0us40y0dm1767jkzzxynmwjer15h4xy5wc96rg3xv5hfgs8fx421ag';
+  assert.equal(checkAddress({ address: addr, check_code: 'MVNC' }).ok, true);
+  assert.equal(checkAddress({ address: addr, check_code: 'mvnc' }).ok, true);
+  assert.equal(checkAddress({ address: addr.slice(0, -1) + 'b', check_code: 'MVNC' }).ok, false);
+  const r = await call(await connect(), 'check_address', { address: addr, check_code: 'MVNA' });
+  assert.equal(r.isError, false); assert.equal(r.data.ok, false); assert.match(r.data.note, /do not send/);
+});
+
+test('export_invoices: saved invoices with their status from the chain, and the CSV when asked (fake RPC)', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'zi-mcp-exp-'));
+  const doc = makeDoc();
+  writeFileSync(join(dir, `${doc.invoice_id}.json`), JSON.stringify(doc));
+  const rpc = await fakeRpc(handlers(doc, { invoice: onchainInvoice(doc, { status: 'PAID', paid_by: 'payer.testnet', paid_amount: doc.amount_raw ?? '1000000000000000000000000', tax_amount: '0' }) }));
+  const cwd = process.cwd();
+  try {
+    const c = cfg({ ZI_INVOICE_DIR: dir, ZI_RPC_URL: rpc.url });
+    let r = await exportInvoices(c, {}) as any;
+    assert.equal(r.count, 1); assert.equal(r.paid, 1); assert.equal(r.csv_file, null);
+    assert.equal(r.rows[0].invoice_id, doc.invoice_id); assert.equal(r.rows[0].status, 'PAID'); assert.equal(r.rows[0].paid_by, 'payer.testnet');
+    process.chdir(dir);
+    r = await exportInvoices(c, { out: 'books.csv' }) as any;
+    assert.equal(r.csv_file, join(realpathSync(dir), 'books.csv'));
+    const csv = readFileSync(r.csv_file, 'utf8').split('\r\n');
+    assert.match(csv[0], /^invoice_id,status,currency,amount,/);
+    assert.ok(csv[1].startsWith(`${doc.invoice_id},PAID,`));
+  } finally { process.chdir(cwd); await rpc.close(); }
+  for (const out of ['../x.csv', '/tmp/x.csv', 'x.txt']) await assert.rejects(exportInvoices(cfg({ ZI_INVOICE_DIR: dir }), { out }), InputError, out);
+  const empty = await exportInvoices(cfg({ ZI_INVOICE_DIR: mkdtempSync(join(tmpdir(), 'zi-mcp-none-')) }), {}) as any;
+  assert.equal(empty.count, 0);
 });
 
 test('invoice_id: issue_invoice with save writes the file, then verify_invoice and invoice_status find it by id (nothing retyped)', async () => {
@@ -255,7 +287,7 @@ test('the bundle is one self-contained file: started alone in an empty directory
   const client = new Client({ name: 'test', version: '0' });
   await client.connect(transport);
   try {
-    assert.deepEqual((await client.listTools()).tools.map((t) => t.name).sort(), ['invoice_status', 'issue_invoice', 'verify_invoice']);
+    assert.deepEqual((await client.listTools()).tools.map((t) => t.name).sort(), ['check_address', 'export_invoices', 'invoice_status', 'issue_invoice', 'verify_invoice']);
     const r: any = await client.callTool({ name: 'issue_invoice', arguments: { merchant: 'm.testnet', amount: '1', invoice_number: 'BUNDLE-1', offline: true } });
     assert.match(r.structuredContent.pay_address, /^0u/);
   } finally { await client.close(); }

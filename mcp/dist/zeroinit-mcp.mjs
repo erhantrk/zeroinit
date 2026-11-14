@@ -2981,7 +2981,7 @@ var require_compile = __commonJS({
       const schOrFunc = root.refs[ref];
       if (schOrFunc)
         return schOrFunc;
-      let _sch = resolve.call(this, root, ref);
+      let _sch = resolve2.call(this, root, ref);
       if (_sch === void 0) {
         const schema = (_a = root.localRefs) === null || _a === void 0 ? void 0 : _a[ref];
         const { schemaId } = this.opts;
@@ -3008,7 +3008,7 @@ var require_compile = __commonJS({
     function sameSchemaEnv(s1, s2) {
       return s1.schema === s2.schema && s1.root === s2.root && s1.baseId === s2.baseId;
     }
-    function resolve(root, ref) {
+    function resolve2(root, ref) {
       let sch;
       while (typeof (sch = this.refs[ref]) == "string")
         ref = sch;
@@ -3872,7 +3872,7 @@ var require_fast_uri = __commonJS({
       }
       return uri;
     }
-    function resolve(baseURI, relativeURI, options) {
+    function resolve2(baseURI, relativeURI, options) {
       const schemelessOptions = options ? Object.assign({ scheme: "null" }, options) : { scheme: "null" };
       const {
         parsed: baseParsed,
@@ -4263,7 +4263,7 @@ var require_fast_uri = __commonJS({
     var fastUri = {
       SCHEMES,
       normalize,
-      resolve,
+      resolve: resolve2,
       resolveComponent,
       equal,
       serialize,
@@ -13365,12 +13365,12 @@ var StdioServerTransport = class {
     this.onclose?.();
   }
   send(message) {
-    return new Promise((resolve) => {
+    return new Promise((resolve2) => {
       const json = serializeMessage(message);
       if (this._stdout.write(json)) {
-        resolve();
+        resolve2();
       } else {
-        this._stdout.once("drain", resolve);
+        this._stdout.once("drain", resolve2);
       }
     });
   }
@@ -19779,7 +19779,7 @@ var Protocol = class {
           return;
         }
         const pollInterval = task2.pollInterval ?? this._options?.defaultTaskPollInterval ?? 1e3;
-        await new Promise((resolve) => setTimeout(resolve, pollInterval));
+        await new Promise((resolve2) => setTimeout(resolve2, pollInterval));
         options?.signal?.throwIfAborted();
       }
     } catch (error2) {
@@ -19796,7 +19796,7 @@ var Protocol = class {
    */
   request(request, resultSchema, options) {
     const { relatedRequestId, resumptionToken, onresumptiontoken, task, relatedTask } = options ?? {};
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve2, reject) => {
       const earlyReject = (error2) => {
         reject(error2);
       };
@@ -19874,7 +19874,7 @@ var Protocol = class {
           if (!parseResult.success) {
             reject(parseResult.error);
           } else {
-            resolve(parseResult.data);
+            resolve2(parseResult.data);
           }
         } catch (error2) {
           reject(error2);
@@ -20135,12 +20135,12 @@ var Protocol = class {
       }
     } catch {
     }
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve2, reject) => {
       if (signal.aborted) {
         reject(new McpError(ErrorCode.InvalidRequest, "Request cancelled"));
         return;
       }
-      const timeoutId = setTimeout(resolve, interval);
+      const timeoutId = setTimeout(resolve2, interval);
       signal.addEventListener("abort", () => {
         clearTimeout(timeoutId);
         reject(new McpError(ErrorCode.InvalidRequest, "Request cancelled"));
@@ -21240,7 +21240,7 @@ var McpServer = class {
     let task = createTaskResult.task;
     const pollInterval = task.pollInterval ?? 5e3;
     while (task.status !== "completed" && task.status !== "failed" && task.status !== "cancelled") {
-      await new Promise((resolve) => setTimeout(resolve, pollInterval));
+      await new Promise((resolve2) => setTimeout(resolve2, pollInterval));
       const updatedTask = await extra.taskStore.getTask(taskId);
       if (!updatedTask) {
         throw new McpError(ErrorCode.InternalError, `Task ${taskId} not found during polling`);
@@ -22251,6 +22251,112 @@ function checkCode(accountId) {
   for (let i = 0; i < CHECK_CODE_LENGTH; i++) out += ALPHABET[bits >>> 19 - 5 * i & 31];
   return out;
 }
+function normalizeCheckCode(code) {
+  return code.trim().toUpperCase().replace(/[\s-]/g, "").replace(/[IL]/g, "1").replace(/O/g, "0");
+}
+function checkCodeMatches(accountId, code) {
+  return normalizeCheckCode(code) === checkCode(accountId.trim());
+}
+
+// src/rpc.ts
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
+var currentInvoiceId = null;
+var LONG_ED25519 = /^ed25519:[1-9A-HJ-NP-Za-km-z]{60,}$/;
+function redactSignatures(v) {
+  if (typeof v === "string") return LONG_ED25519.test(v) ? "ed25519:REDACTED-PUBLIC-SIGNATURE" : v;
+  if (Array.isArray(v)) return v.map(redactSignatures);
+  if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, redactSignatures(x)]));
+  return v;
+}
+function record2(path, entry) {
+  const f = existsSync(path) ? JSON.parse(readFileSync(path, "utf8")) : { format: "zeroinit-fixture/1", recorded_at_iso: (/* @__PURE__ */ new Date()).toISOString(), rpc_url: "", invoices: [], calls: [] };
+  f.calls.push({ seq: f.calls.length, invoice_id: currentInvoiceId, ...redactSignatures(entry) });
+  writeFileSync(path, JSON.stringify(f, null, 2) + "\n");
+}
+var sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+var PROXY_VARS = ["HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy", "ALL_PROXY", "all_proxy"];
+function describeNetworkError(rpcUrl, e, env = process.env) {
+  const msg = e instanceof Error ? e.message : String(e);
+  const cause = e instanceof Error ? e.cause : void 0;
+  let detail = "";
+  if (cause) {
+    const code = cause.code ? String(cause.code) : "";
+    const cmsg = cause.message ? String(cause.message) : String(cause);
+    detail = ` (cause: ${code && !cmsg.includes(code) ? `${code} ` : ""}${cmsg})`;
+  }
+  const proxySet = PROXY_VARS.some((k) => env[k]);
+  const hint = proxySet && env.NODE_USE_ENV_PROXY !== "1" ? " Hint: a proxy variable is set; Node ignores it for fetch unless NODE_USE_ENV_PROXY=1 is set." : "";
+  return `RPC request to ${rpcUrl} failed: ${msg}${detail}.${hint}`;
+}
+async function rpcCall(cfg, method, params, label = `aux: ${method}`) {
+  const body = JSON.stringify({ jsonrpc: "2.0", id: "zi", method, params });
+  const backoffMs = Number(process.env.ZI_RPC_BACKOFF_MS ?? 1e3);
+  let lastErr = null;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      const res = await fetch(cfg.rpcUrl, { method: "POST", headers: { "content-type": "application/json" }, body });
+      if (res.status === 429 || res.status >= 500) throw new Error(`RPC HTTP ${res.status}`);
+      const json = await res.json();
+      if (cfg.record) record2(cfg.record, { label, method, params, response: json });
+      return json;
+    } catch (e) {
+      lastErr = e;
+      if (attempt < 4) await sleep(backoffMs * (attempt + 1));
+    }
+  }
+  if (lastErr instanceof Error && lastErr.message.startsWith("RPC HTTP ")) throw new Error(`RPC request to ${cfg.rpcUrl} failed: ${lastErr.message}`);
+  throw new Error(describeNetworkError(cfg.rpcUrl, lastErr));
+}
+function unwrap(json, what) {
+  if (json.error) throw new Error(`${what} failed: ${JSON.stringify(json.error)}`);
+  return json.result;
+}
+var networkChecked = /* @__PURE__ */ new WeakMap();
+async function checkNetwork(cfg) {
+  const cached2 = networkChecked.get(cfg);
+  if (cached2) return cached2;
+  const r = unwrap(await rpcCall(cfg, "status", []), "status");
+  if (r.chain_id !== "testnet") throw new Error(`RPC chain_id is ${r.chain_id}, expected testnet`);
+  if (r.protocol_version < 88) throw new Error(`protocol ${r.protocol_version} < 88: universal accounts unavailable`);
+  const info = { protocol: r.protocol_version, version: r.version.version };
+  networkChecked.set(cfg, info);
+  return info;
+}
+function accountStateFromResponse(json) {
+  if (json.error) {
+    if (json.error?.cause?.name === "UNKNOWN_ACCOUNT") return { kind: "NONEXISTENT" };
+    throw new Error(`view_account failed: ${JSON.stringify(json.error)}`);
+  }
+  const r = json.result;
+  if (r.state === "uninitialized") return { kind: "UNINITIALIZED", amount: BigInt(r.amount), storageUsage: r.storage_usage, bootstrapNonce: r.bootstrap_nonce != null ? String(r.bootstrap_nonce) : null };
+  return {
+    kind: "INITIALIZED",
+    amount: BigInt(r.amount),
+    storageUsage: r.storage_usage,
+    globalContractHash: r.global_contract_hash ?? null,
+    globalContractAccountId: r.global_contract_account_id ?? null
+  };
+}
+async function viewAccount(cfg, accountId, label) {
+  return accountStateFromResponse(await rpcCall(cfg, "query", { request_type: "view_account", finality: "final", account_id: accountId }, label));
+}
+function decodeViewResult(json) {
+  const r = unwrap(json, "call_function");
+  return JSON.parse(Buffer.from(r.result).toString("utf8"));
+}
+async function viewInvoice(cfg, accountId, label) {
+  return decodeViewResult(await rpcCall(cfg, "query", {
+    request_type: "call_function",
+    finality: "final",
+    account_id: accountId,
+    method_name: "get_invoice",
+    args_base64: "e30="
+  }, label));
+}
+
+// src/invoice.ts
+import { readFileSync as readFileSync2, writeFileSync as writeFileSync2, mkdirSync, existsSync as existsSync2, readdirSync } from "node:fs";
+import { join as join2 } from "node:path";
 
 // node_modules/@noble/hashes/sha3.js
 var _0n = BigInt(0);
@@ -22600,106 +22706,6 @@ function invoiceStateInit(scheme, code, t) {
   return { raw, accountId: deriveDeterministicAccountId(raw) };
 }
 
-// src/invoice.ts
-import { readFileSync as readFileSync2, writeFileSync as writeFileSync2, mkdirSync, existsSync as existsSync2, readdirSync } from "node:fs";
-import { join as join2 } from "node:path";
-
-// src/rpc.ts
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
-var currentInvoiceId = null;
-var LONG_ED25519 = /^ed25519:[1-9A-HJ-NP-Za-km-z]{60,}$/;
-function redactSignatures(v) {
-  if (typeof v === "string") return LONG_ED25519.test(v) ? "ed25519:REDACTED-PUBLIC-SIGNATURE" : v;
-  if (Array.isArray(v)) return v.map(redactSignatures);
-  if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, redactSignatures(x)]));
-  return v;
-}
-function record2(path, entry) {
-  const f = existsSync(path) ? JSON.parse(readFileSync(path, "utf8")) : { format: "zeroinit-fixture/1", recorded_at_iso: (/* @__PURE__ */ new Date()).toISOString(), rpc_url: "", invoices: [], calls: [] };
-  f.calls.push({ seq: f.calls.length, invoice_id: currentInvoiceId, ...redactSignatures(entry) });
-  writeFileSync(path, JSON.stringify(f, null, 2) + "\n");
-}
-var sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-var PROXY_VARS = ["HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy", "ALL_PROXY", "all_proxy"];
-function describeNetworkError(rpcUrl, e, env = process.env) {
-  const msg = e instanceof Error ? e.message : String(e);
-  const cause = e instanceof Error ? e.cause : void 0;
-  let detail = "";
-  if (cause) {
-    const code = cause.code ? String(cause.code) : "";
-    const cmsg = cause.message ? String(cause.message) : String(cause);
-    detail = ` (cause: ${code && !cmsg.includes(code) ? `${code} ` : ""}${cmsg})`;
-  }
-  const proxySet = PROXY_VARS.some((k) => env[k]);
-  const hint = proxySet && env.NODE_USE_ENV_PROXY !== "1" ? " Hint: a proxy variable is set; Node ignores it for fetch unless NODE_USE_ENV_PROXY=1 is set." : "";
-  return `RPC request to ${rpcUrl} failed: ${msg}${detail}.${hint}`;
-}
-async function rpcCall(cfg, method, params, label = `aux: ${method}`) {
-  const body = JSON.stringify({ jsonrpc: "2.0", id: "zi", method, params });
-  const backoffMs = Number(process.env.ZI_RPC_BACKOFF_MS ?? 1e3);
-  let lastErr = null;
-  for (let attempt = 0; attempt < 5; attempt++) {
-    try {
-      const res = await fetch(cfg.rpcUrl, { method: "POST", headers: { "content-type": "application/json" }, body });
-      if (res.status === 429 || res.status >= 500) throw new Error(`RPC HTTP ${res.status}`);
-      const json = await res.json();
-      if (cfg.record) record2(cfg.record, { label, method, params, response: json });
-      return json;
-    } catch (e) {
-      lastErr = e;
-      if (attempt < 4) await sleep(backoffMs * (attempt + 1));
-    }
-  }
-  if (lastErr instanceof Error && lastErr.message.startsWith("RPC HTTP ")) throw new Error(`RPC request to ${cfg.rpcUrl} failed: ${lastErr.message}`);
-  throw new Error(describeNetworkError(cfg.rpcUrl, lastErr));
-}
-function unwrap(json, what) {
-  if (json.error) throw new Error(`${what} failed: ${JSON.stringify(json.error)}`);
-  return json.result;
-}
-var networkChecked = /* @__PURE__ */ new WeakMap();
-async function checkNetwork(cfg) {
-  const cached2 = networkChecked.get(cfg);
-  if (cached2) return cached2;
-  const r = unwrap(await rpcCall(cfg, "status", []), "status");
-  if (r.chain_id !== "testnet") throw new Error(`RPC chain_id is ${r.chain_id}, expected testnet`);
-  if (r.protocol_version < 88) throw new Error(`protocol ${r.protocol_version} < 88: universal accounts unavailable`);
-  const info = { protocol: r.protocol_version, version: r.version.version };
-  networkChecked.set(cfg, info);
-  return info;
-}
-function accountStateFromResponse(json) {
-  if (json.error) {
-    if (json.error?.cause?.name === "UNKNOWN_ACCOUNT") return { kind: "NONEXISTENT" };
-    throw new Error(`view_account failed: ${JSON.stringify(json.error)}`);
-  }
-  const r = json.result;
-  if (r.state === "uninitialized") return { kind: "UNINITIALIZED", amount: BigInt(r.amount), storageUsage: r.storage_usage, bootstrapNonce: r.bootstrap_nonce != null ? String(r.bootstrap_nonce) : null };
-  return {
-    kind: "INITIALIZED",
-    amount: BigInt(r.amount),
-    storageUsage: r.storage_usage,
-    globalContractHash: r.global_contract_hash ?? null,
-    globalContractAccountId: r.global_contract_account_id ?? null
-  };
-}
-async function viewAccount(cfg, accountId, label) {
-  return accountStateFromResponse(await rpcCall(cfg, "query", { request_type: "view_account", finality: "final", account_id: accountId }, label));
-}
-function decodeViewResult(json) {
-  const r = unwrap(json, "call_function");
-  return JSON.parse(Buffer.from(r.result).toString("utf8"));
-}
-async function viewInvoice(cfg, accountId, label) {
-  return decodeViewResult(await rpcCall(cfg, "query", {
-    request_type: "call_function",
-    finality: "final",
-    account_id: accountId,
-    method_name: "get_invoice",
-    args_base64: "e30="
-  }, label));
-}
-
 // src/ft.ts
 var T = 1000000000000n;
 var GAS = {
@@ -22941,6 +22947,23 @@ function loadDoc(dir, id) {
   throw new Error(`invoice ${id} not found in ${dir}/, ${dir}/examples/, ${dir}/v33/, ${dir}/v32r/, ${dir}/v32/, ${dir}/v31/, ${dir}/v3/, ${dir}/v2/, ${dir}/v1/ or ${dir}/demo/`);
 }
 var SAFE_INVOICE_ID = /^[A-Za-z0-9_-]{1,32}$/;
+function looksLikeInvoiceDoc(d) {
+  return d !== null && typeof d === "object" && (d.format === "zeroinit-invoice/1" || d.format === "zeroinit-invoice/2") && typeof d.invoice_id === "string" && SAFE_INVOICE_ID.test(d.invoice_id) && typeof d.account_id === "string";
+}
+function listDocs(dir, warn = (m) => console.error(m)) {
+  if (!existsSync2(dir)) return [];
+  const docs = [];
+  for (const f of readdirSync(dir).filter((x) => x.endsWith(".json") && !x.endsWith(".receipt.json"))) {
+    try {
+      const d = JSON.parse(readFileSync2(join2(dir, f), "utf8"));
+      if (looksLikeInvoiceDoc(d)) docs.push(d);
+      else warn(`WARNING skipping ${f}: not a valid invoice document`);
+    } catch (e) {
+      warn(`WARNING skipping ${f}: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+  return docs;
+}
 function docProblem(d, pin, allowed) {
   const c = checkDoc(d, pin, allowed);
   const bad = [
@@ -22957,6 +22980,124 @@ function onchainProblem(d, pin, globalContractHash, inv) {
   if (!termsMatchOnchain(d, inv)) return "on-chain terms differ from the document";
   return null;
 }
+
+// src/export.ts
+var EXPORT_COLUMNS = [
+  "invoice_id",
+  "status",
+  "currency",
+  "amount",
+  "merchant_share",
+  "tax_share",
+  "tax_rate_percent",
+  "paid_amount",
+  "paid_at_utc",
+  "due_utc",
+  "merchant",
+  "tax_vault",
+  "paid_by",
+  "owed_not_yet_sent",
+  "address",
+  "check_code",
+  "token_contract",
+  "explorer_link",
+  "note"
+];
+function taxOf(x, bps) {
+  const b = BigInt(bps);
+  return x / 10000n * b + x % 10000n * b / 10000n;
+}
+async function chainView(cfg, doc) {
+  const pin = pinForVerification(trustedCodeHash(cfg), doc.code_hash);
+  const bad = docProblem(doc, pin, readOnlyAllowList(cfg, doc.code_hash, docToken(doc)));
+  if (bad) return { kind: "unverified", reason: bad };
+  const s = await viewAccount(cfg, doc.account_id);
+  const token = docToken(doc);
+  if (s.kind !== "INITIALIZED") {
+    const parked2 = token !== null ? await ftBalanceOf(cfg, token, doc.account_id) : s.kind === "UNINITIALIZED" ? s.amount : 0n;
+    return { kind: "no-account", parked: parked2 };
+  }
+  const inv = await viewInvoice(cfg, doc.account_id);
+  const mismatch = onchainProblem(doc, pin, s.globalContractHash, inv);
+  if (mismatch) return { kind: "unverified", reason: mismatch };
+  const parked = token !== null && inv.status === "OPEN" ? await ftBalanceOf(cfg, token, doc.account_id) : 0n;
+  return { kind: "invoice", inv, parked };
+}
+var iso = (ms) => new Date(Number(ms)).toISOString();
+function exportRow(doc, view2, network, now = Date.now()) {
+  const token = docToken(doc);
+  const dec = docDecimals(doc);
+  const fmt = (x) => token === null ? formatNear(x) : formatUnits(x, dec);
+  const amount = docAmountRaw(doc);
+  const expectedTax = taxOf(amount, doc.tax_bps);
+  const explorer = network === "mainnet" ? "https://nearblocks.io" : "https://testnet.nearblocks.io";
+  const row = {
+    invoice_id: doc.invoice_id,
+    status: "",
+    currency: docUnit(doc),
+    amount: fmt(amount),
+    merchant_share: fmt(amount - expectedTax),
+    tax_share: fmt(expectedTax),
+    tax_rate_percent: (doc.tax_bps / 100).toString(),
+    paid_amount: "",
+    paid_at_utc: "",
+    due_utc: iso(doc.expires_at_ms),
+    merchant: doc.merchant,
+    tax_vault: doc.tax_vault,
+    paid_by: "",
+    owed_not_yet_sent: "",
+    address: doc.account_id,
+    check_code: checkCode(doc.account_id),
+    token_contract: token ?? "",
+    explorer_link: `${explorer}/address/${doc.account_id}`,
+    note: ""
+  };
+  if (view2.kind === "unverified") {
+    return { ...row, status: "UNVERIFIED", note: `not counted: ${view2.reason}` };
+  }
+  if (view2.kind === "no-account") {
+    const expired = now > Number(doc.expires_at_ms);
+    const parked = view2.parked > 0n ? `${fmt(view2.parked)} ${docUnit(doc)} sent by plain transfer, not settled yet (anyone can run zi sweep)` : "";
+    return { ...row, status: expired ? "EXPIRED" : "OPEN", note: parked || (expired ? "never paid" : "not paid yet") };
+  }
+  const inv = view2.inv;
+  const paid = BigInt(inv.paid_amount ?? "0");
+  const owed = BigInt(inv.owed_merchant ?? "0") + BigInt(inv.owed_tax ?? "0");
+  const owedPayer = BigInt(inv.owed_payer ?? "0");
+  const settled = inv.status === "PAID" || inv.status === "SETTLING";
+  const tax = BigInt(inv.tax_amount ?? "0");
+  const notes = [];
+  const pastDue = inv.status === "OPEN" && now > Number(doc.expires_at_ms);
+  if (inv.status === "OPEN" && view2.parked > 0n) notes.push(`${fmt(view2.parked)} ${docUnit(doc)} received by plain transfer, less than the price; not settled`);
+  if (pastDue) notes.push("past the due date and never paid");
+  if (settled && inv.paid_by == null) notes.push("paid fully or partly by a plain transfer, so no single payer is recorded");
+  if (owed > 0n) notes.push("part of the payout is owed; zi sweep resends it");
+  if (owedPayer > 0n) notes.push(`${fmt(owedPayer)} ${docUnit(doc)} owed back to the payer`);
+  if (inv.status === "REFUNDED") notes.push("the payment was returned");
+  return {
+    ...row,
+    status: pastDue ? "EXPIRED" : String(inv.status),
+    merchant_share: settled ? fmt(paid - tax) : row.merchant_share,
+    tax_share: settled ? fmt(tax) : row.tax_share,
+    paid_amount: settled ? fmt(paid) : "",
+    paid_at_utc: settled && BigInt(inv.paid_at_ms ?? "0") > 0n ? iso(inv.paid_at_ms) : "",
+    paid_by: inv.paid_by ?? "",
+    owed_not_yet_sent: owed > 0n ? fmt(owed) : "",
+    note: notes.join("; ")
+  };
+}
+function csvField(s) {
+  const safe = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
+  return /[",\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
+}
+function toCsv(rows) {
+  const lines = [EXPORT_COLUMNS.join(","), ...rows.map((r) => EXPORT_COLUMNS.map((c) => csvField(r[c])).join(","))];
+  return lines.join("\r\n") + "\r\n";
+}
+
+// mcp/tools.ts
+import { writeFileSync as writeFileSync3 } from "node:fs";
+import { isAbsolute, resolve } from "node:path";
 
 // src/status.ts
 async function tokenBalanceOrError(cfg, token, account) {
@@ -23282,9 +23423,41 @@ async function verifyInvoice(cfg, a) {
     };
   }
 }
+function checkAddress(a) {
+  const ok = checkCodeMatches(a.address, a.check_code);
+  return {
+    ok,
+    address: a.address.trim(),
+    check_code: a.check_code,
+    note: ok ? "the address matches its check code" : "the code does not match this address: do not send funds to it"
+  };
+}
+async function exportInvoices(cfg, a) {
+  if (a.out !== void 0 && (!/\.csv$/i.test(a.out) || isAbsolute(a.out) || a.out.split(/[\\/]/).includes(".."))) {
+    throw new InputError("out must be a relative file name ending in .csv, without ..");
+  }
+  const docs = listDocs(cfg.invoiceDir, () => {
+  });
+  if (!docs.length) return { count: 0, rows: [], csv_file: null, note: `no saved invoices in ${cfg.invoiceDir}/` };
+  docs.sort((x, y) => x.created_at_iso.localeCompare(y.created_at_iso) || x.invoice_id.localeCompare(y.invoice_id));
+  try {
+    await checkNetwork(cfg);
+  } catch (e) {
+    throw new InputError(`testnet is not reachable: ${errText(e)}`);
+  }
+  const rows = [];
+  for (const d of docs) rows.push(exportRow(d, await chainView(cfg, d), cfg.network));
+  let file = null;
+  if (a.out !== void 0) {
+    file = resolve(a.out);
+    writeFileSync3(file, toCsv(rows));
+  }
+  const count = (st) => rows.filter((r) => r.status === st).length;
+  return { count: rows.length, paid: count("PAID"), open: count("OPEN"), expired: count("EXPIRED"), unverified: count("UNVERIFIED"), csv_file: file, rows };
+}
 
 // mcp/server.ts
-var SERVER_VERSION = "0.2.0";
+var SERVER_VERSION = "0.3.0";
 var asText = (r) => ({ content: [{ type: "text", text: JSON.stringify(r, null, 2) }], structuredContent: r });
 var refuse = (e) => ({ isError: true, content: [{ type: "text", text: `REFUSED: ${e instanceof Error ? e.message : String(e)}` }] });
 async function run(f) {
@@ -23329,6 +23502,18 @@ function createServer(cfg) {
     inputSchema: { invoice_id: external_exports.string().optional().describe("Id of an invoice saved in the invoice folder (preferred: nothing to copy)"), invoice: invoiceDoc.optional(), offline: external_exports.boolean().optional().describe("Only the offline checks (default false: on-chain checks too when testnet is reachable)") },
     annotations: { ...readOnly, title: "Verify an invoice document" }
   }, (a) => run(() => verifyInvoice(cfg, a)));
+  server.registerTool("export_invoices", {
+    title: "List or export saved invoices",
+    description: 'Every saved invoice in the invoice folder with its live status read from the chain: status, amount, merchant and tax shares, payer, payment time, due date, owed amounts, address, check code and explorer link. Give out (e.g. "invoices.csv") to also write them as a CSV a bookkeeper can open. Nothing is signed or sent.',
+    inputSchema: { out: external_exports.string().optional().describe("Relative file name ending in .csv to write the rows to (optional)") },
+    annotations: { ...readOnly, readOnlyHint: false, title: "List or export saved invoices" }
+  }, (a) => run(() => exportInvoices(cfg, a)));
+  server.registerTool("check_address", {
+    title: "Check an address against its check code",
+    description: "Offline: does this 0u... address match the 4-character check code the issuer showed next to it? A mistyped 0u address is a valid address of other bytes and funds sent there are lost; this catches every single-character change.",
+    inputSchema: { address: external_exports.string().describe("The 0u... pay address"), check_code: external_exports.string().describe("The 4-character check code, e.g. MVNC") },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: "Check an address against its check code" }
+  }, async (a) => run(async () => checkAddress(a)));
   return server;
 }
 

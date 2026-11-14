@@ -1,10 +1,13 @@
 // ZeroInit MCP tools (plain functions; mcp/server.ts wraps them). Read-only: nothing here signs or sends a transaction, and no key is ever read.
 // Everything is computed by the existing library code (stateinit, invoice, verify, status, rpc); nothing is re-implemented.
-import { checkCode } from '../src/checkcode.ts';
+import { checkCode, checkCodeMatches } from '../src/checkcode.ts';
+import { chainView, exportRow, toCsv } from '../src/export.ts';
+import { writeFileSync } from 'node:fs';
+import { isAbsolute, resolve } from 'node:path';
 import { parseNear, formatNear } from '../src/bytes.ts';
 import { trustedCodeHash, pinForVerification, deploymentOf, deploymentLabel, tokenBySymbol, type Config } from '../src/config.ts';
 import { invoiceStateBytes } from '../src/stateinit.ts';
-import { createInvoiceDoc, assertAccountsUsable, checkDoc, docProblem, GRACE_DEFAULT_MS, GRACE_MIN_MS, GRACE_MAX_MS, randomSalt, loadDoc, saveDoc, SAFE_INVOICE_ID,
+import { createInvoiceDoc, assertAccountsUsable, checkDoc, docProblem, GRACE_DEFAULT_MS, GRACE_MIN_MS, GRACE_MAX_MS, randomSalt, loadDoc, saveDoc, listDocs, SAFE_INVOICE_ID,
   isV3Doc, docAmountRaw, docAmountDisplay, docUnit, docToken, type InvoiceDoc } from '../src/invoice.ts';
 import { checkNetwork, viewAccount, viewInvoice } from '../src/rpc.ts';
 import { statusLine } from '../src/status.ts';
@@ -189,4 +192,31 @@ export async function verifyInvoice(cfg: Config, a: { invoice?: InvoiceDoc; invo
     return { ok: false, offline_ok: offlineRes.ok, onchain: 'unreachable', onchain_ok: null, network_error: errText(e),
       checks: [...offlineRes.lines.map(parseLine), { name: 'onchain-checks', ok: false, detail: `not performed: ${errText(e)}` }], explorer: { account: `${EXPLORER}/address/${doc.account_id}` } };
   }
+}
+
+/** Offline: does this address match the check code the issuer showed next to it? Catches a mistyped or altered address. */
+export function checkAddress(a: { address: string; check_code: string }): Record<string, unknown> {
+  const ok = checkCodeMatches(a.address, a.check_code);
+  return { ok, address: a.address.trim(), check_code: a.check_code,
+    note: ok ? 'the address matches its check code' : 'the code does not match this address: do not send funds to it' };
+}
+
+/**
+ * Every saved invoice (the invoice folder) with its live status read from the chain, as rows; with `out` the same rows are
+ * also written as a CSV for a bookkeeper (the file `zi export` writes). Nothing is signed or sent.
+ */
+export async function exportInvoices(cfg: Config, a: { out?: string }): Promise<Record<string, unknown>> {
+  if (a.out !== undefined && (!/\.csv$/i.test(a.out) || isAbsolute(a.out) || a.out.split(/[\\/]/).includes('..'))) {
+    throw new InputError('out must be a relative file name ending in .csv, without ..');
+  }
+  const docs = listDocs(cfg.invoiceDir, () => {});
+  if (!docs.length) return { count: 0, rows: [], csv_file: null, note: `no saved invoices in ${cfg.invoiceDir}/` };
+  docs.sort((x, y) => x.created_at_iso.localeCompare(y.created_at_iso) || x.invoice_id.localeCompare(y.invoice_id));
+  try { await checkNetwork(cfg); } catch (e) { throw new InputError(`testnet is not reachable: ${errText(e)}`); }
+  const rows = [];
+  for (const d of docs) rows.push(exportRow(d, await chainView(cfg, d), cfg.network));
+  let file: string | null = null;
+  if (a.out !== undefined) { file = resolve(a.out); writeFileSync(file, toCsv(rows)); }
+  const count = (st: string) => rows.filter((r) => r.status === st).length;
+  return { count: rows.length, paid: count('PAID'), open: count('OPEN'), expired: count('EXPIRED'), unverified: count('UNVERIFIED'), csv_file: file, rows };
 }

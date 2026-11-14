@@ -1,6 +1,6 @@
 {
   "name": "@erhantrk/zeroinit",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "ZeroInit CLI and library: NEAR invoice addresses computed from the invoice terms, so issuing an invoice sends no transaction. Includes the MCP server for AI agents. Testnet only.",
   "type": "module",
   "license": "MIT",

@@ -46,7 +46,7 @@ console.log(checkDoc(doc, DEPLOYED_CODE_HASH));     // re-derives the address fr
 
 ## MCP server for AI agents
 
-The package also installs `zeroinit-mcp`, an MCP server with `issue_invoice`, `invoice_status` and `verify_invoice`. It never signs, never reads a key and never sends a transaction; with `save: true` it writes the invoice file, and the other tools find a saved invoice by its id.
+The package also installs `zeroinit-mcp`, an MCP server with `issue_invoice`, `invoice_status`, `verify_invoice`, `export_invoices` (the bookkeeper's CSV) and `check_address`. It never signs, never reads a key and never sends a transaction; with `save: true` it writes the invoice file, `export_invoices` can write the CSV, and the other tools find a saved invoice by its id.
 
 ```bash
 claude mcp add zeroinit -- npx -y -p @erhantrk/zeroinit zeroinit-mcp

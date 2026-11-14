@@ -1,11 +1,11 @@
-// The ZeroInit MCP server: three tools over stdio (see mcp/README.md). It never signs, never sends a transaction and never reads a key;
-// the only thing it writes is an invoice file, when issue_invoice is called with save: true.
+// The ZeroInit MCP server: five tools over stdio (see mcp/README.md). It never signs, never sends a transaction and never reads a key;
+// the only files it writes are an invoice (issue_invoice with save: true) and a CSV (export_invoices with out).
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { Config } from '../src/config.ts';
-import { issueInvoice, invoiceStatus, verifyInvoice, InputError } from './tools.ts';
+import { issueInvoice, invoiceStatus, verifyInvoice, exportInvoices, checkAddress, InputError } from './tools.ts';
 
-export const SERVER_VERSION = '0.2.0';
+export const SERVER_VERSION = '0.3.0';
 
 const asText = (r: Record<string, unknown>) => ({ content: [{ type: 'text' as const, text: JSON.stringify(r, null, 2) }], structuredContent: r });
 const refuse = (e: unknown) => ({ isError: true, content: [{ type: 'text' as const, text: `REFUSED: ${e instanceof Error ? e.message : String(e)}` }] });
@@ -54,6 +54,21 @@ export function createServer(cfg: Config): McpServer {
     inputSchema: { invoice_id: z.string().optional().describe('Id of an invoice saved in the invoice folder (preferred: nothing to copy)'), invoice: invoiceDoc.optional(), offline: z.boolean().optional().describe('Only the offline checks (default false: on-chain checks too when testnet is reachable)') },
     annotations: { ...readOnly, title: 'Verify an invoice document' },
   }, (a) => run(() => verifyInvoice(cfg, a as any)));
+
+  server.registerTool('export_invoices', {
+    title: 'List or export saved invoices',
+    description: 'Every saved invoice in the invoice folder with its live status read from the chain: status, amount, merchant and tax shares, payer, payment time, due date, owed amounts, address, check code and explorer link. '
+      + 'Give out (e.g. "invoices.csv") to also write them as a CSV a bookkeeper can open. Nothing is signed or sent.',
+    inputSchema: { out: z.string().optional().describe('Relative file name ending in .csv to write the rows to (optional)') },
+    annotations: { ...readOnly, readOnlyHint: false, title: 'List or export saved invoices' },
+  }, (a) => run(() => exportInvoices(cfg, a)));
+
+  server.registerTool('check_address', {
+    title: 'Check an address against its check code',
+    description: 'Offline: does this 0u... address match the 4-character check code the issuer showed next to it? A mistyped 0u address is a valid address of other bytes and funds sent there are lost; this catches every single-character change.',
+    inputSchema: { address: z.string().describe('The 0u... pay address'), check_code: z.string().describe('The 4-character check code, e.g. MVNC') },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Check an address against its check code' },
+  }, async (a) => run(async () => checkAddress(a)));
 
   return server;
 }
