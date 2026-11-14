@@ -12,6 +12,7 @@ Node 22 or newer. The package has no dependencies; the recorded run of the curre
 npx @erhantrk/zeroinit verify INV-1111-V33-A               # read-only live check over testnet RPC: every line PASS, ends INFO status=PAID
 npx @erhantrk/zeroinit replay fixtures/v33/demo-run.json   # the recorded live run, replayed offline: every line PASS
 npx @erhantrk/zeroinit status INV-1111-V33-A               # the live state of that invoice
+npx @erhantrk/zeroinit export --dir invoices/v33 --out invoices.csv   # one CSV row per invoice for a bookkeeper, status read from the chain
 npx @erhantrk/zeroinit invoice new --id TEST-1 --merchant example-zi-merchant.testnet --tax-vault example-zi-taxvault.testnet \
     --tax-bps 800 --amount 0.1 --expires-in 2h --offline    # issues an invoice: no transaction, writes ./invoices/TEST-1.json
 ```

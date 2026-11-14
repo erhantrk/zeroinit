@@ -15,6 +15,8 @@ No keys needed:
   zeroinit replay fixtures/v33/demo-run.json  the recorded live run, replayed offline
   zeroinit vectors                             the byte-encoding test vectors
   zeroinit check <0u address> <check code>     before sending from a wallet: does the address match its check code?
+  zeroinit export --dir invoices/v33 --out invoices.csv
+                                               a CSV for a bookkeeper: one row per invoice, status read from the chain
   zeroinit invoice new --id TEST-1 --merchant example-zi-merchant.testnet --tax-vault example-zi-taxvault.testnet \\
       --tax-bps 800 --amount 0.1 --expires-in 2h --offline
                                                issue an invoice: sends no transaction, writes ./invoices/TEST-1.json
@@ -38,6 +40,12 @@ process.env.ZI_BUNDLED_INVOICE_DIR ??= join(root, 'invoices');
 if (args[0] === 'replay' && args[1] && !existsSync(args[1])) {
   const shipped = join(root, args[1]);
   if (!args[1].includes('..') && existsSync(shipped)) process.argv[3] = shipped;
+}
+// `export --dir invoices/v33` names the recorded invoices: when the folder is not here, use the copy in the package.
+const dirAt = args[0] === 'export' ? args.indexOf('--dir') : -1;
+if (dirAt > 0 && args[dirAt + 1] && !existsSync(args[dirAt + 1])) {
+  const shipped = join(root, args[dirAt + 1]);
+  if (!args[dirAt + 1].includes('..') && existsSync(shipped)) process.argv[dirAt + 3] = shipped;
 }
 await import('../src/cli.ts');
 

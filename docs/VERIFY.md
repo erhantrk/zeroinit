@@ -16,12 +16,12 @@ Node 22 (`package.json` asks for `>=22.22.0 <23`). `npm ci --include=dev` needs 
    `near-api-js` 7.4.0 (one encoder-parity test) and the MCP build tools. The flag matters: with `NODE_ENV=production` in the environment a plain `npm ci`
    skips devDependencies and the parity test cannot import `near-api-js`.
 
-2. `npm test` → 255 tests, all pass: byte vectors from nearcore 2.14 and the frozen examples, units, deployments, `/1` and `/2` invoice documents, encoder parity with
-   near-api-js 7.4.0, outcome/replay/CLI/dashboard/MCP tests, the check code, and the recorded fixtures of every version, each with tamper tests.
+2. `npm test` → 263 tests, all pass: byte vectors from nearcore 2.14 and the frozen examples, units, deployments, `/1` and `/2` invoice documents, encoder parity with
+   near-api-js 7.4.0, outcome/replay/CLI/dashboard/MCP tests, the check code, the CSV export, and the recorded fixtures of every version, each with tamper tests.
 
    ```
-   # tests 255
-   # pass 255
+   # tests 263
+   # pass 263
    # fail 0
    # skipped 0
    ```
@@ -147,7 +147,17 @@ and so does every offline replay. For a transaction lookup use the archival endp
    deployed code; that it is built from this source is [REPRODUCE.md](REPRODUCE.md). One command does the whole rebuild-and-compare from the chain's own build metadata:
    `near contract verify deployed-at 0us40y0dm1767jkzzxynmwjer15h4xy5wc96rg3xv5hfgs8fx421ag network-config testnet now` (needs Docker; prints "are the same" and the code hash `CrwuvfSL…`). The contract is also verified on SourceScan: [REPRODUCE.md "SourceScan"](REPRODUCE.md#sourcescan).
 
-5. Keys: the RPC call in [LIMITS.md "Who holds keys"](LIMITS.md#who-holds-keys) lists the keys of any account; an invoice account answers `"keys":[]`.
+5. The bookkeeper's CSV: `npm run zi -- export --dir invoices/v33 --out invoices.csv` → `EXPORT 11 invoice(s) to invoices.csv`. One row per invoice with status, currency, amount,
+   merchant and tax shares, tax rate, paid amount, payment time and due date (UTC), merchant, tax vault, payer, anything still owed, the address and its check code, and an
+   explorer link. Every status comes from the chain (`get_invoice`, or no account yet), and a file that fails its own checks is exported as `UNVERIFIED`. The first row:
+
+   ```
+   INV-1111-V33-A,PAID,NEAR,1,0.92,0.08,8,1,2026-11-13T08:48:54.501Z,2026-11-13T10:48:51.764Z,zeroinit-merchant.testnet,zeroinit-taxvault.testnet,zeroinit-payer.testnet,,0us40y0d…421ag,MVNC,,https://testnet.nearblocks.io/address/0us40y0d…421ag,
+   ```
+
+   `INV-1111-V33-C` and `PARK-V33-U` are `EXPIRED`; the note of `PARK-V33-U` says 0.3 tUSDC arrived by plain transfer, less than the price. Without `--out` the CSV goes to stdout.
+
+6. Keys: the RPC call in [LIMITS.md "Who holds keys"](LIMITS.md#who-holds-keys) lists the keys of any account; an invoice account answers `"keys":[]`.
 
 ## All claims
 
@@ -164,6 +174,7 @@ and so does every offline replay. For a transaction lookup use the archival endp
 | Two token payments at the same moment are both returned in full; a retry then pays once | `npm run zi -- replay fixtures/v33/two-payments.json` | two `PASS ft-rejected-busy TWO-V33-2 used 0, 1000000 of 1000000 returned …` lines (payer and sweeper), then `PASS single-invoice-paid TWO-V33-2 1 invoice_paid event(s) in the recording`. One run |
 | Nobody holds keys to **invoice** accounts (other accounts do: [LIMITS.md "Who holds keys"](LIMITS.md#who-holds-keys)) | `npm run zi -- verify INV-1111-V33-A` (RPC `view_access_key_list`) | `PASS no-access-keys` |
 | The deployed code is the committed wasm, and the reproducible build of commit `7727a1c` produces it | `shasum -a 256 contract/res/v3.3/zeroinit_invoice.wasm` and `npm run zi -- verify INV-1111-V33-A`; the rebuild: [REPRODUCE.md](REPRODUCE.md) | digest `b03c1b08…2a8e` = base58 `CrwuvfSL…aVsb`; `PASS code-hash-onchain` |
+| A bookkeeper gets one CSV row per invoice, status read from the chain | `npm run zi -- export --dir invoices/v33 --out invoices.csv` | `EXPORT 11 invoice(s) to invoices.csv`; the first row starts `INV-1111-V33-A,PAID,NEAR,1,0.92,0.08,8,1,` |
 | The check code catches a mistyped address (for a payer who checks) | `npm run zi -- check 0us40y0dm1767jkzzxynmwjer15h4xy5wc96rg3xv5hfgs8fx421ag MVNC`, then the same with another code | `PASS check-code 0us40y0d…`; with a wrong code `FAIL check-code …: the code does not match this address; do not send funds to it`, exit 1 |
 
 More claims, checked on the v3 and v3.1 recordings (late merchant, token rejections, owed and refunded payouts, taxed partial parks, refunds on `pay()`) and the v2/v1 fixes:

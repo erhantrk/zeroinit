@@ -9,12 +9,13 @@ import { actFunctionCall } from './tx.ts';
 import { loadConfig, trustedCodeHash, pinForVerification, deploymentLabel, deploymentOf, fixesParkedFunds, fixesFinding, tokenBySymbol, readOnlyAllowList, type Config, type Signer, type AllowedToken } from './config.ts';
 import { checkNetwork, viewAccount, viewInvoice, setRecordInvoice, recordInvoiceDoc, rpcCall } from './rpc.ts';
 import { sendActions } from './send.ts';
-import { createInvoiceDoc, loadDoc, saveDoc, checkDoc, assertDocTrusted, assertAccountsUsable, stateInitAction, termsMatchOnchain, docProblem, onchainProblem, randomSalt,
+import { createInvoiceDoc, loadDoc, saveDoc, checkDoc, assertDocTrusted, assertAccountsUsable, stateInitAction, termsMatchOnchain, docProblem, onchainProblem, randomSalt, listDocs,
   isV3Doc, docAmountRaw, docAmountDisplay, docToken, docUnit, docDecimals, GRACE_DEFAULT_MS, GRACE_MIN_MS, GRACE_MAX_MS, type InvoiceDoc } from './invoice.ts';
 import { statusLine } from './status.ts';
 import { verifyDoc } from './verify.ts';
 import { runVectors } from './vectors.ts';
 import { checkCode, checkCodeMatches } from './checkcode.ts';
+import { chainView, exportRow, toCsv } from './export.ts';
 import { replayFixture, fixturePin } from './replay.ts';
 import { parseTxStatus, type ParsedTx } from './outcome.ts';
 import { GAS, FLOAT_YOCTO, actFund, actFtTransfer, actFtTransferCall, actStorageDeposit, payMsg, parseUnits, formatUnits,
@@ -106,7 +107,7 @@ function failureText(p: ParsedTx): string {
 
 async function main(argv: string[]): Promise<number> {
   const [cmd, ...rest] = argv;
-  const KNOWN = ['vectors', 'replay', 'check', 'invoice', 'status', 'pay', 'init', 'sweep', 'verify', 'receipt', 'serve', 'token', 'refund-payer'];
+  const KNOWN = ['vectors', 'replay', 'check', 'invoice', 'status', 'pay', 'init', 'sweep', 'verify', 'receipt', 'serve', 'token', 'refund-payer', 'export'];
   if (!cmd || !KNOWN.includes(cmd)) throw new UsageError(`unknown command ${cmd ?? '(none)'}. Commands: ${KNOWN.join(', ')}`);
   const args = cmd === 'invoice' ? rest.slice(1) : cmd === 'token' ? rest.slice(1) : rest;
   const { values: v, positionals: pos } = parseArgs({ args, allowPositionals: true, options: {
@@ -114,7 +115,7 @@ async function main(argv: string[]): Promise<number> {
     amount: { type: 'string' }, 'expires-in': { type: 'string' }, 'expires-at': { type: 'string' }, salt: { type: 'string' },
     scheme: { type: 'string' }, 'code-hash': { type: 'string' }, layout: { type: 'string' }, token: { type: 'string' }, grace: { type: 'string' },
     'no-init': { type: 'boolean' }, offline: { type: 'boolean' }, 'allow-parked': { type: 'boolean' }, plain: { type: 'boolean' },
-    tx: { type: 'string' }, port: { type: 'string' }, json: { type: 'boolean' },
+    tx: { type: 'string' }, port: { type: 'string' }, json: { type: 'boolean' }, dir: { type: 'string' }, out: { type: 'string' },
   } });
   const json = !!v.json;
 
@@ -203,6 +204,23 @@ async function main(argv: string[]): Promise<number> {
     const file = saveDoc(cfg.invoiceDir, doc);
     recordInvoiceDoc(cfg, doc);
     out(json, { ...doc, check_code: checkCode(doc.account_id) }, [`INVOICE ${doc.invoice_id}`, `ACCOUNT ${doc.account_id}`, `CHECK ${checkCode(doc.account_id)}`, `PAY ${docAmountDisplay(doc)} ${docUnit(doc)} before ${doc.expires_at_iso}`, `FILE ${file}`]);
+    return 0;
+  }
+
+  if (cmd === 'export') {
+    // A CSV for a bookkeeper: one row per invoice, status read from the chain. Ids, or every invoice file in --dir (default: the invoice folder).
+    const docs = pos.length ? pos.map((x) => loadDoc(cfg.invoiceDir, x)) : listDocs(v.dir ?? cfg.invoiceDir);
+    if (!docs.length) throw new UsageError(`no invoice files in ${v.dir ?? cfg.invoiceDir}/: pass invoice ids or --dir <folder>`);
+    await checkNetwork(cfg);
+    docs.sort((a, b) => a.created_at_iso.localeCompare(b.created_at_iso) || a.invoice_id.localeCompare(b.invoice_id));
+    const rows = [];
+    for (const d of docs) rows.push(exportRow(d, await chainView(cfg, d), cfg.network));
+    const csv = toCsv(rows);
+    if (v.out) {
+      writeFileSync(v.out, csv);
+      out(json, { file: v.out, rows }, [`EXPORT ${rows.length} invoice(s) to ${v.out}`]);
+    } else if (json) out(true, rows, []);
+    else await new Promise<void>((r) => process.stdout.write(csv, () => r()));   // flushed before process.exit
     return 0;
   }
 

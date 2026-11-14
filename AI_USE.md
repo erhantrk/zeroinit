@@ -26,6 +26,7 @@ The "operator" below is the model that held the testnet accounts and ran the dep
   records no payer), that the replay checks would misread such payments (fixed: new checks), and smaller items (the `busy` bounce, event timing, the `late` flag, tests, stale docs), each handled.
   A **Claude Opus 5.5** agent made the site fixes (narrow-phone header, npm commands, share image), and another wrote this round's documentation update from the recorded facts.
   The author decided, approved the contract change and the new testnet accounts, and is responsible. v3.3 is still not audited by a human auditor.
+- **CSV export (2026-11-14):** **Claude Opus 5.5**, in Claude Code, added `zi export` (one CSV row per invoice, status read from the chain) with its tests, after comparing the project with the hackathon's example prompt for the Real-World Money track; the author decided the scope.
 
 Testnet transactions were signed with the repository's own encoder using keys from a local `.env` file, which is gitignored and was never printed or committed.
 

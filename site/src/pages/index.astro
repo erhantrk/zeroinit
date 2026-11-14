@@ -15,6 +15,7 @@ const demoInvoice = 'INV-1111-V33-A';
 const npmUrl = 'https://www.npmjs.com/package/@erhantrk/zeroinit';
 const npmVerifyCmd = `npx -y @erhantrk/zeroinit verify ${demoInvoice}`;
 const npmMcpCmd = 'claude mcp add zeroinit -- npx -y -p @erhantrk/zeroinit zeroinit-mcp';
+const npmExportCmd = 'npx -y @erhantrk/zeroinit export --dir invoices/v33 --out invoices.csv';
 
 const steps = replayData.steps;
 ---
@@ -74,7 +75,7 @@ const steps = replayData.steps;
         <div><dt>transactions to issue an invoice</dt><dd>0</dd></div>
         <div><dt>transaction to pay it</dt><dd>1</dd></div>
         <div><dt>demo split to merchant and tax vault</dt><dd>92 / 8</dd></div>
-        <div><dt>tests pass</dt><dd>255</dd></div>
+        <div><dt>tests pass</dt><dd>263</dd></div>
       </dl>
     </div>
 
@@ -252,7 +253,7 @@ STATE INITIALIZED status=PAID paid_by=null balance=0 storage=396</code></pre>
                     <div><dt>Contract (v3.3)</dt><dd><span class="mono val">{codeHash}</span><button class="copy" type="button" data-copy={codeHash} aria-label="Copy the contract hash" hidden>Copy</button></dd></div>
                     <div><dt>Demo account</dt><dd><span class="mono val">{account}</span><button class="copy" type="button" data-copy={account} aria-label="Copy the demo invoice account" hidden>Copy</button></dd></div>
                     <div><dt>Address kind</dt><dd><span class="val">0u…, NEP-655, protocol 88</span></dd></div>
-                    <div><dt>Tests</dt><dd><span class="val">255 pass, plus 104 on the contract. The recorded demo replays offline.</span></dd></div>
+                    <div><dt>Tests</dt><dd><span class="val">263 pass, plus 104 on the contract. The recorded demo replays offline.</span></dd></div>
                     <div><dt>License</dt><dd><span class="val">MIT</span></dd></div>
                   </dl>
                 </div>
@@ -303,6 +304,11 @@ STATE INITIALIZED status=PAID paid_by=null balance=0 storage=396</code></pre>
             <code>{npmVerifyCmd.split(' ').map((w, i) => <>{i > 0 && ' '}<span class="nb">{w}</span></>)}</code>
             <button class="copy on-ink" type="button" data-copy={npmVerifyCmd} aria-label="Copy the verify command" hidden>Copy</button>
           </div>
+          <p class="run-step">Export the recorded invoices as a CSV for a bookkeeper. Every status is read from the chain.</p>
+          <div class="cmd-card">
+            <code>{npmExportCmd.split(' ').map((w, i) => <>{i > 0 && ' '}<span class="nb">{w}</span></>)}</code>
+            <button class="copy on-ink" type="button" data-copy={npmExportCmd} aria-label="Copy the export command" hidden>Copy</button>
+          </div>
           <p class="run-step">Add the MCP server for AI agents. It is read-only and never signs.</p>
           <div class="cmd-card">
             <code>{npmMcpCmd.split(' ').map((w, i) => <>{i > 0 && ' '}<span class="nb">{w}</span></>)}</code>
@@ -348,6 +354,7 @@ STATE INITIALIZED status=PAID paid_by=null balance=0 storage=396</code></pre>
               <li>Token (NEP-141) invoices need the <span class="mono">0u</span> id registered on the token: one <span class="mono">storage_deposit</span> of 0.00125 NEAR. The CLI sends it in the same transaction as the payment; before a transfer from an exchange, someone has to send it first. “Costs nothing until paid” describes issuing.</li>
               <li>A <span class="mono">0u</span> address has no checksum of its own. The issuer shows a 4-character check code next to it, and <span class="mono">zi check</span> tests an address against it. An address pasted straight into a wallet is not checked.</li>
               <li>Plain-transfer underpayments and overpayments are not refunded: a sweep cannot know who sent them.</li>
+              <li>Not in this build: paying from another chain through NEAR Intents (it has no testnet), gasless payment for the payer, and line items. The merchant never needs gas.</li>
             </ul>
           </div>
         </div>
