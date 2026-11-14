@@ -36,11 +36,37 @@ const RECORDED = { merchant: 'zeroinit-merchant.testnet', tax_vault: 'zeroinit-t
   expires_at: '2026-11-13T10:48:51.764Z', salt: '5754866504318508017', offline: true };
 const RECORDED_NOW = Date.parse('2026-11-13T08:48:52.094Z');
 
-test('tool list: the three read-only tools', async () => {
+test('tool list: three tools; status and verify are read-only, issue may save a local file (never a transaction)', async () => {
   const client = await connect();
   const { tools } = await client.listTools();
   assert.deepEqual(tools.map((t) => t.name).sort(), ['invoice_status', 'issue_invoice', 'verify_invoice']);
-  for (const t of tools) assert.equal(t.annotations?.readOnlyHint, true);
+  for (const t of tools) assert.equal(t.annotations?.readOnlyHint, t.name !== 'issue_invoice', t.name);
+});
+
+test('invoice_id: issue_invoice with save writes the file, then verify_invoice and invoice_status find it by id (nothing retyped)', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'zi-mcp-'));
+  const c = cfg({ ZI_INVOICE_DIR: dir });
+  const r = await issueInvoice(c, { ...RECORDED, save: true }, RECORDED_NOW) as any;
+  assert.equal(r.saved_to, join(dir, 'INV-1111-V33-A.json'));
+  assert.deepEqual(readDoc(r.saved_to), readDoc('invoices/v33/INV-1111-V33-A.json'));
+  await assert.rejects(issueInvoice(c, { ...RECORDED, save: true }, RECORDED_NOW), (e: any) => e instanceof InputError && /already exists/.test(e.message));
+  const v = await verifyInvoice(c, { invoice_id: 'INV-1111-V33-A', offline: true }) as any;
+  assert.equal(v.ok, true);
+  assert.equal((await issueInvoice(c, { ...RECORDED, invoice_number: 'NOSAVE-1' }, RECORDED_NOW) as any).saved_to, null);
+  await assert.rejects(verifyInvoice(c, { invoice_id: 'NOSAVE-1', offline: true }), (e: any) => e instanceof InputError && /no saved invoice NOSAVE-1/.test(e.message));
+  await assert.rejects(verifyInvoice(c, { invoice_id: '../etc/passwd' }), InputError);
+  await assert.rejects(verifyInvoice(c, { invoice_id: 'INV-1111-V33-A', invoice: makeDoc() } as any), /not both/);
+  await assert.rejects(verifyInvoice(c, {} as any), InputError);
+  const doc = readDoc(r.saved_to);
+  const rpc = await fakeRpc(handlers(doc, { invoice: onchainInvoice(doc, { status: 'PAID' }) }));
+  try {
+    const s = await invoiceStatus(cfg({ ZI_INVOICE_DIR: dir, ZI_RPC_URL: rpc.url }), { invoice_id: 'INV-1111-V33-A' }) as any;
+    assert.equal(s.ok, true); assert.equal(s.state, 'PAID'); assert.match(s.summary, /status=PAID/);
+  } finally { await rpc.close(); }
+  await assert.rejects(invoiceStatus(c, { invoice_id: 'INV-1111-V33-A', account_id: doc.account_id }), /one of/);
+  const client = await connect(c);
+  const over = await call(client, 'verify_invoice', { invoice_id: 'INV-1111-V33-A', offline: true });
+  assert.equal(over.isError, false); assert.equal(over.data.ok, true);
 });
 
 test('issue_invoice reproduces the recorded v3.3 invoice byte for byte (same id, same fields, same layout)', async () => {

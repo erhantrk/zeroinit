@@ -31,7 +31,7 @@ ZeroInit derives the address from the terms with NEAR's deterministic account id
 - **Live site:** <https://zeroinit.vercel.app>
 - **The one-transaction payment** on testnet: [`GFzvAw8t…`](https://testnet.nearblocks.io/txns/GFzvAw8t95XhN1JnvSNY4K9sThv7HQahLp9AnJ2SHQLe) (invoice `INV-1111-V33-A`, contract v3.3: state init + `pay`, 0.92 to the merchant, 0.08 to the tax vault)
 - **For a bookkeeper:** `zi export` writes one CSV row per invoice: status, amount, merchant and tax shares, payer, payment time and due date, all read from the chain. No keys needed: `npx -y @erhantrk/zeroinit export --dir invoices/v33 --out invoices.csv`
-- **For AI agents:** an [MCP server](mcp/README.md) with `issue_invoice`, `invoice_status` and `verify_invoice` (read-only, never signs). No clone needed: `claude mcp add zeroinit -- npx -y -p @erhantrk/zeroinit zeroinit-mcp`
+- **For AI agents:** an [MCP server](mcp/README.md) with `issue_invoice`, `invoice_status` and `verify_invoice` (never signs or sends a transaction; it can save the invoice file and look invoices up by id). No clone needed: `claude mcp add zeroinit -- npx -y -p @erhantrk/zeroinit zeroinit-mcp`
 
 Tracks: **Real-World Money** (primary) · **Open Innovation**. Testnet only, mock token only, not audited.
 
@@ -51,7 +51,7 @@ From a clone, the full check. No keys and no `.env` needed. Node 22; `npm ci` ne
 
 ```bash
 npm ci --include=dev
-npm test                                             # 263 tests, all pass
+npm test                                             # 264 tests, all pass
 npm run zi -- replay fixtures/v33/demo-run.json      # a recorded live testnet run, replayed offline: 62 PASS lines, exit 0
 bash scripts/judge-offline.sh                        # the whole offline check; last line: JUDGE-OFFLINE: ALL PASS
 npm run zi -- verify INV-1111-V33-A                  # one read-only live check over testnet RPC: every line PASS, ends PASS no-access-keys / INFO status=PAID
@@ -68,7 +68,7 @@ Every step, with its full expected output, is in [docs/VERIFY.md](docs/VERIFY.md
 | **1** | transaction to create the invoice account, pay and split the money |
 | **0** | access keys on an invoice account (`zi verify` prints `PASS no-access-keys`) |
 | **0.0075647 NEAR** | measured cost of that one transaction to the payer (gas plus NEAR's 0.007 NEAR account-creation charge) |
-| **263 + 104** | offline JavaScript tests (`npm test`) + Rust unit tests on the contract (`npm run contract:test`) |
+| **264 + 104** | offline JavaScript tests (`npm test`) + Rust unit tests on the contract (`npm run contract:test`) |
 | **1** | reproducible build: the deployed code `CrwuvfSL…` is what `cargo near build reproducible-wasm` produces at commit `7727a1c`; CI rebuilds it from the on-chain metadata on every push, and it is verified on [SourceScan](docs/REPRODUCE.md#sourcescan) ([docs/REPRODUCE.md](docs/REPRODUCE.md#one-command-straight-from-the-chain)) |
 
 ## What NEAR does here

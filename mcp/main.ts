@@ -6,7 +6,7 @@ import { createServer } from './server.ts';
 try {
   const cfg = loadConfig();
   await createServer(cfg).connect(new StdioServerTransport());
-  console.error(`zeroinit-mcp ready (testnet, rpc ${cfg.rpcUrl}); read-only, never signs`);
+  console.error(`zeroinit-mcp ready (testnet, rpc ${cfg.rpcUrl}); never signs or sends a transaction`);
 } catch (e) {
   console.error(`zeroinit-mcp failed to start: ${e instanceof Error ? e.message : String(e)}`);
   process.exit(1);

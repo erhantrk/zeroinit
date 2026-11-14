@@ -75,7 +75,7 @@ const steps = replayData.steps;
         <div><dt>transactions to issue an invoice</dt><dd>0</dd></div>
         <div><dt>transaction to pay it</dt><dd>1</dd></div>
         <div><dt>demo split to merchant and tax vault</dt><dd>92 / 8</dd></div>
-        <div><dt>tests pass</dt><dd>263</dd></div>
+        <div><dt>tests pass</dt><dd>264</dd></div>
       </dl>
     </div>
 
@@ -253,7 +253,7 @@ STATE INITIALIZED status=PAID paid_by=null balance=0 storage=396</code></pre>
                     <div><dt>Contract (v3.3)</dt><dd><span class="mono val">{codeHash}</span><button class="copy" type="button" data-copy={codeHash} aria-label="Copy the contract hash" hidden>Copy</button></dd></div>
                     <div><dt>Demo account</dt><dd><span class="mono val">{account}</span><button class="copy" type="button" data-copy={account} aria-label="Copy the demo invoice account" hidden>Copy</button></dd></div>
                     <div><dt>Address kind</dt><dd><span class="val">0u…, NEP-655, protocol 88</span></dd></div>
-                    <div><dt>Tests</dt><dd><span class="val">263 pass, plus 104 on the contract. The recorded demo replays offline.</span></dd></div>
+                    <div><dt>Tests</dt><dd><span class="val">264 pass, plus 104 on the contract. The recorded demo replays offline.</span></dd></div>
                     <div><dt>License</dt><dd><span class="val">MIT</span></dd></div>
                   </dl>
                 </div>
@@ -309,7 +309,7 @@ STATE INITIALIZED status=PAID paid_by=null balance=0 storage=396</code></pre>
             <code>{npmExportCmd.split(' ').map((w, i) => <>{i > 0 && ' '}<span class="nb">{w}</span></>)}</code>
             <button class="copy on-ink" type="button" data-copy={npmExportCmd} aria-label="Copy the export command" hidden>Copy</button>
           </div>
-          <p class="run-step">Add the MCP server for AI agents. It is read-only and never signs.</p>
+          <p class="run-step">Add the MCP server for AI agents. It never signs or sends a transaction.</p>
           <div class="cmd-card">
             <code>{npmMcpCmd.split(' ').map((w, i) => <>{i > 0 && ' '}<span class="nb">{w}</span></>)}</code>
             <button class="copy on-ink" type="button" data-copy={npmMcpCmd} aria-label="Copy the MCP command" hidden>Copy</button>
@@ -322,7 +322,7 @@ STATE INITIALIZED status=PAID paid_by=null balance=0 storage=396</code></pre>
             <code id="cmd">{replayCmd}</code>
             <button class="copy on-ink" type="button" data-copy={replayCmd} aria-label="Copy the command" hidden>Copy</button>
           </div>
-          <p class="note muted"><a href={repoUrl}>Source on GitHub</a>. The repository also has an <a href={mcpUrl}>MCP server</a> for AI agents. It is read-only and never signs.</p>
+          <p class="note muted"><a href={repoUrl}>Source on GitHub</a>. The repository also has an <a href={mcpUrl}>MCP server</a> for AI agents. It never signs or sends a transaction.</p>
         </div>
       </div>
     </section>

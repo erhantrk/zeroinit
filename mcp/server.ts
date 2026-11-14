@@ -1,10 +1,11 @@
-// The ZeroInit MCP server: three read-only tools over stdio (see mcp/README.md). It never signs and never reads a key.
+// The ZeroInit MCP server: three tools over stdio (see mcp/README.md). It never signs, never sends a transaction and never reads a key;
+// the only thing it writes is an invoice file, when issue_invoice is called with save: true.
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { Config } from '../src/config.ts';
 import { issueInvoice, invoiceStatus, verifyInvoice, InputError } from './tools.ts';
 
-export const SERVER_VERSION = '0.1.0';
+export const SERVER_VERSION = '0.2.0';
 
 const asText = (r: Record<string, unknown>) => ({ content: [{ type: 'text' as const, text: JSON.stringify(r, null, 2) }], structuredContent: r });
 const refuse = (e: unknown) => ({ isError: true, content: [{ type: 'text' as const, text: `REFUSED: ${e instanceof Error ? e.message : String(e)}` }] });
@@ -34,22 +35,23 @@ export function createServer(cfg: Config): McpServer {
       payout_grace_ms: z.number().int().optional().describe('Grace after expiry before a late payment is released, 60000 to 31536000000 ms (default 7 days)'),
       salt: z.string().optional().describe('u64 as a decimal string (default random); the same terms and salt give the same address'),
       offline: z.boolean().optional().describe('Skip the testnet check that merchant and tax vault exist (and are registered on the token)'),
+      save: z.boolean().optional().describe('Also save the invoice file to the invoice folder (ZI_INVOICE_DIR, default ./invoices), so `zi pay <id>` and the invoice_id of the other tools find it'),
     },
-    annotations: { ...readOnly, title: 'Issue a ZeroInit invoice' },
+    annotations: { ...readOnly, readOnlyHint: false, title: 'Issue a ZeroInit invoice' },
   }, (a) => run(() => issueInvoice(cfg, a)));
 
   server.registerTool('invoice_status', {
     title: 'Live status of an invoice',
     description: 'Live testnet state of an invoice account: NONEXISTENT (nothing happened yet), FUNDED_NOT_MATERIALIZED (money was sent but nobody has initialised the account), OPEN / PAID / refunded etc. as the contract reports. '
-      + 'Pass the invoice document (checked against its terms) or just an account_id. A network problem is returned as data (state UNKNOWN), not as an error.',
-    inputSchema: { invoice: invoiceDoc.optional(), account_id: z.string().optional().describe('A 0u... pay address or other testnet account (no terms check)') },
+      + 'Pass the invoice_id of a saved invoice (preferred), the invoice document (both are checked against the terms) or just an account_id. A network problem is returned as data (state UNKNOWN), not as an error.',
+    inputSchema: { invoice_id: z.string().optional().describe('Id of an invoice saved in the invoice folder (issue_invoice with save: true, or zi invoice new)'), invoice: invoiceDoc.optional(), account_id: z.string().optional().describe('A 0u... pay address or other testnet account (no terms check)') },
     annotations: { ...readOnly, title: 'Live status of an invoice' },
   }, (a) => run(() => invoiceStatus(cfg, a as any)));
 
   server.registerTool('verify_invoice', {
     title: 'Verify an invoice document',
-    description: 'The checks of `zi verify`: re-derive the pay address and raw state init from the terms and the pinned code hash, check the token against the allow-list, and (unless offline) check the on-chain code hash, terms and absence of access keys. Returns each check with ok/detail.',
-    inputSchema: { invoice: invoiceDoc, offline: z.boolean().optional().describe('Only the offline checks (default false: on-chain checks too when testnet is reachable)') },
+    description: 'Give invoice_id (a saved invoice) or the invoice document. The checks of `zi verify`: re-derive the pay address and raw state init from the terms and the pinned code hash, check the token against the allow-list, and (unless offline) check the on-chain code hash, terms and absence of access keys. Returns each check with ok/detail.',
+    inputSchema: { invoice_id: z.string().optional().describe('Id of an invoice saved in the invoice folder (preferred: nothing to copy)'), invoice: invoiceDoc.optional(), offline: z.boolean().optional().describe('Only the offline checks (default false: on-chain checks too when testnet is reachable)') },
     annotations: { ...readOnly, title: 'Verify an invoice document' },
   }, (a) => run(() => verifyInvoice(cfg, a as any)));
 

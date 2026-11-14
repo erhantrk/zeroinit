@@ -22600,6 +22600,10 @@ function invoiceStateInit(scheme, code, t) {
   return { raw, accountId: deriveDeterministicAccountId(raw) };
 }
 
+// src/invoice.ts
+import { readFileSync as readFileSync2, writeFileSync as writeFileSync2, mkdirSync, existsSync as existsSync2, readdirSync } from "node:fs";
+import { join as join2 } from "node:path";
+
 // src/rpc.ts
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 var currentInvoiceId = null;
@@ -22916,6 +22920,27 @@ async function assertAccountsUsable(cfg, t) {
     }
   }
 }
+function saveDoc(dir, d) {
+  mkdirSync(dir, { recursive: true });
+  const p = join2(dir, `${d.invoice_id}.json`);
+  if (existsSync2(p)) throw new Error(`${p} already exists (invoice ids must be unique)`);
+  writeFileSync2(p, JSON.stringify(d, null, 2) + "\n");
+  return p;
+}
+function loadDoc(dir, id) {
+  for (const p of [join2(dir, `${id}.json`), join2(dir, "examples", `${id}.json`), join2(dir, "v33", `${id}.json`), join2(dir, "v32r", `${id}.json`), join2(dir, "v32", `${id}.json`), join2(dir, "v31", `${id}.json`), join2(dir, "v3", `${id}.json`), join2(dir, "v2", `${id}.json`), join2(dir, "v1", `${id}.json`), join2(dir, "demo", `${id}.json`)]) {
+    if (existsSync2(p)) return JSON.parse(readFileSync2(p, "utf8"));
+  }
+  const bundled = process.env.ZI_BUNDLED_INVOICE_DIR;
+  if (bundled && SAFE_INVOICE_ID.test(id)) {
+    for (const sub of ["v33", "examples", "demo"]) {
+      const p = join2(bundled, sub, `${id}.json`);
+      if (existsSync2(p)) return JSON.parse(readFileSync2(p, "utf8"));
+    }
+  }
+  throw new Error(`invoice ${id} not found in ${dir}/, ${dir}/examples/, ${dir}/v33/, ${dir}/v32r/, ${dir}/v32/, ${dir}/v31/, ${dir}/v3/, ${dir}/v2/, ${dir}/v1/ or ${dir}/demo/`);
+}
+var SAFE_INVOICE_ID = /^[A-Za-z0-9_-]{1,32}$/;
 function docProblem(d, pin, allowed) {
   const c = checkDoc(d, pin, allowed);
   const bad = [
@@ -23035,6 +23060,18 @@ var bigintJson = (v) => JSON.parse(JSON.stringify(v, (_k, x) => typeof x === "bi
 var errText = (e) => e instanceof Error ? e.message : String(e);
 var ACCOUNT_ID = /^(?:[a-z0-9_.-]{2,64}|0[us][0-9a-z]{20,64})$/;
 var TESTNET_ACCOUNT2 = /^(?:[a-z0-9_.-]+\.testnet|[0-9a-f]{64}|0[us][0-9a-z]+)$/;
+function docById(cfg, id) {
+  if (!SAFE_INVOICE_ID.test(id)) throw new InputError(`"${id}" is not an invoice id (1-32 chars of A-Z a-z 0-9 _ -)`);
+  try {
+    return loadDoc(cfg.invoiceDir, id);
+  } catch {
+    throw new InputError(`no saved invoice ${id} in ${cfg.invoiceDir}/ (issue it with save: true, or pass the invoice document)`);
+  }
+}
+function pickDoc(cfg, a) {
+  if (a.invoice !== void 0 && a.invoice_id !== void 0) throw new InputError("give invoice or invoice_id, not both");
+  return a.invoice_id !== void 0 ? docById(cfg, a.invoice_id) : a.invoice;
+}
 function parseExpiry(now, inStr, atStr) {
   let ms;
   if (atStr) {
@@ -23159,6 +23196,14 @@ async function issueInvoice(cfg, a, now = Date.now()) {
   if (!dep) warnings.push(`code hash ${codeHash} is not a known ZeroInit deployment (ZI_CODE_HASH is set): a payer who trusts the current deployment will refuse this invoice`);
   if (a.tax_vault === void 0) warnings.push("no tax_vault given: the tax vault is the merchant and tax_bps is 0 unless set");
   if (a.offline) warnings.push("offline: the merchant / tax vault accounts were not checked on testnet");
+  let savedTo = null;
+  if (a.save) {
+    try {
+      savedTo = saveDoc(cfg.invoiceDir, doc);
+    } catch (e) {
+      throw new InputError(`not saved: ${errText(e)}`);
+    }
+  }
   return {
     transaction_sent: false,
     cost: "Issuing sent no transaction and cost nothing: the address is computed from the terms. The payer's own transaction creates the account, pays the merchant and sets the tax aside. This server never signs.",
@@ -23167,14 +23212,17 @@ async function issueInvoice(cfg, a, now = Date.now()) {
     check_code_note: "Show this code next to the pay address. A payer who types the address into a wallet can check it first with `npx -y @erhantrk/zeroinit check <address> <code>`: a mistyped 0u address is a valid address of other bytes and funds sent there are lost.",
     deployment: deploymentLabel(codeHash),
     invoice: doc,
+    saved_to: savedTo,
     pay_instructions: payInstructions(doc, cfg),
     explorer: `${EXPLORER}/address/${doc.account_id}`,
     warnings
   };
 }
-async function invoiceStatus(cfg, a) {
-  if (a.invoice === void 0 && a.account_id === void 0) throw new InputError("give invoice (the document from issue_invoice) or account_id");
-  if (a.invoice !== void 0 && a.account_id !== void 0) throw new InputError("give invoice or account_id, not both");
+async function invoiceStatus(cfg, a0) {
+  const given = [a0.invoice, a0.invoice_id, a0.account_id].filter((x) => x !== void 0).length;
+  if (given === 0) throw new InputError("give invoice_id (a saved invoice), invoice (the document from issue_invoice) or account_id");
+  if (given > 1) throw new InputError("give one of invoice_id, invoice or account_id");
+  const a = { invoice: pickDoc(cfg, a0), account_id: a0.account_id };
   const accountId = a.invoice ? String(a.invoice.account_id ?? "") : a.account_id;
   if (!ACCOUNT_ID.test(accountId)) throw new InputError(`"${accountId}" is not an account id`);
   const links = { account: `${EXPLORER}/address/${accountId}` };
@@ -23210,7 +23258,8 @@ var parseLine = (l) => {
   return m ? { name: m[2], ok: m[1] === "INFO" ? null : m[1] === "PASS", detail: m[3] ?? "" } : { name: "line", ok: null, detail: l };
 };
 async function verifyInvoice(cfg, a) {
-  const doc = a.invoice;
+  const doc = pickDoc(cfg, a);
+  if (doc === void 0) throw new InputError("give invoice_id (a saved invoice) or invoice (the document from issue_invoice)");
   let offlineRes;
   try {
     offlineRes = await verifyDoc(cfg, doc, true);
@@ -23235,7 +23284,7 @@ async function verifyInvoice(cfg, a) {
 }
 
 // mcp/server.ts
-var SERVER_VERSION = "0.1.0";
+var SERVER_VERSION = "0.2.0";
 var asText = (r) => ({ content: [{ type: "text", text: JSON.stringify(r, null, 2) }], structuredContent: r });
 var refuse = (e) => ({ isError: true, content: [{ type: "text", text: `REFUSED: ${e instanceof Error ? e.message : String(e)}` }] });
 async function run(f) {
@@ -23263,20 +23312,21 @@ function createServer(cfg) {
       expires_at: external_exports.string().optional().describe("ISO 8601 expiry time"),
       payout_grace_ms: external_exports.number().int().optional().describe("Grace after expiry before a late payment is released, 60000 to 31536000000 ms (default 7 days)"),
       salt: external_exports.string().optional().describe("u64 as a decimal string (default random); the same terms and salt give the same address"),
-      offline: external_exports.boolean().optional().describe("Skip the testnet check that merchant and tax vault exist (and are registered on the token)")
+      offline: external_exports.boolean().optional().describe("Skip the testnet check that merchant and tax vault exist (and are registered on the token)"),
+      save: external_exports.boolean().optional().describe("Also save the invoice file to the invoice folder (ZI_INVOICE_DIR, default ./invoices), so `zi pay <id>` and the invoice_id of the other tools find it")
     },
-    annotations: { ...readOnly, title: "Issue a ZeroInit invoice" }
+    annotations: { ...readOnly, readOnlyHint: false, title: "Issue a ZeroInit invoice" }
   }, (a) => run(() => issueInvoice(cfg, a)));
   server.registerTool("invoice_status", {
     title: "Live status of an invoice",
-    description: "Live testnet state of an invoice account: NONEXISTENT (nothing happened yet), FUNDED_NOT_MATERIALIZED (money was sent but nobody has initialised the account), OPEN / PAID / refunded etc. as the contract reports. Pass the invoice document (checked against its terms) or just an account_id. A network problem is returned as data (state UNKNOWN), not as an error.",
-    inputSchema: { invoice: invoiceDoc.optional(), account_id: external_exports.string().optional().describe("A 0u... pay address or other testnet account (no terms check)") },
+    description: "Live testnet state of an invoice account: NONEXISTENT (nothing happened yet), FUNDED_NOT_MATERIALIZED (money was sent but nobody has initialised the account), OPEN / PAID / refunded etc. as the contract reports. Pass the invoice_id of a saved invoice (preferred), the invoice document (both are checked against the terms) or just an account_id. A network problem is returned as data (state UNKNOWN), not as an error.",
+    inputSchema: { invoice_id: external_exports.string().optional().describe("Id of an invoice saved in the invoice folder (issue_invoice with save: true, or zi invoice new)"), invoice: invoiceDoc.optional(), account_id: external_exports.string().optional().describe("A 0u... pay address or other testnet account (no terms check)") },
     annotations: { ...readOnly, title: "Live status of an invoice" }
   }, (a) => run(() => invoiceStatus(cfg, a)));
   server.registerTool("verify_invoice", {
     title: "Verify an invoice document",
-    description: "The checks of `zi verify`: re-derive the pay address and raw state init from the terms and the pinned code hash, check the token against the allow-list, and (unless offline) check the on-chain code hash, terms and absence of access keys. Returns each check with ok/detail.",
-    inputSchema: { invoice: invoiceDoc, offline: external_exports.boolean().optional().describe("Only the offline checks (default false: on-chain checks too when testnet is reachable)") },
+    description: "Give invoice_id (a saved invoice) or the invoice document. The checks of `zi verify`: re-derive the pay address and raw state init from the terms and the pinned code hash, check the token against the allow-list, and (unless offline) check the on-chain code hash, terms and absence of access keys. Returns each check with ok/detail.",
+    inputSchema: { invoice_id: external_exports.string().optional().describe("Id of an invoice saved in the invoice folder (preferred: nothing to copy)"), invoice: invoiceDoc.optional(), offline: external_exports.boolean().optional().describe("Only the offline checks (default false: on-chain checks too when testnet is reachable)") },
     annotations: { ...readOnly, title: "Verify an invoice document" }
   }, (a) => run(() => verifyInvoice(cfg, a)));
   return server;
@@ -23286,7 +23336,7 @@ function createServer(cfg) {
 try {
   const cfg = loadConfig();
   await createServer(cfg).connect(new StdioServerTransport());
-  console.error(`zeroinit-mcp ready (testnet, rpc ${cfg.rpcUrl}); read-only, never signs`);
+  console.error(`zeroinit-mcp ready (testnet, rpc ${cfg.rpcUrl}); never signs or sends a transaction`);
 } catch (e) {
   console.error(`zeroinit-mcp failed to start: ${e instanceof Error ? e.message : String(e)}`);
   process.exit(1);

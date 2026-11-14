@@ -4,7 +4,7 @@ import { checkCode } from '../src/checkcode.ts';
 import { parseNear, formatNear } from '../src/bytes.ts';
 import { trustedCodeHash, pinForVerification, deploymentOf, deploymentLabel, tokenBySymbol, type Config } from '../src/config.ts';
 import { invoiceStateBytes } from '../src/stateinit.ts';
-import { createInvoiceDoc, assertAccountsUsable, checkDoc, docProblem, GRACE_DEFAULT_MS, GRACE_MIN_MS, GRACE_MAX_MS, randomSalt,
+import { createInvoiceDoc, assertAccountsUsable, checkDoc, docProblem, GRACE_DEFAULT_MS, GRACE_MIN_MS, GRACE_MAX_MS, randomSalt, loadDoc, saveDoc, SAFE_INVOICE_ID,
   isV3Doc, docAmountRaw, docAmountDisplay, docUnit, docToken, type InvoiceDoc } from '../src/invoice.ts';
 import { checkNetwork, viewAccount, viewInvoice } from '../src/rpc.ts';
 import { statusLine } from '../src/status.ts';
@@ -23,7 +23,18 @@ const TESTNET_ACCOUNT = /^(?:[a-z0-9_.-]+\.testnet|[0-9a-f]{64}|0[us][0-9a-z]+)$
 
 export interface IssueArgs {
   merchant: string; tax_vault?: string; amount: string; asset?: string; tax_bps?: number; invoice_number: string;
-  expires_in?: string; expires_at?: string; payout_grace_ms?: number; salt?: string; offline?: boolean;
+  expires_in?: string; expires_at?: string; payout_grace_ms?: number; salt?: string; offline?: boolean; save?: boolean;
+}
+
+/** The invoice document saved under this id in the invoice folder (ZI_INVOICE_DIR, default ./invoices, then the recorded ones): an agent passes the id, never a retyped document. */
+export function docById(cfg: Config, id: string): InvoiceDoc {
+  if (!SAFE_INVOICE_ID.test(id)) throw new InputError(`"${id}" is not an invoice id (1-32 chars of A-Z a-z 0-9 _ -)`);
+  try { return loadDoc(cfg.invoiceDir, id); } catch { throw new InputError(`no saved invoice ${id} in ${cfg.invoiceDir}/ (issue it with save: true, or pass the invoice document)`); }
+}
+/** Exactly one of invoice / invoice_id: the document either way. */
+function pickDoc(cfg: Config, a: { invoice?: InvoiceDoc; invoice_id?: string }): InvoiceDoc | undefined {
+  if (a.invoice !== undefined && a.invoice_id !== undefined) throw new InputError('give invoice or invoice_id, not both');
+  return a.invoice_id !== undefined ? docById(cfg, a.invoice_id) : a.invoice;
 }
 
 function parseExpiry(now: number, inStr?: string, atStr?: string): bigint {
@@ -109,6 +120,10 @@ export async function issueInvoice(cfg: Config, a: IssueArgs, now = Date.now()):
   if (!dep) warnings.push(`code hash ${codeHash} is not a known ZeroInit deployment (ZI_CODE_HASH is set): a payer who trusts the current deployment will refuse this invoice`);
   if (a.tax_vault === undefined) warnings.push('no tax_vault given: the tax vault is the merchant and tax_bps is 0 unless set');
   if (a.offline) warnings.push('offline: the merchant / tax vault accounts were not checked on testnet');
+  let savedTo: string | null = null;
+  if (a.save) {
+    try { savedTo = saveDoc(cfg.invoiceDir, doc); } catch (e) { throw new InputError(`not saved: ${errText(e)}`); }
+  }
   return {
     transaction_sent: false,
     cost: 'Issuing sent no transaction and cost nothing: the address is computed from the terms. The payer\'s own transaction creates the account, pays the merchant and sets the tax aside. This server never signs.',
@@ -117,6 +132,7 @@ export async function issueInvoice(cfg: Config, a: IssueArgs, now = Date.now()):
     check_code_note: 'Show this code next to the pay address. A payer who types the address into a wallet can check it first with `npx -y @erhantrk/zeroinit check <address> <code>`: a mistyped 0u address is a valid address of other bytes and funds sent there are lost.',
     deployment: deploymentLabel(codeHash),
     invoice: doc,
+    saved_to: savedTo,
     pay_instructions: payInstructions(doc, cfg),
     explorer: `${EXPLORER}/address/${doc.account_id}`,
     warnings,
@@ -124,9 +140,11 @@ export async function issueInvoice(cfg: Config, a: IssueArgs, now = Date.now()):
 }
 
 /** Everything about the account of an invoice document, or of a bare account id (then nothing is checked against terms). */
-export async function invoiceStatus(cfg: Config, a: { invoice?: InvoiceDoc; account_id?: string }): Promise<Record<string, unknown>> {
-  if (a.invoice === undefined && a.account_id === undefined) throw new InputError('give invoice (the document from issue_invoice) or account_id');
-  if (a.invoice !== undefined && a.account_id !== undefined) throw new InputError('give invoice or account_id, not both');
+export async function invoiceStatus(cfg: Config, a0: { invoice?: InvoiceDoc; invoice_id?: string; account_id?: string }): Promise<Record<string, unknown>> {
+  const given = [a0.invoice, a0.invoice_id, a0.account_id].filter((x) => x !== undefined).length;
+  if (given === 0) throw new InputError('give invoice_id (a saved invoice), invoice (the document from issue_invoice) or account_id');
+  if (given > 1) throw new InputError('give one of invoice_id, invoice or account_id');
+  const a = { invoice: pickDoc(cfg, a0), account_id: a0.account_id };
   const accountId = a.invoice ? String((a.invoice as any).account_id ?? '') : a.account_id!;
   if (!ACCOUNT_ID.test(accountId)) throw new InputError(`"${accountId}" is not an account id`);
   const links = { account: `${EXPLORER}/address/${accountId}` };
@@ -157,8 +175,9 @@ const parseLine = (l: string): Check => {
   return m ? { name: m[2], ok: m[1] === 'INFO' ? null : m[1] === 'PASS', detail: m[3] ?? '' } : { name: 'line', ok: null, detail: l };
 };
 
-export async function verifyInvoice(cfg: Config, a: { invoice: InvoiceDoc; offline?: boolean }): Promise<Record<string, unknown>> {
-  const doc = a.invoice;
+export async function verifyInvoice(cfg: Config, a: { invoice?: InvoiceDoc; invoice_id?: string; offline?: boolean }): Promise<Record<string, unknown>> {
+  const doc = pickDoc(cfg, a);
+  if (doc === undefined) throw new InputError('give invoice_id (a saved invoice) or invoice (the document from issue_invoice)');
   let offlineRes: { ok: boolean; lines: string[] };
   try { offlineRes = await verifyDoc(cfg, doc, true); }
   catch (e) { return { ok: false, offline_ok: false, onchain: 'not_checked', checks: [{ name: 'well-formed', ok: false, detail: `malformed invoice document: ${errText(e)}` }] }; }
